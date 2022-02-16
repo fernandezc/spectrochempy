@@ -39,6 +39,7 @@ pytest-mock
 pyfakefs
 scikit-image
 coverage
+isort
 black
 flake8
 pre-commit
@@ -54,5 +55,6 @@ json5
 sphinx-copybutton
 numpydoc
 pandoc
+docrep
 git+https://github.com/jjhelmus/nmrglue.git
 autodoc_traits

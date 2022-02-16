@@ -75,6 +75,7 @@ dependencies:
     - pyfakefs
     - scikit-image
     - coverage
+    - isort
     - black
     - flake8
     - pre-commit
@@ -92,6 +93,7 @@ dependencies:
     - sphinx-copybutton
     - numpydoc
     - pandoc
+    - docrep
 
     # DEV: build
     - conda-build
