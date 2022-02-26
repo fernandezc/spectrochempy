@@ -23,12 +23,13 @@ __all__ = [
 __dataset_methods__ = __all__
 
 import functools
+
 import numpy as np
 from scipy.signal import windows
 
+from spectrochempy.core import error_
 from spectrochempy.core.units import Quantity
 from spectrochempy.utils import EPSILON
-from spectrochempy.core import error_
 
 pi = np.pi
 
@@ -74,7 +75,11 @@ def _apodize_method(**units):
                 x._use_time_axis = True  # we need to have dimentionless or time units
 
             # check if the dimensionality is compatible with this kind of functions
-            if x.unitless or x.dimensionless or x.units.dimensionality == "[time]":
+            if (
+                x.is_unitless
+                or x.is_dimensionless
+                or x.units.dimensionality == "[time]"
+            ):
 
                 # Set correct units for parameters
                 dunits = dataset.coordset[dim].units
@@ -131,7 +136,7 @@ def _apodize_method(**units):
                 if not dryrun:
                     new._data *= apod_arr
 
-            else:  # not (x.unitless or x.dimensionless or x.units.dimensionality != '[time]')
+            else:  # not (x.is_unitless or x.is_dimensionless or x.units.dimensionality != '[time]')
                 error_(
                     "This method apply only to dimensions with [time] or [dimensionless] dimensionality.\n"
                     "Apodization processing was thus cancelled"

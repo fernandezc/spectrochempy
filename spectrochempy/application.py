@@ -275,7 +275,7 @@ def _find_or_create_spectrochempy_dir():
 @magics_class
 class SpectroChemPyMagics(Magics):
     """
-    This class implements the addscript ipython magic function.
+    This class _implements the addscript ipython magic function.
     """
 
     @line_cell_magic

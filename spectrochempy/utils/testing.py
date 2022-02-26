@@ -149,7 +149,7 @@ def compare_ndarrays(this, other, approx=False, decimal=6, data_only=False):
         return _compare(x, y, decimal)
 
     eq = True
-    thistype = this.implements()
+    thistype = this._implements()
 
     if other.data is None and this.data is None and data_only:
         attrs = ["labels"]
@@ -250,7 +250,7 @@ def compare_coords(
         return _compare(x, y, decimal)
 
     eq = True
-    thistype = this.implements()
+    thistype = this._implements()
     if thistype == "CoordSet":  # this may happen for multicoordinates
         for coord0, coord1 in zip(this, other):
             eq &= compare_coords(
@@ -405,7 +405,7 @@ def compare_datasets(this, other, approx=False, decimal=6, data_only=False):
     #         raise AssertionError(f\"units of {this} and {other} objects does not match\")
     #     return eq
 
-    thistype = this.implements()
+    thistype = this._implements()
 
     if other.data is None and this.data is None and data_only:
         attrs = ["labels"]
@@ -1003,7 +1003,7 @@ def assert_produces_warning(
     check_stacklevel : bool, default True
         If True, displays the line that called the function containing
         the warning to show were the function is called. Otherwise, the
-        line that implements the function is displayed.
+        line that _implements the function is displayed.
     raise_on_extra_warnings : bool, default True
         Whether extra warnings not of the type `expected_warning` should
         cause the test to fail.

@@ -19,13 +19,12 @@ from matplotlib.ticker import MaxNLocator, ScalarFormatter
 from scipy import special
 from traitlets import HasTraits, Instance
 
-from spectrochempy.core import info_
 from spectrochempy.analysis.svd import SVD
+from spectrochempy.core import info_
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.dataset.ndmath import dot
-from spectrochempy.utils import NRed, NBlue
-
+from spectrochempy.utils import NBlue, NRed
 
 # ======================================================================================
 # class PCA
@@ -251,7 +250,7 @@ class PCA(HasTraits):
 
         Notes
         -----
-        This implements the method of Thomas P. Minka :
+        This _implements the method of Thomas P. Minka :
         Automatic Choice of Dimensionality for PCA. NIPS 2000 : 598-604.
         Copied and modified from scikit-learn.decomposition.pca (BSD-3 license)
         """

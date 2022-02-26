@@ -3,7 +3,7 @@
 """
 Import / Export to netCDF and xarray
 ====================================
-In this example we show how to import/export netCDF files.
+In this example, we show how to import/export netCDF files.
 
 """
 # %%
@@ -47,9 +47,12 @@ import spectrochempy as scp
 
 datadir = scp.preferences.datadir
 nd = scp.NDDataset.read_omnic(datadir / "irdata" / "nh4y-activation.spg")
+_ = nd.plot_map()
 nd
 
 # %%
+# Write NetCDF file
+# -----------------
 # To export a dataset to the netCDF format, simply use the `write_netcdf` method.
 # Pass a filename where to save (generally with the extension *.nc and with the
 # confirm=False argument in order to avoid opening a dialog if the file already exists.
@@ -57,6 +60,8 @@ nd
 f = nd.write_netcdf("netcdf_example.nc", confirm=False)
 
 # %%
+# Read NetCDF file (created by SpectrochemPy)
+# -------------------------------------------
 # To read the file, and create a new dataset from it:
 othernd = scp.read_netcdf(f)
 othernd
@@ -67,6 +72,8 @@ othernd
 assert othernd == nd
 
 # %%
+# Read NetCDF file (created by SpectroChemPy) in xarray
+# -----------------------------------------------------
 # Now we can test the opening of SpectroChemPy netCDF files by xarray
 import xarray as xr
 
@@ -84,9 +91,50 @@ _ = xrd.plot()
 
 # %%
 xrd["y"] = (xrd.y - xrd.y[0]).astype(float) / 1.0e9  # base unit being in nanosecond
+# xarray use as in spectrochempy the long_name to label the axes automatically.
 xrd.y.attrs["long_name"] = "time / s"
 xrd.x.attrs["long_name"] = "wavenumber / cm^-1"
-xrd.plot()
+_ = xrd.plot()
+
+# %%
+# Read xarray NetCDF file (created by xarray) in SpectroChemPy
+# ------------------------------------------------------------
+# For this, we will use a dataset present in the `xarray tutorial`_.
+# .. _`xarray tutorial`: https://xarray.pydata.org/en/stable/user-guide/plotting.html#imports
+#
+# Open a xarray dataset: here we follow the xarray tutorial and use
+# use the North American air temperature dataset.
+airtemps = xr.tutorial.open_dataset("air_temperature")
+airtemps
+
+# %%
+# Convert to celsius
+air = airtemps.air - 273.15
+
+# %%
+# Copy attributes to get nice figure labels and change Kelvin to Celsius
+air.attrs = airtemps.air.attrs
+air.attrs["units"] = "deg C"
+
+# %%
+# Let extract one xarray.DataArray from this dataset (a section a longitude 10)
+air2d = air.isel(lon=10)
+air2d
 
 # %%
 # scp.show()  # uncomment to show plot if needed (not necessary in jupyter notebook)
+
+# %%
+# The xarray plot is:
+_ = air2d.plot()
+
+# %%
+# Let's save it into a NetCDF format
+air2d.to_netcdf("xarray_example.nc")
+
+# %%
+# and then, try to read it in SpectroChemPy
+nd = scp.read_netcdf("xarray_example.nc")
+nd
+
+# %%

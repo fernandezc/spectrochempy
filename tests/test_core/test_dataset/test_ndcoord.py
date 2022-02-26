@@ -29,14 +29,14 @@ from spectrochempy.core import debug_
 from spectrochempy.core.dataset.coord import trim_ranges
 from spectrochempy.utils import Range
 
-from spectrochempy.utils.testing import (
+from spectrochempy.utils import (
     assert_array_equal,
     assert_units_equal,
     assert_approx_equal,
     assert_produces_warning,
 )
 
-from spectrochempy.utils.exceptions import (
+from spectrochempy.utils import (
     InvalidDimensionNameError,
     InvalidCoordinatesTypeError,
     InvalidCoordinatesSizeError,
@@ -47,7 +47,7 @@ from spectrochempy.utils.exceptions import (
 # ========
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord0():
     c = Coord(
         data=np.linspace(4000.0, 1000.0, 10),
@@ -58,7 +58,7 @@ def coord0():
     return c
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord1():
     c = LinearCoord(
         data=np.linspace(0.0, 60.0, 100), units="s", long_name="time-on-stream (coord1)"
@@ -66,7 +66,7 @@ def coord1():
     return c
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord2():
     c = Coord(
         data=np.linspace(200.0, 300.0, 3),
@@ -93,7 +93,7 @@ def test_coord_init():
     assert_array_equal(a.data, np.array([1, 2, 3]))
     assert not a.is_labeled
     assert a.units is None
-    assert a.unitless
+    assert a.is_unitless
     debug_(a.meta)
     assert not a.meta
     assert a.name == "x"
@@ -166,7 +166,7 @@ def test_coord_init():
         # should raise an error as coords must be 1D
         Coord(data=np.ones((2, 10)))
 
-    # unitless coordinates
+    # is_unitless coordinates
 
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
@@ -193,7 +193,7 @@ def test_coord_init():
     assert coord0.data[0] == 4000.0
     assert repr(coord0) == "Coord: [float64]  (size: 10)"
 
-    # scaled dimensionless coordinates
+    # scaled imensionless coordinates
 
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
@@ -486,7 +486,6 @@ NOTIMPL = [
     "any",
     "argmax",
     "argmin",
-    "asfortranarray",
     "origin",
 ]
 
@@ -600,8 +599,11 @@ def test_coordset_init(coord0, coord1, coord2):
     # First syntax
     # Coordinates are sorted in the coordset
     coordsa = CoordSet(coord0, coord3, coord2)
-    # by convention if the names are not specified, then the coordinantes follows the order of dims, so they are in reverse order with respect of the coorset where the coords are ordered by names alphabetical order.
+    # by convention if the names are not specified, then the coordinantes follows
+    # the order of dims, so they are in reverse order with respect of the coorset
+    # where the coords are ordered by names alphabetical order.
 
+    # name in the default list
     assert coordsa.names == ["x", "y", "z"]
     assert coordsa.long_names == [
         "temperature (coord2)",
@@ -609,6 +611,13 @@ def test_coordset_init(coord0, coord1, coord2):
         "wavenumber (coord0)",
     ]
     assert coordsa.long_names == coordsa.long_names
+
+    # longer name
+    coordln = coord2.copy()
+    assert coordln == coord2
+    coordln.name = "temperature"
+    coords_ln = CoordSet(coord0, coord3, coordln)
+    assert coords_ln.names == ["temperature", "y", "z"]
 
     # Dims specified
     coordsa = CoordSet(coord0, coord3, coord2, dims=["x", "y", "z"])
@@ -725,13 +734,6 @@ def test_coordset_available_names_property(coord0, coord1, coord2):
 def test_coordset_coords_property(coord0, coord1, coord2):
     c = CoordSet(coord0, coord1, coord2)
     assert c.coords == [coord2, coord1, coord0]
-
-
-def test_coordset_has_defined_names_property(coord0, coord1, coord2):
-    c = CoordSet(coord0, coord1, coord2)
-    assert not c.has_defined_name
-    c.name = "Toto"
-    assert c.has_defined_name
 
 
 def test_coordset_is_empty_property():

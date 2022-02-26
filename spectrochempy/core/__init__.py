@@ -16,6 +16,7 @@ import sys
 import warnings
 
 from ..optional import import_optional_dependency
+from .exceptions import SpectroChemPyWarning
 
 warnings.filterwarnings("ignore")
 
@@ -116,9 +117,12 @@ def warning_(*args, **kwargs):
     """
     Formatted warning message.
     """
-    stg = _format_args("", "WARNING: ", args[0], **kwargs)
-    warnings.warn(stg)
+    if len(args) > 1:
+        kwargs["category"] = args[1]  # priority to arg
+    category = kwargs.pop("category", SpectroChemPyWarning)
+    warnings.warn(args[0], category=category, stacklevel=2)
     # also write warning in log
+    stg = _format_args("", f"{category.__name__}: ", args[0], **kwargs)
     app.logs.warning(stg)
 
 
@@ -613,7 +617,7 @@ class _TKFileDialogs:  # pragma: no cover
 
 # noinspection PyRedundantParentheses
 def save_dialog(
-    filename=None, caption="Save as...", filters=("All Files (*)"), **kwargs
+    filename=None, caption="Save as...", filters=("All Files (*)",), **kwargs
 ):  # pragma: no cover
     """
     Return a file where to save.
@@ -642,7 +646,7 @@ def save_dialog(
 
 # noinspection PyRedundantParentheses
 def open_dialog(
-    single=True, directory=None, filters=("All Files (*)"), **kwargs
+    single=True, directory=None, filters=("All Files (*)",), **kwargs
 ):  # pragma: no cover
     """
     Return one or several files to open.

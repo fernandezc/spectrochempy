@@ -10,7 +10,7 @@
 import numpy as np
 
 import spectrochempy as scp
-from spectrochempy.utils import show, MASKED
+from spectrochempy.utils import show
 
 from spectrochempy.analysis.models import asymmetricvoigtmodel
 

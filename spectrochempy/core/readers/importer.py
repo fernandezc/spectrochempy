@@ -19,7 +19,7 @@ from traitlets import HasTraits, List, Dict, Type, Unicode
 
 from spectrochempy.utils import pathclean, check_filename_to_open
 from spectrochempy.utils import get_directory_name, get_filenames
-from spectrochempy.utils.exceptions import DimensionsCompatibilityError, ProtocolError
+from spectrochempy.core.exceptions import DimensionsCompatibilityError, ProtocolError
 from spectrochempy.core import warning_
 
 FILETYPES = [
@@ -171,8 +171,8 @@ class Importer(HasTraits):
         args = list(args)
         if (
             args
-            and hasattr(args[0], "implements")
-            and args[0].implements() in ["NDDataset"]
+            and hasattr(args[0], "_implements")
+            and args[0]._implements() in ["NDDataset"]
         ):
             # the first arg is an instance of NDDataset
             object = args.pop(0)

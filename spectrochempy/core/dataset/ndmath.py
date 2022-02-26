@@ -6,14 +6,12 @@
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
 """
-This module implements the NDMath class.
+This module _implements the NDMath class.
 """
 # TODO: test binary ufunc and put them in docs
 
-__all__ = [
-    "NDMath",
-    "dot",
-]
+__slots__ = ["NDMath", "dot"]
+__all__ = ["dot"]
 __dataset_methods__ = []
 
 import copy as cpy
@@ -32,7 +30,6 @@ from quaternion import as_float_array
 from spectrochempy.core.units.units import (
     ur,
     Quantity,
-    DimensionalityError,
     # from_dt64_units,
 )
 from spectrochempy.core.dataset.ndarray import NDArray
@@ -45,7 +42,7 @@ from spectrochempy.utils import (
 )
 from spectrochempy.core import warning_, debug_, error_, exception_
 from spectrochempy.utils.testing import assert_coord_almost_equal
-from spectrochempy.utils.exceptions import (
+from spectrochempy.core.exceptions import (
     CoordinateMismatchError,
     IncompatibleShapeError,
 )
@@ -163,7 +160,7 @@ class _from_numpy_method:
                 kwargs["kw"] = kw
                 # now call the np function and make the object
                 new = self.method(klass, *argpos, **kwargs)
-                if new.implements("NDDataset"):
+                if new._implements("NDDataset"):
                     new.history = f"Created using method : {method}"  # (args:{argpos}, kwargs:{kwargs})'
                 return new
 
@@ -191,7 +188,7 @@ class _from_numpy_method:
             if not self.reduce:  # _like' in method:
 
                 new = self.method(new, *argpos)
-                if new.implements("NDDataset"):
+                if new._implements("NDDataset"):
                     new.history = f"Created using method : {method}"  # (args:{argpos}, kwargs:{kw})'
                 return new
 
@@ -406,7 +403,7 @@ class NDMath(object):
     NDDataset: [float64] unitless (size: 3)
 
     In this particular case (*i.e.*, `np.sin` ufuncs) , the `ds` units must be
-    `unitless` , `dimensionless` or angle-units : `radians` or `degrees` ,
+    unitless , dimensionless or angle-units : `radians` or `degrees` ,
     or an exception will be raised.
 
     Examples
@@ -553,7 +550,7 @@ class NDMath(object):
         fname = ufunc.__name__
 
         #        # case of complex or hypercomplex data
-        #        if self.implements(NDComplexArray) and self.has_complex_dims:
+        #        if self._implements(NDComplexArray) and self.has_complex_dims:
         #
         #            if fname in self._complex_funcs:
         #                return getattr(inputs[0], fname)()
@@ -618,7 +615,7 @@ class NDMath(object):
                 dataset, dtype=dtype
             )  # not a complex, return fabs should be faster
 
-        elif not cls.is_quaternion:
+        elif not cls.is_hypercomplex:
             data = np.ma.sqrt(dataset.real ** 2 + dataset.imag ** 2)
 
         else:
@@ -629,7 +626,7 @@ class NDMath(object):
                 + dataset.part("II") ** 2,
                 dtype=dtype,
             )
-            cls._is_quaternion = False
+            cls._is_hypercomplex = False
 
         cls._data = data.data
         cls._mask = data.mask
@@ -666,7 +663,7 @@ class NDMath(object):
 
         axis, dim = cls.get_axis(dim, allows_none=True)
 
-        if cls.is_quaternion:
+        if cls.is_hypercomplex:
             # TODO:
             dataset = dataset.swapdims(axis, -1)
             dataset[..., 1::2] = -dataset[..., 1::2]
@@ -2820,7 +2817,7 @@ class NDMath(object):
                 obj._coordset
                 if (
                     hasattr(obj, "coordset")
-                    and obj.implements() in ["NDDataset"]
+                    and obj._implements() in ["NDDataset"]
                     and obj.size > 1
                 )
                 else None
@@ -2878,10 +2875,10 @@ class NDMath(object):
         )
 
     @staticmethod
-    def _is_quaternion_operands(*objs):
+    def _is_hypercomplex_operands(*objs):
 
         for obj in objs:
-            if hasattr(obj, "is_quaternion") and obj.is_quaternion:
+            if hasattr(obj, "is_hypercomplex") and obj.is_hypercomplex:
                 return True
         return False
 
@@ -2974,7 +2971,7 @@ class NDMath(object):
         fname = f.__name__
 
         # If one of the input is hypercomplex, this will demand a special treatment
-        is_quaternion = self._is_quaternion_operands(this, other)
+        is_hypercomplex = self._is_hypercomplex_operands(this, other)
         quaternion_aware = fname in self._quaternion_aware
 
         if isufunc:
@@ -3019,7 +3016,7 @@ class NDMath(object):
         else:
             # make a simple operation
             try:
-                if not is_quaternion:
+                if not is_hypercomplex:
                     data = f(this, other) if other is not None else f(this)
                 elif quaternion_aware and all(
                     (m.dtype not in TYPE_COMPLEX for m in [this, other])
@@ -3299,7 +3296,7 @@ class NDMath(object):
 
         new = self.copy() if not inplace else self
 
-        if returntype == "NDDataset":  # and not new.implements("NDDataset"):
+        if returntype == "NDDataset":  # and not new._implements("NDDataset"):
             from spectrochempy.core.dataset.nddataset import NDDataset
 
             new = NDDataset(new)
@@ -3519,13 +3516,13 @@ def dot(a, b, strict=True, out=None):
     numpy.dot : Equivalent function for ndarrays.
     numpy.ma.dot : Equivalent function for masked ndarrays.
     """
-    # if not a.implements('NDDataset'):
+    # if not a._implements('NDDataset'):
     #     raise TypeError('A dataset of type NDDataset is  '
     #                     'expected as a source of data, but an object'
     #                     ' of type {} has been provided'.format(
     #         type(a).__name__))
     #
-    # if not b.implements('NDDataset'):
+    # if not b._implements('NDDataset'):
     #     raise TypeError('A dataset of type NDDataset is  '
     #                     'expected as a source of data, but an object'
     #                     ' of type {} has been provided'.format(
@@ -3572,9 +3569,9 @@ def dot(a, b, strict=True, out=None):
     new._mask = mask
     new.set_coordset(y=coordy, x=coordx)
     new.history = history
-    if a.unitless:
+    if a.is_unitless:
         new.units = b.units
-    elif b.unitless:
+    elif b.is_unitless:
         new.units = a.units
     else:
         new.units = a.units * b.units

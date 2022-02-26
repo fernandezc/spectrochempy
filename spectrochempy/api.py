@@ -5,6 +5,7 @@
 #  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
+#
 """
 Application Programming Interface.
 """
@@ -51,7 +52,6 @@ if "--nodisplay" in sys.argv:  # pragma: no cover
     NO_DIALOG = True
 
 # Are we running pytest?
-
 if "pytest" in sys.argv[0] or "py.test" in sys.argv[0]:
     # if we are testing we also like a silent work with no figure popup!
     NO_DISPLAY = True
@@ -73,7 +73,6 @@ if "pytest" in sys.argv[0] or "py.test" in sys.argv[0]:
 
 # Are we running in PyCharm scientific mode?
 IN_PYCHARM_SCIMODE = mpl.get_backend() == "module://backend_interagg"
-
 if (
     not (IN_IPYTHON and KERNEL) and not IN_PYCHARM_SCIMODE and not NO_DISPLAY
 ):  # pragma: no cover

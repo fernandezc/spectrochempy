@@ -6,7 +6,7 @@
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
 """
-This module implements the MCRALS class.
+This module _implements the MCRALS class.
 """
 
 __all__ = ["MCRALS"]
@@ -14,12 +14,12 @@ __all__ = ["MCRALS"]
 __dataset_methods__ = []
 
 import numpy as np
-from traitlets import HasTraits, Instance, Dict, Unicode
+from traitlets import Dict, HasTraits, Instance, Unicode
 
-from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.analysis.pca import PCA
+from spectrochempy.core import INFO, info_, set_loglevel
+from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.dataset.ndmath import dot
-from spectrochempy.core import info_, set_loglevel, INFO
 
 
 class MCRALS(HasTraits):

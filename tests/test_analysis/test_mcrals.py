@@ -17,12 +17,6 @@ from spectrochempy import dot
 from spectrochempy.analysis.efa import EFA
 from spectrochempy.analysis.mcrals import MCRALS
 
-
-from spectrochempy.analysis.models import (
-    lorentzianmodel,
-    gaussianmodel,
-    asymmetricvoigtmodel,
-)
 from spectrochempy.utils import show
 
 

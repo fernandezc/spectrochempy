@@ -15,8 +15,8 @@ __all__ = ["find_peaks"]
 
 __dataset_methods__ = ["find_peaks"]
 
-from scipy import signal
 import numpy as np
+from scipy import signal
 
 from spectrochempy.core.dataset.coord import Coord
 

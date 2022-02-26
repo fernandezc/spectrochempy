@@ -11,12 +11,12 @@ __all__ = ["zf_auto", "zf_double", "zf_size", "zf"]
 __dataset_methods__ = __all__
 
 import functools
+
 import numpy as np
 
-from spectrochempy.utils import largest_power_of_2
 from spectrochempy.core import error_
 from spectrochempy.core.dataset.coord import LinearCoord
-
+from spectrochempy.utils import largest_power_of_2
 
 # ======================================================================================
 # Decorators
@@ -46,7 +46,7 @@ def _zf_method(method):
             x._use_time_axis = True  # we need to havze dimentionless or time units
 
         # get the lastcoord
-        if x.unitless or x.dimensionless or x.units.dimensionality == "[time]":
+        if x.is_unitless or x.is_dimensionless or x.units.dimensionality == "[time]":
 
             if not x.linear:
                 # This method apply only to linear coordinates.

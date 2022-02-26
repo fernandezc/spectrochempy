@@ -256,7 +256,7 @@ Changing type
 
     set_complex
     set_hypercomplex
-    set_quaternion
+    set_hypercomplex
 
 
 Joining or splitting datasets

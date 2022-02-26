@@ -15,10 +15,11 @@ __all__ = ["pk", "pk_exp"]
 __dataset_methods__ = __all__
 
 import functools
+
 import numpy as np
 
-from spectrochempy.core.units import ur, Quantity
 from spectrochempy.core import error_
+from spectrochempy.core.units import Quantity, ur
 
 pi = np.pi
 
@@ -50,7 +51,7 @@ def _phase_method(method):
         x = new.coordset[dim]
 
         # check if the dimensionality is compatible with this kind of functions
-        if x.unitless or x.dimensionless or x.units.dimensionality != "[time]":
+        if x.is_unitless or x.is_dimensionless or x.units.dimensionality != "[time]":
 
             # extract initial phase from metadata
             def _check_units(par, default_units, inv=False):
@@ -114,7 +115,7 @@ def _phase_method(method):
 
             new.meta.pivot[-1] = kwargs["pivot"] * dunits
 
-        else:  # not (x.unitless or x.dimensionless or x.units.dimensionality != '[time]')
+        else:  # not (x.is_unitless or x.is_dimensionless or x.units.dimensionality != '[time]')
             error_(
                 "This method apply only to dimensions with [frequency] or [dimensionless] dimensionality.\n"
                 "Phase processing was thus cancelled"

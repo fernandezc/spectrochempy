@@ -8,7 +8,7 @@ import numpy as np
 
 import spectrochempy as scp
 from spectrochempy.core.units import ur
-from spectrochempy.utils.testing import (
+from spectrochempy.utils import (
     # assert_array_equal,
     # assert_array_almost_equal,
     assert_approx_equal,

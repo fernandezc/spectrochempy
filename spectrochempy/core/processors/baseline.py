@@ -6,24 +6,25 @@
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
 """
-This module implements the `BaselineCorrection` class for baseline corrections.
+This module _implements the `BaselineCorrection` class for baseline corrections.
 """
 __all__ = ["BaselineCorrection", "ab", "abc", "dc", "basc"]
 
 __dataset_methods__ = ["ab", "abc", "dc", "basc"]
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
-from traitlets import Int, Instance, HasTraits, Float, Unicode, Tuple, List
 from matplotlib.widgets import SpanSelector
-import matplotlib.pyplot as plt
+from traitlets import Float, HasTraits, Instance, Int, List, Tuple, Unicode
 
-from spectrochempy.core.dataset.coord import trim_ranges
-from spectrochempy.core.plotters.multiplot import multiplot
-from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.utils import TYPE_INTEGER, TYPE_FLOAT
 from spectrochempy.core import debug_, warning_
+from spectrochempy.core.dataset.coord import trim_ranges
+from spectrochempy.core.dataset.nddataset import NDDataset
+from spectrochempy.core.plotters.multiplot import multiplot
 from spectrochempy.core.processors.utils import _units_agnostic_method
+from spectrochempy.utils import TYPE_FLOAT, TYPE_INTEGER
+
 from .smooth import smooth
 
 

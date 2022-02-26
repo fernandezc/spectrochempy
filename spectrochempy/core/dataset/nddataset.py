@@ -6,34 +6,36 @@
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
 """
-This module implements the |NDDataset| class.
+This module _implements the |NDDataset| class.
 """
 
 __all__ = ["NDDataset"]
 
+from datetime import datetime
 import textwrap
 import sys
 
+import pytz
 import numpy as np
 import traitlets as tr
 from traittypes import Array
 
 from spectrochempy.core.project.baseproject import AbstractProject
-from spectrochempy.core.dataset.ndarray import NDArray, NDComplexArray
+from spectrochempy.core.dataset.ndarray import NDArray, NDMaskedComplexArray
 from spectrochempy.core.dataset.coord import Coord, LinearCoord, CoordSet
 from spectrochempy.core.dataset.ndmath import NDMath, _set_ufuncs, _set_operators
 from spectrochempy.core.dataset.ndio import NDIO
 from spectrochempy.core.dataset.ndplot import NDPlot
 from spectrochempy.core.dataset.meta import Meta
 from spectrochempy.core.units import Unit, encode_quantity
+from spectrochempy.core.exceptions import SpectroChemPyException, deprecated
 from spectrochempy.core import error_, warning_
 from spectrochempy.utils import (
     colored_output,
-    SpectroChemPyException,
     MaskedConstant,
     DEFAULT_DIM_NAME,
-    deprecated,
     is_datetime64,
+    get_user_and_node
 )
 from spectrochempy.optional import import_optional_dependency
 
@@ -43,7 +45,7 @@ from spectrochempy.optional import import_optional_dependency
 # ======================================================================================
 
 
-class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
+class NDDataset(NDIO, NDPlot, NDMath, NDMaskedComplexArray):
     """
     The main N-dimensional dataset class used by |scpy|.
 
@@ -138,11 +140,6 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         The long_name of the data dimension. The `long_name` attribute should not be confused with the `name`.
         The `long_name` attribute is used for instance for labelling plots of the data.
         It is optional but recommended to give a long_name to each ndarray data.
-    dlabel :  str, optional
-        Alias of `long_name`.
-    meta : dict-like object, optional
-        Additional metadata for this object. Must be dict-like but no
-        further restriction is placed on meta.
     author : str, optional
         Name(s) of the author(s) of this dataset. BNy default, name of the
         computer note where this dataset is
@@ -182,6 +179,15 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
     >>> print(x.data)  # doctest: +NORMALIZE_WHITESPACE
     [       1        2        3]
     """
+
+    # dataset specific attributes
+    _created = tr.Instance(datetime)
+    _modified = tr.Instance(datetime)
+    _author = tr.Unicode()
+    _comment = tr.Unicode()
+    _source = tr.Unicode()
+    _history = tr.List(tr.Tuple(), allow_none=True)
+    _title = tr.Unicode(allow_none=True)
 
     # coordinates
     _coordset = tr.Instance(CoordSet, allow_none=True)
@@ -227,7 +233,26 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
 
         super().__init__(data, **kwargs)
 
+        self._created = datetime.utcnow()
         self._parent = None
+
+        self.comment = kwargs.pop(
+            "comment", kwargs.pop("desc", kwargs.pop("description", ""))
+        )
+
+        author = kwargs.pop("author", get_user_and_node())
+        if author:
+            try:
+                self.author = author
+            except AttributeError:
+                # This happens for coord for which we cannot set the author (no need)
+                pass
+
+        history = kwargs.pop("history", None)
+        if history is not None:
+            self.history = history
+
+        self._modified = self._created
 
         # eventually set the coordinates with optional units and long_name
 
@@ -296,7 +321,6 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
             # From here it is free
             "name",
             "long_name",
-            "mask",
             "units",
             "meta",
             "preferences",
@@ -366,6 +390,25 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
 
         new.history = f"Slice extracted: ({saveditems})"
         return new
+        # # allow passing a quantity as indices or in slices
+        # def remove_units(items):
+        #     # recursive function
+        #     if isinstance(items, (tuple,)):
+        #         items = tuple(remove_units(item) for item in items)
+        #
+        #     elif isinstance(items, slice):
+        #         items = slice(
+        #             remove_units(items.start),
+        #             remove_units(items.stop),
+        #             remove_units(items.step),
+        #         )
+        #
+        #     else:
+        #         items = float(items.m) if isinstance(items, Quantity) else items
+        #
+        #     return items
+        #
+        # items = remove_units(items)
 
     # ..........................................................................
     def __getattr__(self, item):
@@ -516,6 +559,25 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         # all instance of this class has same hash, so they can be compared
         return super().__hash__ + hash(self._coordset)
 
+    # ..........................................................................
+    @tr.observe(tr.All)
+    def _anytrait_changed(self, change):
+
+        # ex: change {
+        #   'owner': object, # The HasTraits instance
+        #   'new': 6, # The new value
+        #   'old': 5, # The old value
+        #   'name': "foo", # The name of the changed trait
+        #   'type': 'change', # The event type of the notification, usually 'change'
+        # }
+
+        if change["name"] in ["_created", "_modified", "trait_added"]:
+            return
+
+        # all the time -> update modified date
+        self._modified = datetime.utcnow()
+        return
+
     # ------------------------------------------------------------------------
     # Default values
     # ------------------------------------------------------------------------
@@ -529,6 +591,14 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
     @tr.default("_modeldata")
     def _modeldata_default(self):
         return None
+
+    @tr.validate("_modified")
+    def _modified_validate(self, proposal):
+        date = proposal["value"]
+        if date.tzinfo is not None:
+            # make the date utc naive
+            date = date.replace(tzinfo=None)
+        return date
 
     # ..........................................................................
     @tr.default("_processeddata")
@@ -602,6 +672,15 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         self._baselinedata = val
 
     @property
+    def comment(self):
+        """Comment or description of the current object"""
+        return self._comment
+
+    @comment.setter
+    def comment(self, value):
+        self._comment = value
+
+    @property
     def referencedata(self):
         return self._referencedata
 
@@ -618,6 +697,14 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
     def _coordset_validate(self, proposal):
         coords = proposal["value"]
         return self._valid_coordset(coords)
+
+    @tr.validate("_created")
+    def _created_validate(self, proposal):
+        date = proposal["value"]
+        if date.tzinfo is not None:
+            # make the date utc naive
+            date = date.replace(tzinfo=None)
+        return date
 
     def _valid_coordset(self, coords):
         # uses in coords_validate and setattr
@@ -647,7 +734,7 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
                 # check the validity of the given coordinates in terms of size (if it correspond to one of the dims)
                 size = coord.size
 
-                if self.implements("NDDataset"):
+                if self._implements("NDDataset"):
                     idx = self._get_dims_index(coord.name)[0]  # idx in self.dims
                     if size != self._data.shape[idx]:
                         raise ValueError(
@@ -680,19 +767,33 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         """
         Acquisition date (Datetime).
 
-        If there is one datetime axis in the dataset coordinate, this method return
-        the fisrt datetimme, which is then considered as the acquisition date. Tjhis
-        assume that there is only one datetime axis in the dataset coordinates.
+        The acquisition date can be assigned by the user. In this case this date
+        is returned.
+        But if it is not the case, and if there is one datetime axis in the dataset
+        coordinate, this method return the first datetime, which is then considered
+        as the acquisition date. This assume that there is only one datetime axis in
+        the dataset coordinates. If there is more than one, the first found in the
+        coordset is used.
         """
 
         def get_acq(cs):
             for c in cs:
                 if isinstance(c, Coord) and is_datetime64(c):
-                    return c.acquisition_date
+                    return c._acquisition_date
                 if isinstance(c, CoordSet):
                     return get_acq(c)
 
-        return get_acq(self.coordset)
+        if self._acquisition_date is not None:
+            # take the one which has been previously set fotr this dataset
+            acq = self._acquisition_date
+        else:
+            # try to get one datetpme axis to determine it
+            acq = get_acq(self.coordset)
+        if acq is not None:
+            if is_datetime64(acq):
+                acq = datetime.fromisoformat(str(acq).split(".")[0])
+            acq = pytz.utc.localize(acq)
+            return acq.astimezone(self.timezone).isoformat(sep=" ", timespec="seconds")
 
     # ..........................................................................
     def add_coordset(self, *coords, dims=None, **kwargs):
@@ -725,6 +826,19 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
             tr.HasTraits.observe(self._coordset, self._dims_update, "_updated")
             # force it one time after this initialization
             self._coordset._updated = True
+
+    # ..................................................................................
+    @property
+    def author(self):
+        """
+        Creator of the dataset (str).
+        """
+        return self._author
+
+    # ..........................................................................
+    @author.setter
+    def author(self, value):
+        self._author = value
 
     # ..........................................................................
     def coord(self, dim="x"):
@@ -824,6 +938,15 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
 
     # ..........................................................................
     @property
+    def created(self):
+        """
+        Creation date object (Datetime).
+        """
+        created = pytz.utc.localize(self._created)
+        return created.astimezone(self.timezone).isoformat(sep=" ", timespec="seconds")
+
+    # ..........................................................................
+    @property
     def data(self):
         """
         The ``data`` array.
@@ -846,6 +969,151 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         """
         self._coordset = None
 
+    # ..................................................................................
+    @property
+    def description(self):
+        """
+        Provides a description of the underlying data (str).
+        """
+        return self._comment
+
+    # ..........................................................................
+    @description.setter
+    def description(self, value):
+        warning_(
+            "Using the `description` attribute is now deprecated "
+            "and could be completely "
+            "removed in version 0.5. Use `comment` instead.",
+            DeprecationWarning,
+        )
+        self._comment = value
+
+    @property
+    def desc(self):
+        """Alias to the `comment` attribute."""
+        return self._comment
+
+    @desc.setter
+    def desc(self, value):
+        warning_(
+            "Using the `description` attribute is now deprecated "
+            "and could be completely "
+            "removed in version 0.5. Use `comment` instead.",
+            DeprecationWarning,
+        )
+        self._comment = value
+
+    # ..........................................................................
+    @property
+    def filename(self):
+        """
+        Current filename for this dataset (`Pathlib` object).
+        """
+        if self._filename:
+            return self._filename.stem + self.suffix
+        else:
+            return None
+
+    @filename.setter
+    def filename(self, val):
+        self._filename = pathclean(val)
+
+    # ..........................................................................
+    @classmethod
+    def from_xarray(cls, xarr):
+
+        exclude = [
+            "data",
+            "coordset",
+            "mask",
+            "labels",
+            "meta",
+            "preferences",
+            "transposed",
+            "referencedata",
+            "state",
+            "ranges",
+            "modeldata",
+            "modified",
+            "linear",
+        ]
+
+        def _from_xarray(klass, obj):
+
+            if not (obj.attrs.get("linear", 0) == 1):  # bool are stored as int.
+                new = klass()
+                new.data = obj.data
+            else:
+                if klass == Coord:
+                    new = LinearCoord()
+                else:
+                    new = klass()
+
+            # set attributes
+            for item in new.__dir__():
+                if item in exclude:
+                    continue
+                try:
+                    if item == "units":
+                        if (
+                            hasattr(obj, "pint_units")
+                            and getattr(obj, "pint_units") != "None"
+                        ):
+                            setattr(new, "_units", Unit(getattr(obj, "pint_units")))
+                    elif hasattr(obj, item):
+                        setattr(new, item, getattr(obj, item))
+                    elif obj.attrs.get(item, None) is not None:
+                        setattr(new, item, obj.attrs.get(item))
+                    else:
+                        pass
+                except Exception as e:
+                    print(item)
+                    error_(e)
+
+            return new
+
+        new = _from_xarray(cls, xarr)
+
+        # dimensions and coord
+        new.dims = xarr.coords.dims
+        coordset = {}
+        for dim in new.dims:
+            coord = xarr.coords[dim]
+            coordset[dim] = _from_xarray(Coord, coord)
+
+        new.set_coordset(coordset)
+
+        return new
+
+    # ..........................................................................
+    @property
+    def history(self):
+        """
+        Describes the history of actions made on this array (List of strings).
+        """
+
+        history = []
+        for date, value in self._history:
+            date = pytz.utc.localize(date)
+            date = date.astimezone(self.timezone).isoformat(sep=" ", timespec="seconds")
+            value = value[0].capitalize() + value[1:]
+            history.append(f"{date}> {value}")
+        return history
+
+    # ..........................................................................
+    @history.setter
+    def history(self, value):
+        if value is None:
+            return
+        if isinstance(value, list):
+            # history will be replaced
+            self._history = []
+            if len(value) == 0:
+                return
+            value = value[0]
+        date = datetime.utcnow()
+        self._history.append((date, value))
+
     # ..........................................................................
     @property
     def labels(self):
@@ -867,6 +1135,38 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
     @modeldata.setter
     def modeldata(self, data):
         self._modeldata = data
+
+    # ..........................................................................
+    @property
+    def modified(self):
+        """
+        Date of modification (readonly property).
+        """
+        modified = pytz.utc.localize(self._modified)
+        return modified.astimezone(self.timezone).isoformat(sep=" ", timespec="seconds")
+
+    # ..........................................................................
+    @property
+    def origin(self):
+        """
+        Origin of the data (str).
+        """
+        warning_(
+            "Using the `origin` attribute is now deprecated and could be completely "
+            "removed in version 0.5. Use `source` instead.",
+            DeprecationWarning,
+        )
+        return self._source
+
+    # ..........................................................................
+    @origin.setter
+    def origin(self, value):
+        warning_(
+            "Setting the `origin` attribute is now deprecated and could be completely "
+            "removed in version 0.5. Use `source` instead.",
+            DeprecationWarning,
+        )
+        self._source = value
 
     # ..........................................................................
     @property
@@ -1014,6 +1314,19 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         return new
 
     # ..........................................................................
+    @property
+    def source(self):
+        """
+        Alias of origin.
+        """
+        return self._source
+
+    # ..........................................................................
+    @source.setter
+    def source(self, value):
+        self._source = value
+
+    # ..........................................................................
     def squeeze(self, dims=None, inplace=False, keepdims=(), **kwargs):
         """
         Remove single-dimensional entries from the shape of a NDDataset.
@@ -1052,6 +1365,9 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
             dims, inplace=inplace, keepdims=keepdims, return_axis=True, **kwargs
         )
 
+        if self.is_masked:
+            new._mask = new._mask.squeeze(axis=axes)
+
         if axes is not None and new._coordset is not None:
             # if there are coordinates they have to be squeezed as well (remove
             # coordinate for the squeezed axis)
@@ -1084,33 +1400,6 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         """
         # TODO : expand dims
         raise NotImplementedError
-
-    def swapdims(self, dim1, dim2, inplace=False):
-        """
-        Interchange two dimensions of a NDDataset.
-
-        Parameters
-        ----------
-        dim1 : int
-            First axis.
-        dim2 : int
-            Second axis.
-        inplace : bool, optional, default=`False`
-            Flag to say that the method return a new object (default)
-            or not (inplace=True).
-
-        Returns
-        -------
-        swaped_dataset
-
-        See Also
-        --------
-        transpose
-        """
-
-        new = super().swapdims(dim1, dim2, inplace=inplace)
-        new.history = f"Data swapped between dims {dim1} and {dim2}"
-        return new
 
     # ..........................................................................
     @property
@@ -1155,25 +1444,20 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         new = self[index]
         return new
 
-    def to_array(self):
+    # ..........................................................................
+    @property
+    def title(self):
         """
-        Return a numpy masked array (i.e., other NDDataset attributes are lost.
+        A user-friendly title for the dataset.
 
-        Examples
-        ========
-
-        >>> dataset = scp.read('wodger.spg')
-        >>> a = scp.to_array(dataset)
-
-        equivalent to:
-
-        >>> a = np.ma.array(dataset)
-
-        or
-
-        >>> a = dataset.masked_data
+        When the title is provided, it can be used for giving a title in a
+        matplotlib plot.
         """
-        return np.ma.array(self)
+        return self._title
+
+    @title.setter
+    def title(self, value):
+        self._title = value
 
     # ..........................................................................
     def to_xarray(self):
@@ -1209,8 +1493,11 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
 
         # 'referencedata', 'state', 'ranges'] # TODO: for GUI
 
+        da.attrs["writer"] = "SpectroChemPy"
         da.attrs["name"] = self.name
         da.attrs["pint_units"] = str(self.units)
+        # we cannot use units as it is
+        # reserved by xarray
         da.attrs["long_name"] = self.long_name
         da.attrs["author"] = self.author
         da.attrs["comment"] = self.comment
@@ -1229,33 +1516,6 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         da.attrs = encode_quantity(da.attrs)
 
         return da
-
-    # ..........................................................................
-    def transpose(self, *dims, inplace=False):
-        """
-        Permute the dimensions of a NDDataset.
-
-        Parameters
-        ----------
-        dims : sequence of dimension indexes or names, optional
-            By default, reverse the dimensions, otherwise permute the dimensions
-            according to the values given.
-        inplace : bool, optional, default=`False`
-            Flag to say that the method return a new object (default)
-            or not (inplace=True).
-
-        Returns
-        -------
-        transposed_array
-
-        See Also
-        --------
-        swapdims : Interchange two dimensions of a NDDataset.
-        """
-        new = super().transpose(*dims, inplace=inplace)
-        new.history = f"Data transposed between dims: {dims}" if dims else ""
-
-        return new
 
     # ------------------------------------------------------------------------
     # private methods
@@ -1361,72 +1621,13 @@ class NDDataset(NDIO, NDPlot, NDMath, NDComplexArray):
         # when notified that a coords names have been updated
         _ = self.dims  # fire an update
 
-    # ..........................................................................
-    @classmethod
-    def from_xarray(cls, xarr):
-
-        exclude = [
-            "data",
-            "coordset",
-            "mask",
-            "labels",
-            "meta",
-            "preferences",
-            "transposed",
-            "referencedata",
-            "state",
-            "ranges",
-            "modeldata",
-            "modified",
-            "linear",
-        ]
-
-        def _from_xarray(klass, obj):
-
-            if not (obj.attrs.get("linear", 0) == 1):  # bool are stored as int.
-                new = klass()
-                new.data = obj.data
-            else:
-                if klass == Coord:
-                    new = LinearCoord()
-                else:
-                    new = klass()
-
-            # set attributes
-            for item in new.__dir__():
-                if item in exclude:
-                    continue
-                try:
-                    if item == "units":
-                        if (
-                            hasattr(obj, "pint_units")
-                            and getattr(obj, "pint_units") != "None"
-                        ):
-                            setattr(new, "_units", Unit(getattr(obj, "pint_units")))
-                    elif hasattr(obj, item):
-                        setattr(new, item, getattr(obj, item))
-                    elif obj.attrs.get(item, None) is not None:
-                        setattr(new, item, obj.attrs.get(item))
-                    else:
-                        pass
-                except Exception as e:
-                    print(item)
-                    error_(e)
-
-            return new
-
-        new = _from_xarray(cls, xarr)
-
-        # dimensions and coord
-        new.dims = xarr.coords.dims
-        coordset = {}
-        for dim in new.dims:
-            coord = xarr.coords[dim]
-            coordset[dim] = _from_xarray(Coord, coord)
-
-        new.set_coordset(coordset)
-
-        return new
+    @tr.validate("_history")
+    def _history_validate(self, proposal):
+        history = proposal["value"]
+        if isinstance(history, list) or history is None:
+            # reset
+            self._history = None
+        return history
 
 
 # ======================================================================================
@@ -1442,11 +1643,10 @@ api_funcs = [
     "squeeze",
     "swapdims",
     "transpose",
-    "to_array",
     "to_xarray",
     "take",
     "set_complex",
-    "set_quaternion",
+    "set_hypercomplex",
     "set_hypercomplex",
     "component",
     "to",
@@ -1456,7 +1656,6 @@ api_funcs = [
     "ito_base_units",
     "ito_reduced_units",
     "is_units_compatible",
-    "remove_masks",
 ]
 
 # todo: check the fact that some function are defined also in ndmath

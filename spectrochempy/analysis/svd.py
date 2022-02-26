@@ -6,19 +6,19 @@
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
 """
-This module implements the Singular Value Decomposition (SVD) class.
+This module _implements the Singular Value Decomposition (SVD) class.
 """
 
 __all__ = ["SVD"]
 
 __dataset_methods__ = []
 
-from traitlets import HasTraits, Instance
 import numpy as np
+from traitlets import HasTraits, Instance
 
 from spectrochempy.core.dataset.coord import Coord
-from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.dataset.ndarray import MASKED
+from spectrochempy.core.dataset.nddataset import NDDataset
 
 
 def _svd_flip(U, VT, u_based_decision=True):

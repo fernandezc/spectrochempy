@@ -10,7 +10,7 @@
 
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.utils import show
-from spectrochempy.utils.testing import assert_array_equal
+from spectrochempy.utils import assert_array_equal
 
 
 # TODO: from spectrochempy.utils.testing import figures_dir, same_images

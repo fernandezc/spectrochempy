@@ -388,7 +388,7 @@ def plot_1D(dataset, method=None, **kwargs):
     # the actual dimension name is the first in the new.dims list
     dimx = new.dims[-1]
     x = getattr(new, dimx)
-    if x is not None and x.implements("CoordSet"):
+    if x is not None and x._implements("CoordSet"):
         # if several coords, take the default ones:
         x = x.default
     xsize = new.size
@@ -488,7 +488,7 @@ def plot_1D(dataset, method=None, **kwargs):
     # show complex if required
     if show_complex and pen:
         # add the imaginary component for pen only plot
-        if new.is_quaternion:
+        if new.is_hypercomplex:
             zimagdata = new.RI.masked_data
         else:
             zimagdata = new.imag.masked_data

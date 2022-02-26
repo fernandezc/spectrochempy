@@ -581,7 +581,7 @@ d3D
 # %%
 try:
     d3D.coordset = [coord0, coord1, coord2]
-except scp.utils.exceptions.InvalidCoordinatesSizeError as e:
+except scp.core.exceptions.InvalidCoordinatesSizeError as e:
     scp.error_(e)
 
 # %% [markdown]

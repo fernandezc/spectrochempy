@@ -15,18 +15,17 @@ __all__ = ["SIMPLISMA"]
 
 __dataset_methods__ = []
 
+import warnings
+
 # ----------------------------------------------------------------------------
 # imports
 # ----------------------------------------------------------------------------
 import numpy as np
-
-import warnings
 from traitlets import HasTraits, Instance, Unicode
 
+from spectrochempy.core import INFO, info_, set_loglevel
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.dataset.ndmath import dot
-from spectrochempy.core import info_, set_loglevel, INFO
-
 
 # ============================================================================
 # class SIMPLISMA

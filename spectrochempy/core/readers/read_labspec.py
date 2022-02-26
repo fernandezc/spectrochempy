@@ -26,8 +26,6 @@ from spectrochempy.core.readers.importer import importermethod, Importer
 from spectrochempy.core.dataset.meta import Meta
 from spectrochempy.utils.datetimeutils import strptime64
 
-# from spectrochempy.utils.exceptions import deprecated
-
 
 # ======================================================================================
 # Public functions
@@ -126,7 +124,7 @@ def _read_txt(*args, **kwargs):
     if content:
         pass
         # fid = io.StringIO(content)
-        # TODO: get the l list of string
+        # TODO: get the list of string
 
     else:
         fid = open(filename, "r", encoding="utf-8")
@@ -169,8 +167,7 @@ def _read_txt(*args, **kwargs):
     rawdata = np.genfromtxt(lines[i:], delimiter="\t")
 
     # get some info for times
-    acquired = strptime64(meta.get("Acquired", meta.Date))
-    # date of acquisition
+    acquired = strptime64(meta.get("Acquired", meta.Date), tz=dataset.local_timezone)
     delay = np.timedelta64(meta.get("Delay time (s)", 0), "s")
     acq = np.timedelta64(meta.get("Acq. time (s)", meta.Exposition), "s")
     accu = int(meta.get("Accumulations", meta.Accumulation))
@@ -207,7 +204,7 @@ def _read_txt(*args, **kwargs):
     # set dataset metadata
     dataset.data = data
     dataset.set_coordset(y=_y, x=_x)
-    dataset.long_name = "Count"
+    dataset.long_name = "Counts"
     dataset.units = None
     dataset.name = filename.stem
     dataset.meta = meta
@@ -218,6 +215,7 @@ def _read_txt(*args, **kwargs):
     # Set the NDDataset date
     dataset._created = datetime.utcnow()
     dataset._modified = dataset._created
+    dataset._acquisition_date = acquired.astype("datetime64[m]")
 
     # Set origin, comment and history
     dataset.history = f"Imported from LabSpec6 text file {filename}"

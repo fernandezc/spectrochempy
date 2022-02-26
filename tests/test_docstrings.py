@@ -24,7 +24,13 @@ import spectrochempy
 matplotlib.use("template")
 
 
-PRIVATE_CLASSES = ["HasTraits", "NDArray"]
+PRIVATE_CLASSES = [
+    "HasTraits",
+    "NDArray",
+    "NDComplexArray",
+    "NDLabelledArray",
+    "NDMaskedComplexArray",
+]
 ERROR_MSGS = {
     "GL04": "Private classes ({mentioned_private_classes}) should not be "
     "mentioned in public docstrings",
@@ -244,6 +250,8 @@ def spectrochempy_validate(func_name, exclude=[]):
 
 def check_docstrings(module, obj, exclude=[]):
     members = [f"{module}.{obj.__name__}"]
+    print(module)
+    print(obj.__name__)
     for m in dir(obj):
         member = getattr(obj, m)
         if not m.startswith("_") and (
@@ -254,6 +262,8 @@ def check_docstrings(module, obj, exclude=[]):
             and m not in ["cross_validation_lock"]
         ):
             members.append(f"{module}.{obj.__name__}.{m}")
+            print(f"{obj.__name__}.{m}")
+
     for member in members:
         result = spectrochempy_validate(member, exclude=exclude)
         if result["errors"]:

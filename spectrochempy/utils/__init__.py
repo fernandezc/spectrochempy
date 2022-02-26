@@ -10,24 +10,13 @@
 
 """
 Package containing various utilities classes and functions.
+
+isort:skip_file
 """
-# some useful constants
-# ------------------------------------------------------------------
-# import numpy as np
+from numpy.ma.core import MaskedArray, MaskedConstant  # noqa: F401
+from numpy.ma.core import masked as MASKED  # noqa: F401
+from numpy.ma.core import nomask as NOMASK  # noqa: F401
 
-# masked arrays
-# ------------------------------------------------------------------
-# noinspection PyUnresolvedReferences
-from numpy.ma.core import (
-    masked as MASKED,
-    nomask as NOMASK,
-    MaskedArray,
-    MaskedConstant,
-)  # noqa: F401
-
-# import util files content
-# ------------------------------------------------------------------
-# noinspection PyUnresolvedReferences
 from .print import *
 from .fake import *
 from .file import *
@@ -38,7 +27,7 @@ from .plots import *
 from .system import *
 from .traits import *
 from .zip import *
-from .exceptions import *
 from .version import *
 from .print_versions import *
 from .datetimeutils import *
+from .testing import *

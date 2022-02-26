@@ -124,15 +124,9 @@ assert nd2.y.pressure == 3  # alternative way to get the meta attribute
 
 #### NEW FEATURES
 
-* add `download_nist_ir()` to download IR spectra from NIST/webbook
-
-* `read_spa()` now allows extracting sample and background interferograms
-
 * Add a log file (rotating)
 
 #### BUGS FIXED
-
-* fix gettingstarted/overview.py after IRIS refactoring
 
 * TQDM progress bar
 

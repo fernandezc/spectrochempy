@@ -44,13 +44,10 @@ class MetaConfigurable(Configurable):
         if not hasattr(self, "cfg"):
             # not yet initialized
             return
-
         if change.name in self.traits(config=True):
-
             value = change.new
             if isinstance(value, (type(cycler), Path)):
                 value = str(value)
-
             self.cfg.update(
                 self.jsonfile,
                 {
@@ -59,7 +56,6 @@ class MetaConfigurable(Configurable):
                     }
                 },
             )
-
             self.updated = True
 
 

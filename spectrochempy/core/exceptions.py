@@ -7,20 +7,28 @@
 #  =====================================================================================
 
 import warnings
+import pytz
+import pint
+
 from contextlib import contextmanager
-from .misc import DEFAULT_DIM_NAME
+
+from spectrochempy.utils.misc import DEFAULT_DIM_NAME
 
 __all__ = [
     "SpectroChemPyWarning",
     "SpectroChemPyException",
+    "CastingError",
+    "NoDataError",
     "UnitsCompatibilityError",
     "IncompatibleShapeError",
     "InvalidDimensionNameError",
     "InvalidCoordinatesTypeError",
     "InvalidCoordinatesSizeError",
     "DimensionsCompatibilityError",
+    "DimensionalityError",
     "CoordinateMismatchError",
     "ProtocolError",
+    "UnknownTimeZoneError",
     "deprecated",
     "ignored",
 ]
@@ -48,6 +56,29 @@ class SpectroChemPyException(Exception):
         self.message = message
 
         super().__init__(message)
+
+
+class CastingError(SpectroChemPyException):
+    """
+    Exception raised when an array cannot be cast to the required data type
+    """
+
+
+class NoDataError(SpectroChemPyException):
+    """
+    Exception raised when no data is present in ah object.
+    """
+
+
+class NotHyperComplexArrayError(SpectroChemPyException):
+    """Returned when a hypercomplex related method is applied to a not hypercomplex
+    array"""
+
+
+class UnknownTimeZoneError(pytz.UnknownTimeZoneError):
+    """
+    Exception raised when Timezone code is not recognized.
+    """
 
 
 # ------------------------------------------------------------------------------
@@ -93,6 +124,12 @@ class InvalidCoordinatesTypeError(SpectroChemPyException):
 class InvalidCoordinatesSizeError(SpectroChemPyException):
     """
     Exception raised when size of coordinates does not match what is expected.
+    """
+
+
+class DimensionalityError(pint.DimensionalityError):
+    """
+    Exception raised when units have a dimensionality problem.
     """
 
 
@@ -146,16 +183,21 @@ def deprecated(type="method", replace="", extra_msg=""):
 
     Parameters
     ----------
-    message : str,
-        The deprecation message.
+    type : str
+        By default, it is method.
+    replace : str
+        Name of the method taht replace the deprecated one.
+    extra_msg : str
+        Additional message.
     """
 
     def deprecation_decorator(func):
         def wrapper(*args, **kwargs):
 
             warnings.warn(
-                f" `{func.__name__}` {type} is now deprecated and could be completely removed in version 0.5.*."
-                + f" Use `{replace}`."
+                f" `{func.__name__}` {type} is now deprecated and could be "
+                f"completely "
+                f"removed in version 0.5.*." + f" Use `{replace}`."
                 if replace
                 else "" + f" {extra_msg}."
                 if extra_msg
@@ -176,7 +218,7 @@ try:
 except ImportError:
 
     @contextmanager
-    def ignored(*exceptions):
+    def ignored(*exc):
         """
         A context manager for ignoring exceptions.
 
@@ -184,12 +226,12 @@ except ImportError:
 
             try :
                 <body>
-            except exceptions :
+            except exc :
                 pass
 
         Parameters
         ----------
-        *exceptions : Exception
+        *exc : Exception
             One or several exceptions to ignore.
 
         Examples
@@ -204,7 +246,7 @@ except ImportError:
 
         try:
             yield
-        except exceptions:
+        except exc:
             pass
 
 

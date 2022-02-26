@@ -5,7 +5,6 @@
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
 
-# import atexit
 import warnings
 import shutil
 from pathlib import Path
@@ -116,11 +115,9 @@ setup_args = dict(
     license="CeCILL-B Free Software",
     author="Arnaud Travert & Christian Fernandez",
     author_email="contact@spectrochempy.fr",
-    maintainer="C. Fernandez",
-    maintainer_email="christian.fernandez@ensicaen.fr",
-    url="https://www.spectrochempy.fr",
+    url="https://github.com/spectrochempy/spectrochempy",
     description="Processing, analysis and modelling Spectroscopic data for "
-    "Chemistry with Python",
+                "Chemistry with Python",
     long_description=Path("README.md").read_text(),
     long_description_content_type="text/markdown",
     classifiers=[
@@ -140,7 +137,7 @@ setup_args = dict(
     zip_safe=False,
     packages=find_packages() + packages,
     include_package_data=True,  # requirements
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=["setuptools_scm>=6.3.2", "matplotlib>=3.5.1"],
     install_requires=[
         "matplotlib>=3.5.1",

@@ -8,11 +8,12 @@
 """
 Various methods and classes used in other part of the program.
 """
+import docrep
 import re
 import functools
 import uuid
 import types
-import warnings
+# import warnings
 import textwrap
 from datetime import datetime
 import numpy as np
@@ -37,13 +38,13 @@ __all__ = [
     "is_number",
     "spacing_",
     "largest_power_of_2",
-    "get_component",
     "interleaved2quaternion",
     "interleaved2complex",
     "as_quaternion",
     "quat_as_complex_array",
     "get_n_decimals",
     "add_docstring",
+    "DocstringProcessor",
 ]
 
 #
@@ -123,6 +124,41 @@ class _DummyFile(object):
 # ======================================================================================
 # Public methods
 # ======================================================================================
+class DocstringProcessor(docrep.DocstringProcessor):
+    def __init__(self, **kwargs):
+        object = kwargs.pop("object", "object")
+        super().__init__(**kwargs)
+        params = {
+            "inplace": "inplace : bool, optional, default: False"
+            f"\n    By default, the method returns a newly allocated {object}."
+            f"\n    If `inplace` is set to True, the input {object} is returned.",
+            "kwargs": "**kwargs"
+            "\n    Optional keyword parameters. See Other Parameters.",
+            "out": f"{object}"
+            f"\n    Input {object} or a newly allocated {object} depending on the `inplace`"
+            "\n    flag.",
+            "new": f"{object}\n    Newly allocated {object}.",
+        }
+        self.params.update(params)
+
+    def dedent(self, s, stacklevel=3):
+        s_ = s
+        start = ""
+        end = ""
+        string = True
+        if not isinstance(s, str) and hasattr(s, "__doc__"):
+            string = False
+            s_ = s.__doc__
+        if s_.startswith("\n"):  # restore the first blank line
+            start = "\n"
+        if s_.strip(" ").endswith("\n"):  # restore the last return before quote
+            end = "\n"
+        s_mod = super().dedent(s, stacklevel=stacklevel)
+        if string:
+            s_mod = f"{start}{s_mod}{end}"
+        else:
+            s_mod.__doc__ = f"{start}{s_mod.__doc__}{end}"
+        return s_mod
 
 
 def add_docstring(*args):
@@ -249,80 +285,6 @@ def dict_compare(d1, d2, check_equal_only=True):
         if modified or removed or added:
             return False
         return True
-
-
-# ..........................................................................
-def get_component(data, select="REAL"):
-    """
-    Take selected components of an hypercomplex array (RRR, RIR, ...).
-
-    Parameters
-    ----------
-    data : ndarray
-    select : str, optional, default='REAL'
-        If 'REAL', only real component in all dimensions will be selected.
-        Else a string must specify which real (R) or imaginary (I) component
-        has to be selected along a specific dimension. For instance,
-        a string such as 'RRI' for a 2D hypercomplex array indicated
-        that we take the real component in each dimension except the last
-        one, for which imaginary component is preferred.
-
-    Returns
-    -------
-    component
-        A component of the complex or hypercomplex array.
-
-    .. warning::
-        The definition is somewhat different from Bruker, as we order the component in the order of the dimensions in
-        dataset:
-        e.g., for dims = ['y','x'], 'IR' means that the `y` component is imaginary while the `x` is real.
-    """
-    if not select:
-        return data
-
-    new = data.copy()
-
-    if select == "REAL":
-        select = "R" * new.ndim
-
-    w = x = y = z = None
-
-    if new.dtype == typequaternion:
-        w, x, y, z = as_float_array(new).T
-        w, x, y, z = w.T, x.T, y.T, z.T
-        if select == "R":
-            new = w + x * 1j
-        elif select == "I":
-            new = y + z * 1j
-        elif select == "RR":
-            new = w
-        elif select == "RI":
-            new = x
-        elif select == "IR":
-            new = y
-        elif select == "II":
-            new = z
-        else:
-            raise ValueError(
-                f"something wrong: cannot interpret `{select}` for hypercomplex (quaternion) data!"
-            )
-
-    elif new.dtype in TYPE_COMPLEX:
-        w, x = new.real, new.imag
-        if (select == "R") or (select == "RR"):
-            new = w
-        elif (select == "I") or (select == "RI"):
-            new = x
-        else:
-            raise ValueError(
-                f"something wrong: cannot interpret `{select}` for complex data!"
-            )
-    else:
-        warnings.warn(
-            f"No selection was performed because datasets with complex data have no `{select}` component. "
-        )
-
-    return new
 
 
 # ..............................................................................

@@ -23,7 +23,7 @@ from spectrochempy.core import debug_
 from spectrochempy.core.dataset.meta import Meta
 from spectrochempy.core.dataset.coord import LinearCoord
 from spectrochempy.core.units import ur
-from spectrochempy.utils.exceptions import deprecated
+from spectrochempy.core.exceptions import deprecated
 from spectrochempy.core.readers.importer import Importer, importermethod
 
 # ======================================================================================
@@ -1080,7 +1080,7 @@ def _read_topspin(*args, **kwargs):
 
     for axis, cplex in enumerate(meta.iscomplex[::-1]):
         if cplex and axis > 0:
-            dataset.set_quaternion(inplace=True)
+            dataset.set_hypercomplex(inplace=True)
 
     dataset.meta.update(meta)
     dataset.meta.readonly = True
@@ -1387,7 +1387,7 @@ def _read_topspin(*args, **kwargs):
 #
 #         for axis, cplex in enumerate(meta.iscomplex[::-1]):
 #             if cplex and axis > 0:
-#                 dataset.set_quaternion(inplace=True)
+#                 dataset.set_hypercomplex(inplace=True)
 #
 #         dataset.meta.update(list_meta[0])
 #         dataset.meta.readonly = True

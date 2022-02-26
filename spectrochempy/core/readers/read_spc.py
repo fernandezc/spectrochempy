@@ -17,12 +17,13 @@ __dataset_methods__ = __all__
 import io
 import struct
 from datetime import datetime
-import numpy as np
 from warnings import warn
+
+import numpy as np
 
 from spectrochempy.core.dataset.coord import Coord, LinearCoord
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.core.readers.importer import importermethod, Importer
+from spectrochempy.core.readers.importer import Importer, importermethod
 from spectrochempy.core.units import Quantity
 
 # ======================================================================================

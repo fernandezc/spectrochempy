@@ -348,8 +348,8 @@ def fft(dataset, size=None, sizeff=None, inv=False, ppm=True, **kwargs):
     error = False
     if (
         not inv
-        and not x.unitless
-        and not x.dimensionless
+        and not x.is_unitless
+        and not x.is_dimensionless
         and x.units.dimensionality != "[time]"
     ):
         error_(
@@ -360,9 +360,9 @@ def fft(dataset, size=None, sizeff=None, inv=False, ppm=True, **kwargs):
 
     elif (
         inv
-        and not x.unitless
+        and not x.is_unitless
         and x.units.dimensionality != "1/[time]"
-        and not x.dimensionless
+        and not x.is_dimensionless
     ):
         error_(
             "ifft apply only to dimensions with [frequency] dimensionality or with ppm units "
@@ -420,7 +420,7 @@ def fft(dataset, size=None, sizeff=None, inv=False, ppm=True, **kwargs):
         iscomplex = False
         if axis == -1:
             iscomplex = new.is_complex
-        if new.is_quaternion or new.is_interleaved:
+        if new.is_hypercomplex or new.is_interleaved:
             iscomplex = True
 
         # If we are in NMR we have an additional complication due to the mode
@@ -554,7 +554,7 @@ def fft(dataset, size=None, sizeff=None, inv=False, ppm=True, **kwargs):
         new.history = f"{s} applied on dimension {dim}"
 
         # PHASE ?
-        iscomplex = new.is_complex or new.is_quaternion
+        iscomplex = new.is_complex or new.is_hypercomplex
         if iscomplex and not inv:
             # phase frequency domain
 

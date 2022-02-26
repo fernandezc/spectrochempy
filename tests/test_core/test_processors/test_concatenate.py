@@ -12,7 +12,7 @@
 from spectrochempy.core.processors.concatenate import concatenate, stack
 from spectrochempy.core.units import ur
 from spectrochempy.core.dataset.coord import Coord
-from spectrochempy.utils.testing import assert_dataset_almost_equal
+from spectrochempy.utils import assert_dataset_almost_equal
 from spectrochempy.utils import show
 
 

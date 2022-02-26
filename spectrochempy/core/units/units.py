@@ -14,7 +14,6 @@ __all__ = [
     "Quantity",
     "ur",
     "set_nmr_context",
-    "DimensionalityError",
     "remove_args_units",
     "get_units",
     "encode_quantity",
@@ -23,20 +22,13 @@ __all__ = [
 from warnings import warn
 from functools import wraps
 
-from pint import (
-    set_application_registry,
-    UnitRegistry,
-    DimensionalityError,
-    formatting,
-    Context,
-)
+from pint import set_application_registry, UnitRegistry, formatting, Context #, errors
 
 # from pint.measurement import _Measurement as Measure
 from pint.unit import UnitsContainer, _Unit as Unit, UnitDefinition
 from pint.quantity import _Quantity as Quantity
 from pint.formatting import siunitx_format_unit
 from pint.converters import ScaleConverter
-
 
 # ======================================================================================
 # Modify the pint behaviour

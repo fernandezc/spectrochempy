@@ -8,15 +8,7 @@
 
 # flake8: noqa
 
-import pytest
-
-from spectrochempy.core import preferences as prefs
 from spectrochempy.core.units import ur
-from spectrochempy.utils.testing import (
-    assert_array_equal,
-    assert_array_almost_equal,
-    assert_raises,
-)
 
 
 def test_nmr_fft_1D(NMR_dataset_1D):

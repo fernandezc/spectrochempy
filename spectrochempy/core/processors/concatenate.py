@@ -11,16 +11,17 @@ __all__ = ["concatenate", "stack"]
 __dataset_methods__ = __all__
 
 from datetime import datetime
-import numpy as np
 from warnings import warn
+
+import numpy as np
 from orderedset import OrderedSet
 
-from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.dataset.coord import Coord
+from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.utils import (
-    SpectroChemPyWarning,
-    DimensionsCompatibilityError,
     DEFAULT_DIM_NAME,
+    DimensionsCompatibilityError,
+    SpectroChemPyWarning,
 )
 
 
@@ -263,13 +264,13 @@ def concatenate(*datasets, **kwargs):
         # concatenation of the labels (first check the presence of at least one labeled coordinates)
         is_labeled = False
         for i, c in enumerate(coordss):
-            if c[dim].implements() in ["Coord", "LinearCoord"]:
+            if c[dim]._implements() in ["Coord", "LinearCoord"]:
                 # this is a coord
                 if c[dim].is_labeled:
                     # at least one of the coord is labeled
                     is_labeled = True
                     break
-            if c[dim].implements("CoordSet"):
+            if c[dim]._implements("CoordSet"):
                 # this is a coordset
                 for coord in c[dim]:
                     if coord.is_labeled:
@@ -281,13 +282,13 @@ def concatenate(*datasets, **kwargs):
             labels = []
             # be sure that now all the coordinates have a label, or create one
             for i, c in enumerate(coordss):
-                if c[dim].implements() in ["Coord", "LinearCoord"]:
+                if c[dim]._implements() in ["Coord", "LinearCoord"]:
                     # this is a coord
                     if c[dim].is_labeled:
                         labels.append(c[dim].labels)
                     else:
                         labels.append(str(i))
-                if c[dim].implements("CoordSet"):
+                if c[dim]._implements("CoordSet"):
                     # this is a coordset
                     for coord in c[dim]:
                         if coord.is_labeled:
@@ -297,7 +298,7 @@ def concatenate(*datasets, **kwargs):
 
             if isinstance(coords[dim], Coord):
                 coords[dim]._labels = np.concatenate(labels)
-            if coords[dim].implements("CoordSet"):
+            if coords[dim]._implements("CoordSet"):
                 for i, coord in enumerate(coords[dim]):
                     coord._labels = np.concatenate(labels[i :: len(coords[dim])])
 

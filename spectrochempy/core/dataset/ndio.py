@@ -10,7 +10,7 @@ This module define the class |NDIO| in which input/output standard
 methods for a |NDDataset| are defined.
 """
 
-__all__ = ["NDIO", "SCPY_SUFFIX"]
+__slots__ = ["NDIO", "SCPY_SUFFIX"]
 
 import io
 import json
@@ -22,7 +22,6 @@ from traitlets import HasTraits, Instance, Union, Unicode
 
 from spectrochempy.core.dataset.coord import Coord, LinearCoord
 from spectrochempy.utils import (
-    SpectroChemPyException,
     pathclean,
     ScpFile,
     check_filename_to_save,

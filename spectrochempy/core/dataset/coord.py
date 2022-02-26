@@ -7,7 +7,7 @@
 #  =====================================================================================
 
 """
-This module implements the class |Coord|.
+This module _implements the class |Coord|.
 """
 
 __all__ = ["Coord", "LinearCoord", "CoordSet", "trim_ranges"]
@@ -19,11 +19,13 @@ import textwrap
 
 import numpy as np
 import traitlets as tr
+from traittypes import Array
 
-from spectrochempy.core.dataset.ndarray import NDArray
+from spectrochempy.core.dataset.ndarray import NDArray, _docstring
 from spectrochempy.core.dataset.ndmath import NDMath, _set_operators
 from spectrochempy.core.units import Quantity, ur, encode_quantity
 from spectrochempy.core import error_, warning_
+from spectrochempy.core import exceptions
 from spectrochempy.optional import import_optional_dependency
 
 from spectrochempy.utils import (
@@ -34,11 +36,6 @@ from spectrochempy.utils import (
     spacing_,
     is_sequence,
     convert_to_html,
-    deprecated,
-    SpectroChemPyWarning,
-    InvalidDimensionNameError,
-    InvalidCoordinatesTypeError,
-    InvalidCoordinatesSizeError,
 )
 from spectrochempy.utils.traits import Range
 
@@ -58,71 +55,6 @@ class Coord(NDMath, NDArray):
     values or labels (str, `Datetime` objects, or any other kind of objects) to
     represent the coordinates. Only a one numerical axis can be defined,
     but labels can be multiple.
-
-    Parameters
-    ----------
-    data : ndarray, tuple or list
-        The actual data array contained in the |Coord| object.
-        The given array (with a single dimension) can be a list,
-        a tuple, a |ndarray|, or a |ndarray|-like object.
-        If an object is passed that contains labels, or units,
-        these elements will be used to accordingly set those of the
-        created object.
-        If possible, the provided data will not be copied for `data` input,
-        but will be passed by reference, so you should make a copy the
-        `data` before passing it in the object constructor if that's the
-        desired behavior or set the `copy` argument to True.
-    **kwargs
-        Optional keywords parameters. See other parameters.
-
-    Other Parameters
-    ----------------
-    dtype : str or dtype, optional, default=np.float64
-        If specified, the data will be cast to this dtype, else the
-        type of the data will be used.
-    dims : list of chars, optional.
-        if specified the list must have a length equal to the number od
-        data dimensions (ndim) and the chars must be
-        taken among x,y,z,u,v,w or t. If not specified,
-        the dimension names are automatically attributed in
-        this order.
-    name : str, optional
-        A user-friendly name for this object. If not given,
-        the automatic `id` given at the object creation will be
-        used as a name.
-    labels : array of objects, optional
-        Labels for the `data`. labels can be used only for 1D-datasets.
-        The labels array may have an additional dimension, meaning
-        several series of labels for the same data.
-        The given array can be a list, a tuple, a |ndarray|,
-        a ndarray-like, a |NDArray| or any subclass of
-        |NDArray|.
-    units : |Unit| instance or str, optional
-        Units of the data. If data is a |Quantity| then `units` is set
-        to the unit of the `data`; if a unit is also
-        explicitly provided an error is raised. Handling of units use
-        the `pint <https://pint.readthedocs.org/>`_
-        package.
-    long_name : str, optional
-        The long_name of the dimension. It will later be used for instance
-        for labelling plots of the data.
-        It is optional but recommended giving a long_name to each ndarray.
-    dlabel :  str, optional
-        Alias of `long_name`.
-    meta : dict-like object, optional
-        Additional metadata for this object. Must be dict-like but no
-        further restriction is placed on meta.
-    copy : bool, optional
-        Perform a copy of the passed object. Default is False.
-    linear : bool, optional
-        If set to True, the coordinate is considered as a
-        ``LinearCoord`` object.
-    offset : float, optional
-        Only used is linear is True.
-        If omitted a value of 0.0 is taken for the coordinate offset.
-    increment : float, optional
-        Only used if linear is true.
-        If omitted a value of 1.0 is taken for the coordinate increment.
 
     See Also
     --------
@@ -157,6 +89,7 @@ class Coord(NDMath, NDArray):
 
     _html_output = False
     _parent_dim = tr.Unicode(allow_none=True)
+    _labels = Array(allow_none=True)
 
     # For linear data generation
     _offset = tr.Union((tr.CFloat(), tr.CInt(), tr.Instance(Quantity)))
@@ -164,12 +97,49 @@ class Coord(NDMath, NDArray):
     _size = tr.Integer(0)
     _linear = tr.Bool(False)
 
-    # ------------------------------------------------------------------------
-    # initialization
-    # ------------------------------------------------------------------------
+    # ................................................................................
+    @_docstring.dedent
     def __init__(self, data=None, **kwargs):
+        """
+        Parameters
+        ----------
+        data : ndarray, tuple or list
+            The actual data array contained in the |Coord| object.
+            The given array (with a single dimension) can be a list,
+            a tuple, a |ndarray|, or a |ndarray|-like object.
+            If an object is passed that contains labels, or units,
+            these elements will be used to accordingly set those of the
+            created object.
+            If possible, the provided data will not be copied for `data` input,
+            but will be passed by reference, so you should make a copy the
+            `data` before passing it in the object constructor if that's the
+            desired behavior or set the `copy` argument to True.
+        **kwargs
+            Optional keywords parameters. See other parameters.
 
+        Other Parameters
+        ----------------
+        %(NDArray.__init__.other_parameters)s
+        labels : array of objects, optional
+            Labels for the `data`.
+            The labels array may have an additional dimension, meaning
+            several series of labels for the same data.
+            The given array can be a list, a tuple, a |ndarray|,
+            a ndarray-like, a |NDArray| or any subclass of
+            |NDArray|.
+        linear : bool, optional
+            If set to True, the coordinate is considered as a
+            ``LinearCoord`` object.
+        offset : float, optional
+            Only used is linear is True.
+            If omitted a value of 0.0 is taken for the coordinate offset.
+        increment : float, optional
+            Only used if linear is true.
+            If omitted a value of 1.0 is taken for the coordinate increment.
+        """
         super().__init__(data=data, **kwargs)
+
+        self.labels = kwargs.pop("labels", None)
 
         if len(self.shape) > 1:
             raise ValueError("Only one 1D arrays can be used to define coordinates")
@@ -245,20 +215,48 @@ class Coord(NDMath, NDArray):
     @property
     def is_empty(self):
         """
-        True if the `data` array is empty or size=0, and if no label are present
-        - Readonly property (bool).
+        True if the `data` array is empty (Readonly property).
+
+        `is_empty`is true if there is no data or the data array has a size=0,
+        and if no label are present.
         """
-        if not self.linear:
-            return super().is_empty
+        if (
+            not self.linear
+            and not self.is_labeled
+            and ((self._data is None) or (self._data.size == 0))
+        ):
+            return True
 
         return False
 
     # ..........................................................................
     @property
+    def is_labeled(self):
+        """
+        True if the `coord` array have labels - Readonly property (bool).
+        """
+        # label cannot exist for now for nD dataset - only 1D dataset, such
+        # as Coord can be labelled.
+        if self._data is not None and self.ndim > 1:
+            return False
+        if self._labels is not None and np.any(self.labels != ""):
+            return True
+        else:
+            return False
+
+    # ..........................................................................
+    @property
     def ndim(self):
-        if self.linear:
+        """
+        Return the number of dimensions of the `data` array (Readonly property).
+        """
+        if self._data is None and self.is_labeled:
             return 1
-        ndim = super().ndim
+
+        if not self.size:
+            return 0
+
+        ndim = self.data.ndim
         if ndim > 1:
             raise ValueError("Coordinate's array should be 1-dimensional!")
         return ndim
@@ -310,15 +308,79 @@ class Coord(NDMath, NDArray):
 
     to.__doc__ = NDArray.to.__doc__
 
-    # ..........................................................................
-    @property
-    def masked_data(self):
-        return super().masked_data
+    # # ..........................................................................
+    # @property
+    # def masked_data(self):
+    #     return super().masked_data
 
     # ..........................................................................
     @property
     def is_masked(self):
         return False
+
+    # ..........................................................................
+    @property
+    def labels(self):
+        """
+        An array of labels for `data` (|ndarray| of str).
+
+        An array of objects of any type (but most generally string), with the last dimension size equal to that of the
+        dimension of data. Note that's labelling is possible only for 1D data. One classical application is
+        the labelling of coordinates to display informative strings instead of numerical values.
+        """
+        return self._labels
+
+    # ..........................................................................
+    @labels.setter
+    def labels(self, labels):
+
+        if labels is None:
+            return
+
+        if self.ndim > 1:
+            warning_(
+                "We cannot set the labels for multidimentional data - Thus, these labels are ignored",
+                SpectroChemPyWarning,
+            )
+        else:
+
+            # make sure labels array is of type np.ndarray or Quantity arrays
+            if not isinstance(labels, np.ndarray):
+                labels = np.array(labels, subok=True, copy=True).astype(
+                    object, copy=False
+                )
+
+            if not np.any(labels):
+                # no labels
+                return
+
+            else:
+                if (self.data is not None) and (labels.shape[0] != self.shape[0]):
+                    # allow the fact that the labels may have been passed in a transposed array
+                    if labels.ndim > 1 and (labels.shape[-1] == self.shape[0]):
+                        labels = labels.T
+                    else:
+                        raise ValueError(
+                            f"labels {labels.shape} and data {self.shape} shape mismatch!"
+                        )
+
+                if np.any(self._labels):
+                    info_(
+                        f"{type(self).__name__} is already a labeled array.\nThe explicitly provided labels will "
+                        f"be appended to the current labels"
+                    )
+
+                    labels = labels.squeeze()
+                    self._labels = self._labels.squeeze()
+                    if self._labels.ndim > 1:
+                        self._labels = self._labels.T
+                    self._labels = np.vstack((self._labels, labels)).T
+
+                else:
+                    if self._copy:
+                        self._labels = labels.copy()
+                    else:
+                        self._labels = labels
 
     # ..........................................................................
     @property
@@ -469,6 +531,17 @@ class Coord(NDMath, NDArray):
         raise NotImplementedError
 
     # ..........................................................................
+    @property
+    def values(self):
+        """
+        Return the actual coordinate values (data, units) (Readonly property).
+        """
+        values = super().values
+        if values is None and self.is_labeled:
+            return self._labels[()]
+        return values
+
+    # ..........................................................................
     def var(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -553,10 +626,6 @@ class Coord(NDMath, NDArray):
         raise NotImplementedError
 
     # ..........................................................................
-    def asfortranarray(self, *args, **kwargs):
-        raise NotImplementedError
-
-    # ..........................................................................
     def astype(self, dtype=None, **kwargs):
         """
         Cast the data to a specified type.
@@ -586,14 +655,35 @@ class Coord(NDMath, NDArray):
         return super().get_axis(*args, **kwargs)
 
     # ..........................................................................
-    @property
-    def origin(self, *args, **kwargs):
-        raise NotImplementedError
+    def get_labels(self, level=0):
+        """
+        Get the labels at a given level.
 
-    # ..........................................................................
-    @property
-    def author(self):
-        return None
+        Used to replace `data` when only labels are provided, and/or for
+        labeling ticks on axis in plots.
+
+        Parameters
+        ----------
+        level : int, optional, default:0
+
+        Returns
+        -------
+        |ndarray|
+            The labels at the desired level or None.
+        """
+        if not self.is_labeled:
+            return None
+
+        if level > self.labels.ndim - 1:
+            warning_(
+                "There is no such level in the existing labels", SpectroChemPyWarning
+            )
+            return None
+
+        if self.labels.ndim > 1:
+            return self.labels[level]
+        else:
+            return self._labels
 
     @property
     def descendant(self):
@@ -666,7 +756,6 @@ class Coord(NDMath, NDArray):
             "data",
             "labels",
             "units",
-            "meta",
             "long_name",
             "name",
             "offset",
@@ -844,6 +933,11 @@ class Coord(NDMath, NDArray):
         return 1.0
 
     # ..........................................................................
+    @tr.default("_labels")
+    def _labels_default(self):
+        return None
+
+    # ..........................................................................
     def _linearize(self):
 
         if not self.linear or self._data is None:
@@ -887,6 +981,7 @@ class Coord(NDMath, NDArray):
         var = xr.Variable(dims=self.name, data=np.array(self.data))
         # dtype=np.float64))
 
+        var.attrs["writer"] = "SpectroChemPy"
         var.attrs["name"] = self.name
         var.attrs["pint_units"] = str(self.units)  # change name of attr
         # To not override a builtin units attribute.
@@ -1029,10 +1124,43 @@ class Coord(NDMath, NDArray):
 
         return new
 
-    # ------------------------------------------------------------------------
-    # Events
-    # ------------------------------------------------------------------------
-    # ..........................................................................
+    def _argsort(self, by=None, pos=None, descend=False):
+        # found the indices sorted by values or labels
+
+        if by is None:
+            warning_(
+                "parameter `by` should be set to `value` or `label`, use `value` "
+                "by default",
+                SpectroChemPyWarning,
+            )
+            by = "value"
+
+        if by == "value":
+            return super()._argsort(descend=descend)
+
+        if "label" in by and not self.is_labeled:
+            # by = 'value'
+            # pos = None
+            warning_("no label to sort, use `value` by default", SpectroChemPyWarning)
+            args = np.argsort(self.data)
+        elif "label" in by and self.is_labeled:
+            labels = self._labels
+            if len(self._labels.shape) > 1:
+                # multidimensional labels
+                if not pos:
+                    pos = 0
+                    # try to find a pos in the by string
+                    pattern = re.compile(r"label\[(\d)]")
+                    p = pattern.search(by)
+                    if p is not None:
+                        pos = int(p[1])
+                labels = self._labels[..., pos]
+            args = np.argsort(labels)
+        if descend:
+            args = args[::-1]
+        return args
+
+    # ...................................................................................
     @tr.observe(tr.All)
     def _anytrait_changed(self, change):
         # ex: change {
@@ -1048,6 +1176,21 @@ class Coord(NDMath, NDArray):
             if self._linear:
                 self._linearize()
             return
+
+    # ..................................................................................
+    @tr.validate("_acquisition_date")
+    def _acquisition_date_validate(self, proposal):
+        date = proposal["value"]
+        if isinstance(date, str) or isinstance(date, datetime):
+            date = np.datetime64(date)
+        if date.dtype.kind != "M":
+            exception_(
+                ValueError(
+                    "The acquisition date should be a str (ISO8601 "
+                    "format), a datetime or a np.datetime64 object"
+                )
+            )
+        return date
 
     # ..........................................................................
     @property
@@ -1076,7 +1219,7 @@ class Coord(NDMath, NDArray):
     def copy(self, deep=True, keepname=False, **kwargs):
 
         new = super().copy(deep=True, keepname=False, **kwargs)
-        if new.linear and new.implements("Coord"):
+        if new.linear and new._implements("Coord"):
             # we also need to set the size
             new._size = self.data.size
         return new
@@ -1408,8 +1551,9 @@ class CoordSet(tr.HasTraits):
         self._copy = kwargs.pop("copy", True)
         self._sorted = kwargs.pop("sorted", True)
 
-        keepnames = kwargs.pop("keepnames", False)
-        # if keepnames is false and the names of the dimensions are not passed in kwargs, then use dims if not none
+        keepnames = kwargs.pop("keepnames", True)
+        # if keepnames is false and the names of the dimensions are not passed
+        # in kwargs, then use dims if not none
         dims = kwargs.pop("dims", None)
 
         self.name = kwargs.pop("name", None)
@@ -1959,12 +2103,7 @@ class CoordSet(tr.HasTraits):
         # last check and sorting
         names = []
         for coord in coords:
-            if coord.has_defined_name:
-                names.append(coord.name)
-            else:
-                raise ValueError(
-                    "At this point all passed coordinates should have a valid name!"
-                )
+            names.append(coord.name)
 
         if coords:
             if self._sorted:
@@ -2081,15 +2220,7 @@ class CoordSet(tr.HasTraits):
         """
         return self._coords
 
-    # ..........................................................................
-    @property
-    def has_defined_name(self):
-        """
-        True if the name has been defined (bool).
-        """
-        return not (self.name == self.id)
-
-    # ..........................................................................
+    # ......................................................................
     @property
     def id(self):
         """
@@ -2166,8 +2297,7 @@ class CoordSet(tr.HasTraits):
         _names = []
         if self._coords:
             for item in self._coords:
-                if item.has_defined_name:
-                    _names.append(item.name)
+                _names.append(item.name)
         return _names
 
     @property
@@ -2208,7 +2338,7 @@ class CoordSet(tr.HasTraits):
 
     # ..........................................................................
     @property
-    @deprecated(type="property", replace="long_names")
+    @exceptions.deprecated(type="property", replace="long_names")
     def titles(self):
         """
         Titles of the coords in the current coords (list).
@@ -2266,7 +2396,7 @@ class CoordSet(tr.HasTraits):
         """
         Utility to check if the current object implement `CoordSet`.
 
-        Rather than isinstance(obj, CoordSet) use object.implements('CoordSet').
+        Rather than isinstance(obj, CoordSet) use object._implements('CoordSet').
 
         This is useful to check type without importing the module.
         """
@@ -2376,7 +2506,7 @@ class CoordSet(tr.HasTraits):
                 item._is_same_dim = True
             self[k] = item
 
-    @deprecated(replace="set_long_names")
+    @exceptions.deprecated(replace="set_long_names")
     def set_titles(self, *args, **kwargs):
         """
         DEPRECATED: use set_long_names instead

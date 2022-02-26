@@ -17,7 +17,7 @@ Tests for the ndplugin module.
 import numpy as np
 
 from spectrochempy.utils import show
-from spectrochempy.core.processors.autosub import autosub
+from spectrochempy.core.processors import autosub
 
 
 # autosub

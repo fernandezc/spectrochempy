@@ -35,7 +35,7 @@ def test_units():
     assert 10 * ur.km == 10000 * ur.m
     assert ur.km / ur.m == 1000.0
     x = ur.km / ur.m
-    assert x.dimensionless
+    assert x.is_dimensionless
 
 
 def test_repr_html():

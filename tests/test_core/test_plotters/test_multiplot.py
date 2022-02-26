@@ -15,7 +15,7 @@ from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core import preferences
 
 from spectrochempy.utils import show
-from spectrochempy.core.plotters.multiplot import (
+from spectrochempy.core.plotters import (
     multiplot,
     multiplot_map,
     multiplot_stack,

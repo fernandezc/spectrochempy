@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 from spectrochempy import align
 import spectrochempy as scp
-from spectrochempy.utils.testing import RandomSeedContext
+from spectrochempy.utils import RandomSeedContext
 
 # ========
 # FIXTURES

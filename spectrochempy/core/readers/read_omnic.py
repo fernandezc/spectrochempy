@@ -17,14 +17,14 @@ __dataset_methods__ = __all__
 
 import io
 import struct
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
 from spectrochempy.core import info_
 from spectrochempy.core.dataset.coord import Coord, LinearCoord
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.core.readers.importer import importermethod, Importer
+from spectrochempy.core.readers.importer import Importer, importermethod
 from spectrochempy.core.units import Quantity
 
 
@@ -680,7 +680,7 @@ def _read_spg(*args, **kwargs):
     dataset.data = data
     dataset.units = units[0]
     dataset.long_name = titles[0]
-    dataset.name = filename.stem
+    dataset.title = filename.stem
     dataset.filename = filename
 
     # now add coordinates

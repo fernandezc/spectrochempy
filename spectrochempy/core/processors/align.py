@@ -15,9 +15,9 @@ __dataset_methods__ = __all__
 # import scipy.interpolate
 import numpy as np
 
-from spectrochempy.utils import MASKED, UnitsCompatibilityError, get_n_decimals
-from spectrochempy.core import warning_, error_
+from spectrochempy.core import error_, warning_
 from spectrochempy.core.dataset.coord import Coord
+from spectrochempy.utils import MASKED, UnitsCompatibilityError, get_n_decimals
 
 
 # ..........................................................................
@@ -144,7 +144,7 @@ def align(dataset, *others, **kwargs):
 
     if (
         len(objects) == 1
-        and objects[0].implements("NDDataset")
+        and objects[0]._implements("NDDataset")
         and extern_coord is None
     ):
         # no necessary alignment
@@ -162,7 +162,7 @@ def align(dataset, *others, **kwargs):
 
         for idx, object in enumerate(objects):
 
-            if not object.implements("NDDataset"):
+            if not object._implements("NDDataset"):
                 error_(
                     f"Bad object(s) found: {object}. Note that only NDDataset "
                     f"objects are accepted "
@@ -209,7 +209,7 @@ def align(dataset, *others, **kwargs):
 
         ndec = get_n_decimals(new_coord.data.max(), 1.0e-5)
 
-        if new_coord.implements("LinearCoord"):
+        if new_coord._implements("LinearCoord"):
             new_coord = Coord(new_coord, linear=False, copy=True)
 
         # loop on all object
@@ -226,7 +226,7 @@ def align(dataset, *others, **kwargs):
 
             # get the current object coordinates and check compatibility
             coord = obj.coordset[dim]
-            if coord.implements("LinearCoord") or coord.linear:
+            if coord._implements("LinearCoord") or coord.linear:
                 coord = Coord(coord, linear=False, copy=True)
 
             if not coord.is_units_compatible(ref_coord):

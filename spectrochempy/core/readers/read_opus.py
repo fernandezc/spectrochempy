@@ -12,13 +12,14 @@ __all__ = ["read_opus"]
 __dataset_methods__ = __all__
 
 import io
-import numpy as np
-
-from brukeropusreader.opus_parser import parse_data, parse_meta
-from spectrochempy.core.dataset.coord import LinearCoord, Coord
-from spectrochempy.core.readers.importer import Importer, importermethod
-from spectrochempy.core import debug_
 from datetime import datetime, timedelta, timezone
+
+import numpy as np
+from brukeropusreader.opus_parser import parse_data, parse_meta
+
+from spectrochempy.core import debug_
+from spectrochempy.core.dataset.coord import Coord, LinearCoord
+from spectrochempy.core.readers.importer import Importer, importermethod
 
 
 # ======================================================================================
@@ -184,14 +185,14 @@ def _read_opus(*args, **kwargs):
         dataset.data = np.array(data[np.newaxis], dtype="float32")
     except KeyError:
         raise IOError(
-            f"{filename} is not an Absorbance spectrum. It cannot be read with the `read_opus` import method"
+            f"{filename} is not an Absorbance spectrum. "
+            f"It cannot be read with the `read_opus` import method"
         )
     # todo: read background
 
     # xaxis
     fxv = opus_data["AB Data Parameter"]["FXV"]
     lxv = opus_data["AB Data Parameter"]["LXV"]
-    # xdata = linspace(fxv, lxv, npt)
     xaxis = LinearCoord.linspace(fxv, lxv, npt, long_name="wavenumbers", units="cm^-1")
 
     # yaxis

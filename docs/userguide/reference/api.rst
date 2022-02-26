@@ -28,7 +28,7 @@
     Coord.data
     Coord.desc
     Coord.description
-    Coord.dimensionless
+    Coord.is_dimensionless
     Coord.dtype
     Coord.filename
     Coord.fromfunction
@@ -40,7 +40,7 @@
     Coord.has_units
     Coord.history
     Coord.id
-    Coord.implements
+    Coord._implements
     Coord.is_empty
     Coord.is_float
     Coord.is_integer
@@ -76,7 +76,7 @@
     Coord.to_base_units
     Coord.to_reduced_units
     Coord.umasked_data
-    Coord.unitless
+    Coord.is_unitless
     Coord.units
     Coord.value
     Coord.values
@@ -86,7 +86,7 @@
     CoordSet.default
     CoordSet.has_defined_name
     CoordSet.id
-    CoordSet.implements
+    CoordSet._implements
     CoordSet.is_empty
     CoordSet.is_same_dim
     CoordSet.keys
@@ -126,7 +126,7 @@
     LinearCoord.data
     LinearCoord.desc
     LinearCoord.description
-    LinearCoord.dimensionless
+    LinearCoord.is_dimensionless
     LinearCoord.dtype
     LinearCoord.filename
     LinearCoord.fromfunction
@@ -138,7 +138,7 @@
     LinearCoord.has_units
     LinearCoord.history
     LinearCoord.id
-    LinearCoord.implements
+    LinearCoord._implements
     LinearCoord.is_empty
     LinearCoord.is_float
     LinearCoord.is_integer
@@ -175,7 +175,7 @@
     LinearCoord.to_base_units
     LinearCoord.to_reduced_units
     LinearCoord.umasked_data
-    LinearCoord.unitless
+    LinearCoord.is_unitless
     LinearCoord.units
     LinearCoord.value
     LinearCoord.values
@@ -248,7 +248,7 @@
     NDDataset.detrend
     NDDataset.diag
     NDDataset.diagonal
-    NDDataset.dimensionless
+    NDDataset.is_dimensionless
     NDDataset.dims
     NDDataset.directory
     NDDataset.divider
@@ -289,7 +289,7 @@
     NDDataset.ifft
     NDDataset.II
     NDDataset.imag
-    NDDataset.implements
+    NDDataset._implements
     NDDataset.IR
     NDDataset.is_1d
     NDDataset.is_complex
@@ -382,7 +382,7 @@
     NDDataset.set_coordlong_names
     NDDataset.set_coordunits
     NDDataset.set_hypercomplex
-    NDDataset.set_quaternion
+    NDDataset.set_hypercomplex
     NDDataset.shape
     NDDataset.simpson
     NDDataset.sine
@@ -411,7 +411,7 @@
     NDDataset.trapz
     NDDataset.triang
     NDDataset.umasked_data
-    NDDataset.unitless
+    NDDataset.is_unitless
     NDDataset.units
     NDDataset.value
     NDDataset.values
@@ -460,7 +460,7 @@
     Project.dump
     Project.filename
     Project.id
-    Project.implements
+    Project._implements
     Project.load
     Project.meta
     Project.name
@@ -476,7 +476,7 @@
     Project.scripts
     Project.scripts_names
     Project.suffix
-    Script.implements
+    Script._implements
     SIMPLISMA.C
     SIMPLISMA.logs
     SIMPLISMA.plotmerit

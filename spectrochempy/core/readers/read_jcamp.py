@@ -20,7 +20,7 @@ import numpy as np
 
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.readers.importer import Importer, importermethod
-from spectrochempy.utils.exceptions import deprecated
+from spectrochempy.core.exceptions import deprecated
 
 
 # ======================================================================================

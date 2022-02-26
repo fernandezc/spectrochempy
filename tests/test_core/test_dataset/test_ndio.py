@@ -16,10 +16,10 @@
 import pathlib
 import pytest
 
-from spectrochempy.utils.testing import assert_dataset_equal
+from spectrochempy.utils import assert_dataset_equal
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core import preferences as prefs
-from spectrochempy.utils.testing import assert_array_equal
+from spectrochempy.utils import assert_array_equal
 from spectrochempy.utils import pathclean
 
 irdatadir = pathclean(prefs.datadir) / "irdata"

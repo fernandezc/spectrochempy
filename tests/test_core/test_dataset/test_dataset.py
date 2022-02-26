@@ -4,6 +4,8 @@
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
 
+from datetime import datetime
+
 import numpy as np
 import pytest
 from pint.errors import UndefinedUnitError
@@ -12,7 +14,7 @@ from quaternion import quaternion
 import spectrochempy as scp
 from spectrochempy.core.units import ur
 from spectrochempy.utils import get_user_and_node, SpectroChemPyException
-from spectrochempy.utils.testing import (
+from spectrochempy.utils import (
     assert_dataset_equal,
     assert_dataset_almost_equal,
     assert_equal,
@@ -220,6 +222,8 @@ def test_1D_NDDataset(a):
         assert ds.author == get_user_and_node()
         assert ds.comment == ""
         assert ds.history == []
+        assert isinstance(ds._created, datetime)
+        assert isinstance(ds.created, str)
 
 
 arrdata = (
@@ -294,6 +298,22 @@ def test_2D_NDDataset(arr):
     ds2 = scp.NDDataset(arr, dims=["u", "w"])
     assert ds2.ndim == 2
     assert ds2.dims == ["u", "w"]
+
+
+def test_nddataset_acquisition_date(ndarray):
+    nd = ndarray.copy()
+    nd.timezone = "UTC"
+    nd.acquisition_date = np.datetime64("2022-01-30T18:00:00")
+    assert nd.acquisition_date == "2022-01-30 18:00:00+00:00"
+
+    nd.acquisition_date = datetime.fromisoformat("2022-01-30T18:00:00+01:00")
+    assert nd.acquisition_date == "2022-01-30 17:00:00+00:00"
+
+    nd.acquisition_date = "2022-01-30T18:00:00+01:00"
+    assert nd.acquisition_date == "2022-01-30 17:00:00+00:00"
+
+    with pytest.raises(ValueError):
+        nd.acquisition_date = "01-30-22 18:00:00+01:00"
 
 
 def test_nddataset_coordset():
@@ -1019,7 +1039,7 @@ def test_nddataset_create_from_complex_data():
     # take real part
     ndr = nd.real
     assert ndr.shape == (2, 1)
-    assert not ndr.is_quaternion
+    assert not ndr.is_hypercomplex
 
 
 def test_nddataset_set_complex_1D_during_math_op():
@@ -1066,8 +1086,8 @@ def test_nddataset_real_imag_quaternion():
     assert_array_equal(nd.real, na.real)
     assert_array_equal(nd.imag, na.imag)
     # in another dimension
-    nd.set_quaternion(inplace=True)
-    assert nd.is_quaternion
+    nd.set_hypercomplex(inplace=True)
+    assert nd.is_hypercomplex
     assert nd.shape == (1, 3)
     na = np.array(
         [
@@ -1078,8 +1098,8 @@ def test_nddataset_real_imag_quaternion():
         ]
     )
     nd = scp.NDDataset(na)
-    nd.set_quaternion(inplace=True)
-    assert nd.is_quaternion
+    nd.set_hypercomplex(inplace=True)
+    assert nd.is_hypercomplex
     assert_array_equal(nd.real.data, na[::2, :].real)
     nb = np.array(
         [
@@ -1106,7 +1126,7 @@ def test_nddataset_quaternion():
     assert nd.shape == (4, 6)
     nd.dims = ["v", "u"]
     nd.set_coordset(v=np.linspace(-1, 1, 4), u=np.linspace(-10.0, 10.0, 6))
-    nd.set_quaternion()
+    nd.set_hypercomplex()
     # test swapdims
     nds = nd.swapdims(0, 1)
     assert_array_equal(nd.data.T, nds.data)
@@ -1120,7 +1140,7 @@ def test_nddataset_quaternion():
 def test_nddataset_max_with_2D_quaternion(NMR_dataset_2D):
     # test on a 2D NDDataset
     nd2 = NMR_dataset_2D
-    assert nd2.is_quaternion
+    assert nd2.is_hypercomplex
     nd = nd2.RR
     nd.max()
     nd2.max()  # no axis specified

@@ -12,7 +12,7 @@ import pytest
 
 from spectrochempy import Fit
 from spectrochempy.utils import show
-from spectrochempy.utils.testing import assert_approx_equal
+from spectrochempy.utils import assert_approx_equal
 
 
 @pytest.fixture()

@@ -12,19 +12,18 @@ __all__ = ["read_carroucell"]
 __dataset_methods__ = __all__
 
 import os
-import warnings
 import re
+import warnings
 
-import scipy.interpolate
 import numpy as np
+import scipy.interpolate
 import xlrd
 
-from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.core.dataset.coord import Coord
-from spectrochempy.utils import get_directory_name, get_filenames
 from spectrochempy.core import info_, print_
-
-from spectrochempy.core.readers.importer import importermethod, Importer
+from spectrochempy.core.dataset.coord import Coord
+from spectrochempy.core.dataset.nddataset import NDDataset
+from spectrochempy.core.readers.importer import Importer, importermethod
+from spectrochempy.utils import get_directory_name, get_filenames
 
 
 # ..............................................................................

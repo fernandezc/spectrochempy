@@ -21,8 +21,6 @@ __dataset_methods__ = __all__
 # from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.readers.importer import Importer, importermethod
-
-# from spectrochempy.utils.exceptions import deprecated
 from spectrochempy.optional import import_optional_dependency
 
 

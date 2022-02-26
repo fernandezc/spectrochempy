@@ -16,7 +16,7 @@ import pytest
 from spectrochempy.utils import show
 import spectrochempy as scp
 from spectrochempy import BaselineCorrection, NDDataset, ur
-from spectrochempy.utils.testing import (
+from spectrochempy.utils import (
     assert_dataset_almost_equal,
     assert_dataset_equal,
 )
