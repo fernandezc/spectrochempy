@@ -20,7 +20,7 @@ from spectrochempy.core.dataset.ndarray import (
     CastingError,
     NDArray,
     NDComplexArray,
-    NDLabelledArray,
+    NDLabeledArray,
     NDMaskedComplexArray,
 )
 from spectrochempy.core.exceptions import (
@@ -1338,21 +1338,21 @@ def test_ndmaskedcomplexarray_uarray(ndarraymask):
 
 
 # ######################
-# TEST NDLabelledArray #
+# TEST NDLabeledArray #
 # ######################
 # test docstring
-def test_ndlabelledarray_docstring():
+def test_ndlabeledarray_docstring():
     td.PRIVATE_CLASSES = []  # override default to test private class docstring
     module = "spectrochempy.core.dataset.ndarray"
     td.check_docstrings(
         module,
-        obj=spectrochempy.core.dataset.ndarray.NDLabelledArray,
+        obj=spectrochempy.core.dataset.ndarray.NDLabeledArray,
         exclude=["SA01", "EX01"],
     )
 
 
-def test_ndlabelledarray_init():
-    nd = NDLabelledArray(labels=None)
+def test_ndlabeledarray_init():
+    nd = NDLabeledArray(labels=None)
     assert not nd.is_labeled
     assert nd.size == 0
     assert nd.shape == ()
@@ -1360,7 +1360,7 @@ def test_ndlabelledarray_init():
     assert nd.get_labels() is None
 
     # Without data
-    nd = NDLabelledArray(labels=list("abcdefghij"))
+    nd = NDLabeledArray(labels=list("abcdefghij"))
     assert nd.is_labeled
     assert nd.data is None
     assert nd.ndim == 1
@@ -1370,7 +1370,7 @@ def test_ndlabelledarray_init():
     assert nd.get_labels(level=1) is None
 
     # With data
-    nd = NDLabelledArray(data=np.arange(10), labels=list("abcdefghij"))
+    nd = NDLabeledArray(data=np.arange(10), labels=list("abcdefghij"))
     assert nd.is_labeled
     assert nd.ndim == 1
     assert nd.data.shape == (10,)
@@ -1379,25 +1379,25 @@ def test_ndlabelledarray_init():
     # 2D (not allowed)
     with pytest.raises(LabelsError):
         d = np.random.random((10, 10))
-        NDLabelledArray(data=d, labels=list("abcdefghij"))
+        NDLabeledArray(data=d, labels=list("abcdefghij"))
 
     # 2D but with the one of the dimensions being of size one.
     d = np.random.random((1, 10))
-    nd = NDLabelledArray(data=d, labels=list("abcdefghij"))
+    nd = NDLabeledArray(data=d, labels=list("abcdefghij"))
     assert nd.is_labeled
     assert nd.ndim == 2
     assert nd.data.shape == (1, 10)
     assert nd.shape == (1, 10)
 
     d = np.random.random((10, 1))
-    nd = NDLabelledArray(data=d, labels=list("abcdefghij"))
+    nd = NDLabeledArray(data=d, labels=list("abcdefghij"))
     assert nd.is_labeled
     assert nd.ndim == 2
     assert nd.data.shape == (10, 1)
     assert nd.shape == (10, 1)
 
     # multidimensional labels
-    nd = NDLabelledArray(
+    nd = NDLabeledArray(
         data=np.arange(10), labels=[list("abcdefghij"), list("klmnopqrst")]
     )
     assert nd.is_labeled
@@ -1406,26 +1406,26 @@ def test_ndlabelledarray_init():
     assert nd.shape == (10,)
 
     d = np.random.random((10, 1))
-    nd = NDLabelledArray(data=d, labels=[list("abcdefghij"), list("klmnopqrst")])
+    nd = NDLabeledArray(data=d, labels=[list("abcdefghij"), list("klmnopqrst")])
     assert nd.is_labeled
 
     d = np.random.random((10, 1))
     l = np.array([list("abcdefghij"), list("klmnopqrst")])
-    nd = NDLabelledArray(data=d, labels=l)
+    nd = NDLabeledArray(data=d, labels=l)
     assert nd.is_labeled
 
     # transposed labels
-    nd = NDLabelledArray(data=d, labels=l.T)
+    nd = NDLabeledArray(data=d, labels=l.T)
     assert nd.is_labeled
 
     l = np.array([list("abcdefghijx"), list("klmnopqrstx")])
     with pytest.raises(LabelsError):
-        NDLabelledArray(data=d, labels=l)
+        NDLabeledArray(data=d, labels=l)
 
 
-def test_ndlabelledarray_getitem():
+def test_ndlabeledarray_getitem():
     # slicing only-label array
-    nd = NDLabelledArray(labels=list("abcdefghij"))
+    nd = NDLabeledArray(labels=list("abcdefghij"))
     assert nd[1].labels == ["b"]
     assert nd[1].values == "b"
     assert nd["b"].values == "b"
@@ -1434,7 +1434,7 @@ def test_ndlabelledarray_getitem():
     assert_array_equal(nd["c":"j":2].values, np.array(["c", "e", "g", "i"]))
 
     # multilabels
-    nd = NDLabelledArray(
+    nd = NDLabeledArray(
         data=np.arange(10),
         labels=[list("abcdefghij"), list("0123456789"), list("lmnopqrstx")],
     )
@@ -1449,10 +1449,10 @@ def test_ndlabelledarray_getitem():
     )
 
 
-def test_ndlabelledarray_sort():
+def test_ndlabeledarray_sort():
     # labels and sort
 
-    nd = NDLabelledArray(
+    nd = NDLabeledArray(
         np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
         units="s",
@@ -1507,16 +1507,19 @@ def test_ndlabelledarray_sort():
         d3._sort(by="label", level=6, descend=True)
 
 
-def test_ndlabelledarray_str_repr():
-    nd = NDLabelledArray(labels=list("abcdefghij"))
+def test_ndlabeledarray_str_repr():
+    nd = NDLabeledArray(labels=list("abcdefghij"))
     assert str(nd) == "name: value\ndata: [  a   b   c ...   h   i   j]\nsize: 10"
-
-    nd = NDLabelledArray(
+    assert (
+        repr(nd) == "NDLabeledArray (value): [labels] "
+        "[  a   b ...   i   j] (size: 10)"
+    )
+    nd = NDLabeledArray(
         labels=[list("abcdefghij"), list("0123456789"), list("lmnopqrstx")]
     )
     assert "labels[1]" in str(nd)
 
-    nd = NDLabelledArray(
+    nd = NDLabeledArray(
         data=np.arange("2020", "2030", dtype="<M8[Y]"), labels=list("abcdefghij")
     )
     print
@@ -1524,3 +1527,4 @@ def test_ndlabelledarray_str_repr():
         str(nd) == "  name: value\n  data: [  2020   2021   2022 ...   2027   "
         "2028   2029]\nlabels: [  a   b ...   i   j]\n  size: 10"
     )
+    assert repr(nd) == "NDLabeledArray (value): [datetime64[Y]] unitless (size: 10)"

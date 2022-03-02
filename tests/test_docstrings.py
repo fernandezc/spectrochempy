@@ -28,7 +28,7 @@ PRIVATE_CLASSES = [
     "HasTraits",
     "NDArray",
     "NDComplexArray",
-    "NDLabelledArray",
+    "NDLabeledArray",
     "NDMaskedComplexArray",
 ]
 ERROR_MSGS = {

@@ -49,7 +49,7 @@ Derived classes
   but has an additional attribute `mask`: NOMASK or a boolean array of the same form
   as the data array.
 
-* NDLabelledArray : This class is a 1D NDArray, with an additional attribute `labels`.
+* NDLabeledArray : This class is a 1D NDArray, with an additional attribute `labels`.
   Labels can be defined in addition to the main data or replace it completely.
 
 Backward compatibility
@@ -1406,7 +1406,7 @@ class NDArray(tr.HasTraits):
         """
         Return a user-friendly name for the data quantity.
 
-        When the quantity is provided, it can be used for labelling the object,
+        When the quantity is provided, it can be used for labeling the object,
         e.g., axe label in a matplotlib plot.
         """
         return self._quantity
@@ -2516,6 +2516,7 @@ class NDMaskedComplexArray(NDComplexArray):
         combined (`mask` OR `data.mask`).
     """
     )
+    _docstring.get_sections(__doc__, base="NDMaskedComplexArray")
 
     # masks
     _mask = tr.Union((tr.Bool(), Array(tr.Bool()), tr.Instance(MaskedConstant)))
@@ -2761,14 +2762,14 @@ class NDMaskedComplexArray(NDComplexArray):
 
 
 # ======================================================================================
-# NDArray subclass : NDLabelledArray
+# NDArray subclass : NDLabeledArray
 # ======================================================================================
-class NDLabelledArray(NDArray):
+class NDLabeledArray(NDArray):
     __doc__ = _docstring.dedent(
         """
     A |NDArray| derived class with additional labels and related functionalities.
 
-    The private |NDLabelledArray| class is an array (numpy |ndarray|-like)
+    The private |NDLabeledArray| class is an array (numpy |ndarray|-like)
     container, usually not intended to be used directly. In addition to the
     |NDArray| functionalities, this class adds labels and related methods and
     properties.
@@ -2786,6 +2787,7 @@ class NDLabelledArray(NDArray):
         series of labels for the same data.
     """
     )
+    _docstring.get_sections(__doc__, base="NDLabeledArray")
 
     _labels = Array(allow_none=True)
 
@@ -2806,6 +2808,19 @@ class NDLabelledArray(NDArray):
             return new
         else:
             return new, keys
+
+    # ..................................................................................
+    def __repr__(self):
+        repr = super().__repr__()
+        if "empty" in repr and self.is_labeled:
+            # no data but labels
+            lab = self.get_labels(level=0)
+            data = f" {lab}"
+            size = f" (size: {len(lab)})"
+            dtype = "labels"
+            body = f"[{dtype}]{data}{size}"
+            repr = repr.replace("empty", body)
+        return repr
 
     # ..........................................................................
     def _argsort(self, descend=False, by="value", level=None):
@@ -2997,7 +3012,7 @@ class NDLabelledArray(NDArray):
         Return whether the `data` array have labels.
         """
         # label cannot exist for now for nD dataset - only 1D dataset, such
-        # as Coord can be labelled.
+        # as Coord can be labeled.
         if self._data is not None and self._squeeze_ndim > 1:
             return False
         if self._labels is not None and np.any(self.labels != ""):
@@ -3012,8 +3027,8 @@ class NDLabelledArray(NDArray):
         An array of labels for `data` (|ndarray| of str).
 
         An array of objects of any type (but most generally string), with the last
-        dimension size equal to that of the dimension of data. Note that's labelling
-        is possible only for 1D data. One classical application is the labelling of
+        dimension size equal to that of the dimension of data. Note that's labeling
+        is possible only for 1D data. One classical application is the labeling of
         coordinates to display informative strings instead of numerical values.
         """
         return self._labels
@@ -3071,7 +3086,7 @@ class NDLabelledArray(NDArray):
 
         The number of `data` element on each dimension (possibly complex or
         hypercomplex).
-        For only labelled array, there is no data, so it is the 1D and the size
+        For only labeled array, there is no data, so it is the 1D and the size
         is the size of the array of labels.
         """
         if self.data is None and self.is_labeled:
