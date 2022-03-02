@@ -64,38 +64,38 @@ import pathlib
 import re
 import textwrap
 import uuid
-
 from datetime import datetime, tzinfo
 
 import numpy as np
-import pytz
 import pint
+import pytz
 import traitlets as tr
 from quaternion import as_float_array, as_quat_array
 from traittypes import Array
 
 from spectrochempy.core import error_, exception_, info_, print_, warning_
 from spectrochempy.core.dataset.meta import Meta
-from spectrochempy.core.units import Quantity, Unit, get_units, set_nmr_context, ur
 from spectrochempy.core.exceptions import (
-    SpectroChemPyWarning,
-    SpectroChemPyException,
     CastingError,
-    UnknownTimeZoneError,
     DimensionalityError,
+    LabelsError,
+    SpectroChemPyWarning,
+    UnknownTimeZoneError,
 )
+from spectrochempy.core.units import Quantity, Unit, get_units, set_nmr_context, ur
 from spectrochempy.utils import (
     DEFAULT_DIM_NAME,
     INPLACE,
     MASKED,
     NOMASK,
+    TYPE_INTEGER,
     DocstringProcessor,
     MaskedConstant,
     as_quaternion,
     convert_to_html,
+    from_dt64_units,
     insert_masked_print,
     is_datetime64,
-    from_dt64_units,
     is_number,
     is_sequence,
     make_new_object,
@@ -128,6 +128,23 @@ def _check_dtype():
             return value
 
     return validator
+
+
+def _remove_units(items):
+    # recursive function
+    units = None
+    if isinstance(items, (tuple,)):
+        items = tuple(_remove_units(item) for item in items)
+    elif isinstance(items, slice):
+        start, units = _remove_units(items.start)
+        end, _ = _remove_units(items.stop)
+        step, _ = _remove_units(items.step)
+        items = slice(start, end, step)
+    else:
+        if isinstance(items, Quantity):
+            units = items.u
+            items = float(items.m)
+    return items, units
 
 
 # ======================================================================================
@@ -252,10 +269,10 @@ class NDArray(tr.HasTraits):
         dtype = kwargs.pop("dtype", None)
         if dtype is not None:
             self._dtype = np.dtype(dtype)
-        if np.dtype(dtype).kind == "M":
-            # by default datatime must be set in ns (at least internally, e.g.
-            # due to comparison purpose
-            self._dtype = np.dtype("datetime64[ns]")
+            if self._dtype.kind == "M":
+                # by default datatime must be set in ns (at least internally, e.g.
+                # due to comparison purpose
+                self._dtype = np.dtype("datetime64[ns]")
         self.data = data
         self.quantity = kwargs.pop("quantity", kwargs.pop("title", self.quantity))
         if "dims" in kwargs.keys():
@@ -319,18 +336,16 @@ class NDArray(tr.HasTraits):
             items = items[:-1]
             inplace = True
         # Eventually get a better representation of the indexes
-        keys = self._make_index(items)
+        items = self._make_index(items)
         # init returned object
         new = self if inplace else self.copy()
-        # slicing by index of all internal array
-        udata = None
         if new.data is not None:
-            udata = new.data[keys]
+            udata = new.data[items]
             new._data = np.asarray(udata)
         if new.is_empty:
             error_(
                 f"Empty array of shape {new.data.shape} resulted from slicing.\n"
-                f"Check the indexes and make sure to use floats for location slicing"
+                f"Check the indexes."
             )
             new = None
         # for all other cases,
@@ -339,7 +354,7 @@ class NDArray(tr.HasTraits):
         if not return_index:
             return new
         else:
-            return new, keys
+            return new, items
 
     # ..................................................................................
     def __hash__(self):
@@ -450,7 +465,8 @@ class NDArray(tr.HasTraits):
         return str_name, self._str_value(), self._str_shape()
 
     # ..................................................................................
-    def _data_and_units_from_td64(self, data):
+    @staticmethod
+    def _data_and_units_from_td64(data):
         if data.dtype.kind != "m":  # pragma: no cover
             raise CastingError("Not a timedelta array")
         newdata = data.astype(float)
@@ -555,93 +571,180 @@ class NDArray(tr.HasTraits):
         return axis
 
     # ..................................................................................
+    @tr.default("_id")
+    def _id_default(self):
+        # Return a unique id
+        return f"{type(self).__name__}_{str(uuid.uuid1()).split('-')[0]}"
+
+    # ..................................................................................
+    @tr.default("_timezone")
+    def _timezone_default(self):
+        # Return the default timezone (UTC)
+        return datetime.utcnow().astimezone().tzinfo
+
+    # ..................................................................................
+    @staticmethod
+    def _ellipsis_in_keys(_keys):
+        # Check if ellispsis (...) is present in the keys.
+        test = False
+        try:
+            # Ellipsis
+            if isinstance(_keys[0], np.ndarray):
+                return False
+            test = Ellipsis in _keys
+        except ValueError as e:
+            if e.args[0].startswith("The truth "):
+                # probably an array of index (Fancy indexing)
+                # should not happen anymore with the test above
+                test = False
+        finally:
+            return test
+
+    # ..................................................................................
+    def _value_to_index(self, value):
+        data = self.data
+        error = None
+        if np.all(value > data.max()) or np.all(value < data.min()):
+            print_(
+                f"This ({value}) values is outside the axis limits "
+                f"({data.min()}-{data.max()}).\n"
+                f"The closest limit index is returned"
+            )
+            error = "out_of_limits"
+        index = (np.abs(data - value)).argmin()
+        return index, error
+
+    # ..................................................................................
+    def _interpret_strkey(self, key):
+        # key can be a date
+        try:
+            key = np.datetime64(key)
+        except ValueError:
+            raise NotImplementedError
+
+        index, error = self._value_to_index(key)
+        return index, error
+
+    # ..................................................................................
+    def _interpret_key(self, key):
+
+        # Interpreting a key which is not an integer is only possible if the array is
+        # single-dimensional.
+        if self.is_empty:
+            raise IndexError(f"Can not interpret this key:{key} on an empty array")
+
+        if self._squeeze_ndim != 1:
+            raise IndexError("Index for slicing must be integer.")
+
+        # Allow passing a Quantity as indice or in slices
+        key, units = _remove_units(key)
+
+        # Check units compatibility
+        if (
+            units is not None
+            and (is_number(key) or is_sequence(key))
+            and units != self.units
+        ):
+            raise ValueError(
+                f"Units of the key {key} {units} are not compatible with "
+                f"those of this array: {self.units}"
+            )
+
+        if is_number(key) or isinstance(key, np.datetime64):
+            # Get the index of a given values
+            index, error = self._value_to_index(key)
+
+        elif is_sequence(key):
+            index = []
+            error = None
+            for lo in key:
+                idx, err = self._value_to_index(lo)
+                index.append(idx)
+                if err:
+                    error = err
+
+        elif isinstance(key, str):
+            index, error = self._interpret_strkey(key)
+
+        else:
+            raise IndexError(f"Could not find this location: {key}")
+
+        if not error:
+            return index
+        else:
+            return index, error
+
+    # ..................................................................................
     def _get_slice(self, key, dim):
-        info = None
-        # allow passing a Quantity as indice or in slices
 
-        def remove_units(items):
-            # recursive function
-            units = None
-            if isinstance(items, (tuple,)):
-                items = tuple(remove_units(item) for item in items)
-            elif isinstance(items, slice):
-                start, units = remove_units(items.start)
-                end, _ = remove_units(items.stop)
-                step, _ = remove_units(items.step)
-                items = slice(start, end, step)
-            else:
-                if isinstance(items, Quantity):
-                    units = items.u
-                    items = float(items.m)
-            return items, units
+        error = None
 
-        key, units = remove_units(key)
+        # In the case of ordered 1D arrays, we can use values as slice keys.
+        # allow passing a quantity as index or in slices
+        # For multidimensional arrays, only integer index can be used as for numpy
+        # arrays.
+
         if not isinstance(key, slice):
-            # integer or float
             start = key
             if not isinstance(key, int):
-                start = self._loc2index(key, dim, units=units)
+                # float or quantity
+                start = self._interpret_key(key)
                 if isinstance(start, tuple):
-                    start, info = start
+                    start, error = start
                 if start is None:
                     return slice(None)
             else:
+                # integer
                 if key < 0:  # reverse indexing
                     axis, dim = self.get_axis(dim)
                     start = self.shape[axis] + key
             stop = start + 1  # in order to keep a non squeezed slice
             return slice(start, stop, 1)
         else:
+            # Slice (which allows float and quantity in the slice)
             start, stop, step = key.start, key.stop, key.step
-            if start is not None and not isinstance(start, int):
-                start = self._loc2index(start, dim, units=units)
+            if start is not None and not isinstance(start, TYPE_INTEGER):
+                start = self._interpret_key(start)
                 if isinstance(start, tuple):
-                    start, info = start
-            if stop is not None and not isinstance(stop, int):
-                stop = self._loc2index(stop, dim, units=units)
+                    start, error = start
+            if stop is not None and not isinstance(stop, TYPE_INTEGER):
+                stop = self._interpret_key(stop)
                 if isinstance(stop, tuple):
-                    stop, info = stop
+                    stop, error = stop
                 if start is not None and stop < start:
                     start, stop = stop, start
                 if stop != start:
                     stop = stop + 1  # to include last loc or label index
-            if step is not None and not isinstance(step, (int, np.int_, np.int64)):
-                raise NotImplementedError(
-                    "step in location slicing is not yet possible."
-                )  # TODO: we have may be a special case with
-                # datetime  # step = 1
+            if step is not None and not isinstance(step, TYPE_INTEGER):
+                raise IndexError("Not integer step in slicing is not possible.")
+                # TODO: we have may be a special case with datetime  # step = 1
         if step is None:
             step = 1
-        if start is not None and stop is not None and start == stop and info is None:
+        if start is not None and stop is not None and start == stop and error is None:
             stop = stop + 1  # to include last index
+
         newkey = slice(start, stop, step)
         return newkey
 
     # ..................................................................................
-    @tr.default("_id")
-    def _id_default(self):
-        # a unique id
-        return f"{type(self).__name__}_{str(uuid.uuid1()).split('-')[0]}"
-
-    # ..................................................................................
-    @tr.default("_timezone")
-    def _timezone_default(self):
-        return datetime.utcnow().astimezone().tzinfo
-
-    # ..................................................................................
     def _make_index(self, key):
-        if isinstance(key, np.ndarray) and key.dtype == bool:
-            # this is a boolean selection
-            # we can proceed directly
-            return key
-        if isinstance(key, slice) or (
-            isinstance(key, (tuple, list)) and all([isinstance(k, slice) for k in key])
-        ):
-            # already a slice or tuple of slice
-            return key
 
-        # we need to have a list of slice for each argument
-        # or a single slice acting on the axis=0
+        # Case where we can proceed directly with the provided key:
+        # - a boolean selection.
+        if isinstance(key, np.ndarray) and key.dtype == bool:
+            return key
+        # # - already a slice or tuple of slice.
+        # if isinstance(key, slice) or (
+        #     isinstance(key, (tuple, list))
+        #     and all([isinstance(k, slice) for k in key])
+        # ):
+        #     return key (this does not work if slice elements are not integer.
+
+        # For the other case, we need to have a list of slice for each argument
+        # or a single slice acting on the axis=0, so some transformation are
+        # necessary.
+
+        # For iteration, we need to have lis, not tuple, nor scalar.
         if isinstance(key, tuple):
             keys = list(key)
         else:
@@ -649,40 +752,39 @@ class NDArray(tr.HasTraits):
                 key,
             ]
 
-        def ellipsisinkeys(_keys):
-            test = False
-            try:
-                # Ellipsis
-                if isinstance(_keys[0], np.ndarray):
-                    return False
-                test = Ellipsis in _keys
-            except ValueError as e:
-                if e.args[0].startswith("The truth "):
-                    # probably an array of index (Fancy indexing)
-                    # should not happen anymore with the test above
-                    test = False
-            finally:
-                return test
-
-        while ellipsisinkeys(keys):
+        # Iterate ellipsis.
+        while self._ellipsis_in_keys(keys):
             i = keys.index(Ellipsis)
             keys.pop(i)
             for j in range(self.ndim - len(keys)):
                 keys.insert(i, slice(None))
+
+        # Number of keys should not be higher than the number of dims!
         if len(keys) > self.ndim:
             raise IndexError("invalid index")
+
+        # If the length of keys is lower than the number of dimension,
         # pad the list with additional dimensions
         for i in range(len(keys), self.ndim):
             keys.append(slice(None))
+
+        # Now make slices or list of indexes for fancy indexing with all the list
+        # elements
         for axis, key in enumerate(keys):
-            # the keys are in the order of the dimension in self.dims!
+            # The keys are in the order of the dimension in self.dims!
             # so we need to get the correct dim in the coordinates lists
             dim = self.dims[axis]
-            if is_sequence(key) and not isinstance(key, Quantity):
-                # fancy indexing
-                # all items of the sequence must be integer index
+            if is_sequence(key):
+                # Fancy indexing: all items of the sequence must be integer index
+                if self._squeeze_ndim == 1:
+                    key = [
+                        self._interpret_key(k) if not isinstance(k, TYPE_INTEGER) else k
+                        for k in key
+                    ]
                 keys[axis] = key
             else:
+                # We need a little more work to get the slices in a correct format
+                # allowing use of values for instances...
                 keys[axis] = self._get_slice(key, dim)
         return tuple(keys)
 
@@ -750,9 +852,10 @@ class NDArray(tr.HasTraits):
                 except AttributeError:
                     # some attribute of NDDataset are missing in NDArray
                     pass
-            self._data = self.data.astype(
-                self._dtype, casting="unsafe", copy=self._copy
-            )
+            if self._dtype is not None:
+                self._data = self.data.astype(
+                    self._dtype, casting="unsafe", copy=self._copy
+                )
         elif isinstance(data, Quantity):
             self._data = np.array(
                 data.magnitude, dtype=self._dtype, subok=True, copy=self._copy
@@ -1088,15 +1191,14 @@ class NDArray(tr.HasTraits):
         if not isinstance(axis, list):
             axis = [axis]
         dims = axis[:]
-        for i, a in enumerate(axis[:]):
+        for i, ax in enumerate(axis[:]):
             # axis = axis[0] if axis else self.ndim - 1  # None
-            if a is None:
-                a = self.ndim - 1
+            if ax is None:
+                ax = self.ndim - 1
             if kwargs.get("negative_axis", False):
-                if a >= 0:
-                    a = a - self.ndim
-            axis[i] = a
-            dims[i] = self.dims[a]
+                ax = ax - self.ndim if ax >= 0 else ax
+            axis[i] = ax
+            dims[i] = self.dims[ax]
         only_first = kwargs.pop("only_first", True)
         if len(dims) == 1 and only_first:
             dims = dims[0]
@@ -1357,9 +1459,7 @@ class NDArray(tr.HasTraits):
     # ..................................................................................
     @name.setter
     def name(self, name):
-        if name:
-            if self._name:
-                pass
+        if name is not None:
             self._name = name
 
     # ..................................................................................
@@ -1596,7 +1696,7 @@ class NDArray(tr.HasTraits):
         except pytz.UnknownTimeZoneError:
             exception_(
                 UnknownTimeZoneError,
-                f"You can get a list of valid timezones in "
+                "You can get a list of valid timezones in "
                 "https://en.wikipedia.org/wiki/List_of_tz_database_time_zones ",
             )
 
@@ -1946,15 +2046,19 @@ class NDComplexArray(NDArray):
 
     # ..................................................................................
     def __init__(self, data=None, **kwargs):
-        # if np.a
+        dtype = np.dtype(kwargs.pop("dtype", None))
         super().__init__(data, **kwargs)
+        if dtype.kind == "c":
+            self.set_complex(inplace=True)
+        if dtype.kind == "V":  # quaternion
+            self.set_hypercomplex(inplace=True)
 
     # ..................................................................................
     def __getattr__(self, item):
         if item in "RRRIIIRR":
             return self.component(select=item)
-        else:
-            return super().__getattr__(item)
+        # return super().__getattr__(item)
+        raise AttributeError
 
     # ..................................................................................
     def __setitem__(self, items, value):
@@ -2029,8 +2133,9 @@ class NDComplexArray(NDArray):
             cplx[-1] = True
         return cplx
 
-    # ..........................................................................
-    def _get_component(self, data, select="REAL"):
+    # ..................................................................................
+    @staticmethod
+    def _get_component(data, select="REAL"):
         """
         Take selected components of an hypercomplex array (RRR, RIR, ...).
 
@@ -2050,13 +2155,8 @@ class NDComplexArray(NDArray):
         component
             A component of the complex or hypercomplex array.
         """
-        if not select:
-            return data
-
         if select == "REAL" or select == "R":
             select = "R" * data.ndim
-
-        w = x = y = z = None
 
         if data.dtype == typequaternion:
             w, x, y, z = as_float_array(data).T
@@ -2091,8 +2191,8 @@ class NDComplexArray(NDArray):
                     f"data!"
                 )
         else:
-            warnings.warn(
-                f"No selection was performed because datasets with complex data "
+            raise ValueError(
+                f"No selection was performed because datasets with no complex data "
                 f"have no `{select}` component. "
             )
 
@@ -2187,8 +2287,6 @@ class NDComplexArray(NDArray):
         e.g., for dims = ['y','x'], 'IR' means that the `y` component is
         imaginary while the `x` is real.
         """
-        if not select:
-            return self
         new = self.copy()
         new._data = self._get_component(new.data, select)
         return new
@@ -2250,9 +2348,7 @@ class NDComplexArray(NDArray):
         if not new.has_complex_dims:
             return None
         data = new.data
-        if self.is_real:
-            new._data = np.zeros_like(data.data)
-        elif self.is_complex:
+        if self.is_complex:
             new._data = data.imag.data
         elif self.is_hypercomplex:
             # this is a more complex situation than for real component
@@ -2260,8 +2356,6 @@ class NDComplexArray(NDArray):
             # q = a + bi + cj + dk  ->   qi = bi+cj+dk
             as_float_array(data)[..., 0] = 0  # keep only the imaginary component
             new._data = data  # .data
-        else:
-            raise TypeError("dtype %s not recognized" % str(data.dtype))
         return new
 
     # ..................................................................................
@@ -2288,18 +2382,14 @@ class NDComplexArray(NDArray):
         """
         new = self.copy()
         if not new.has_complex_dims:
-            return new
+            return self
         data = new.data
-        if self.is_real:
-            new._data = data
-        elif self.is_complex:
+        if self.is_complex:
             new._data = data.real
         elif self.is_hypercomplex:
             # get the scalar component
             # q = a + bi + cj + dk  ->   qr = a
             new._data = as_float_array(data)[..., 0]
-        else:
-            raise TypeError("dtype %s not recognized" % str(data.dtype))
         return new
 
     # ..................................................................................
@@ -2480,9 +2570,9 @@ class NDMaskedComplexArray(NDComplexArray):
         if mask is None or mask is NOMASK:
             return mask
         # no particular validation for now.
-        if self._copy:
-            return mask.copy()
         else:
+            if self._copy:
+                return mask.copy()
             return mask
 
     # ..................................................................................
@@ -2495,7 +2585,7 @@ class NDMaskedComplexArray(NDComplexArray):
         else:
             super()._set_data(data)
 
-    def _str_formatted_array(self, data, prefix="", units=""):
+    def _str_formatted_array(self, data, sep="\n", prefix="", units=""):
         ds = data.copy()
         if self.is_masked:
             dtype = self.data.dtype
@@ -2540,9 +2630,9 @@ class NDMaskedComplexArray(NDComplexArray):
                 return False
             elif isinstance(self._mask, (np.bool_, bool)):
                 return self._mask
-        except Exception as e:
+        except Exception:
             if self._data.dtype == typequaternion:
-                return np.any(self._mask["I"])
+                return np.any(self._mask["R"])
         return False
 
     # ..................................................................................
@@ -2643,7 +2733,8 @@ class NDMaskedComplexArray(NDComplexArray):
         """%(swapdims)s"""
         new = super().swapdims(dim1, dim2, inplace=inplace)
         if self.is_masked:
-            new._mask = np.swapdims(new._mask, *axis)
+            axis = self._get_dims_index([dim1, dim2])
+            new._mask = np.swapaxes(new._mask, *axis)
         return new
 
     # ..................................................................................
@@ -2652,6 +2743,11 @@ class NDMaskedComplexArray(NDComplexArray):
         """%(transpose)s"""
         new = super().transpose(*dims, inplace=inplace)
         if new.is_masked:
+            if self.ndim < 2:  # cannot transpose 1D data
+                return new
+            if not dims or list(set(dims)) == [None]:
+                dims = self.dims[::-1]
+            axis = self._get_dims_index(dims)
             new._mask = np.transpose(new._mask, axis)
         return new
 
@@ -2692,28 +2788,27 @@ class NDLabelledArray(NDArray):
     )
 
     _labels = Array(allow_none=True)
-    _labels_allowed = tr.Bool(True)
-    # Labels are allowed for the data, if the data are 1D only
-    # they will essentially serve as coordinates labelling.
 
     # ..................................................................................
     def __init__(self, data=None, **kwargs):
         super().__init__(data, **kwargs)
-        if self._labels_allowed:
-            self.labels = kwargs.pop("labels", None)
+        self.labels = kwargs.pop("labels", None)
 
     # ..................................................................................
     def __getitem__(self, items, return_index=False):
         new, keys = super().__getitem__(items, return_index=True)
         if self.is_labeled:
-            new._labels = np.array(self._labels[keys])
+            if new._labels.ndim == 1:
+                new._labels = np.array(self._labels[keys[0]])
+            else:
+                new._labels = np.array(self._labels[:, keys[0]])
         if not return_index:
             return new
         else:
             return new, keys
 
     # ..........................................................................
-    def _argsort(self, descend=False, by="value", pos=None):
+    def _argsort(self, descend=False, by="value", level=None):
         # found the indices sorted by values or labels
 
         if by == "value":
@@ -2724,16 +2819,15 @@ class NDLabelledArray(NDArray):
             labels = self.labels
             if len(self.labels.shape) > 1:
                 # multidimensional labels
-                if not pos:
-                    pos = 0
+                if not level:
+                    level = 0
                     # try to find a pos in the by string
                     pattern = re.compile(r"label\[(\d)]")
                     p = pattern.search(by)
                     if p is not None:
-                        pos = int(p[1])
-                labels = self.labels[..., pos]
+                        level = int(p[1])
+                labels = self.labels[level]
             args = np.argsort(labels)
-
         if descend:
             args = args[::-1]
         return args
@@ -2742,44 +2836,76 @@ class NDLabelledArray(NDArray):
     def _attributes(self):
         return super()._attributes() + ["labels"]
 
-    # ..........................................................................
+    # ..................................................................................
+    def _is_labels_allowed(self):
+        return True if self._squeeze_ndim <= 1 else False
+
+    # ..................................................................................
+    def _interpret_strkey(self, key):
+
+        if self.is_labeled:
+            labels = self._labels
+            indexes = np.argwhere(labels == key).flatten()
+            if indexes.size > 0:
+                return indexes[-1], None
+
+        # key can be a date
+        try:
+            key = np.datetime64(key)
+        except ValueError:
+            raise NotImplementedError
+
+        index, error = self._value_to_index(key)
+        return index, error
+
+    # ..................................................................................
+    def _get_data_to_print(self, ufmt=" {:~K}"):
+        units = ""
+        data = self.values
+        if isinstance(data, Quantity):
+            data = data.magnitude
+            units = ufmt.format(self.units) if self.has_units else ""
+        return data, units
+
+    # .................................................................................
     @tr.default("_labels")
     def _labels_default(self):
         return None
 
     # ..................................................................................
-    def _repr_shape(self):
-        if self.is_empty:
-            return "size: 0"
-        out = ""
-        shape_ = (
-            x for x in itertools.chain.from_iterable(list(zip(self.dims, self.shape)))
-        )
-        shape = (", ".join(["{}:{}"] * self.ndim)).format(*shape_)
-        size = self.size
-        out += f"size: {size}" if self.ndim < 2 else f"shape: ({shape})"
-        return out
+    # def _repr_shape(self):
+    #     if self.is_empty:
+    #         return "size: 0"
+    #     out = ""
+    #     shape_ = (
+    #         x for x in itertools.chain.from_iterable(list(zip(self.dims, self.shape)))
+    #     )
+    #     shape = (", ".join(["{}:{}"] * self.ndim)).format(*shape_)
+    #     size = self.size
+    #     out += f"size: {size}" if self.ndim < 2 else f"shape: ({shape})"
+    #     return out
+    #
 
     # ..................................................................................
-    def _repr_value(self):
-        numpyprintoptions(precision=4, edgeitems=0, spc=1, linewidth=120)
-        prefix = f"{type(self).__name__} ({self.name}): "
-        units = ""
-        if not self.is_empty:
-            if self.data is not None:
-                dtype = self.dtype
-                data = ""
-                units = " {:~K}".format(self.units) if self.has_units else " unitless"
-            else:
-                # no data but labels
-                lab = self.get_labels()
-                data = f" {lab}"
-                dtype = "labels"
-            body = f"[{dtype}]{data}"
-        else:
-            body = "empty"
-        numpyprintoptions()
-        return "".join([prefix, body, units])
+    # def _repr_value(self):
+    #     numpyprintoptions(precision=4, edgeitems=0, spc=1, linewidth=120)
+    #     prefix = f"{type(self).__name__} ({self.name}): "
+    #     units = ""
+    #     if not self.is_empty:
+    #         if self.data is not None:
+    #             dtype = self.dtype
+    #             data = ""
+    #             units = " {:~K}".format(self.units) if self.has_units else " unitless"
+    #         else:
+    #             # no data but labels
+    #             lab = self.get_labels()
+    #             data = f" {lab}"
+    #             dtype = "labels"
+    #         body = f"[{dtype}]{data}"
+    #     else:
+    #         body = "empty"
+    #     numpyprintoptions()
+    #     return "".join([prefix, body, units])
 
     # ..................................................................................
     @property
@@ -2787,81 +2913,40 @@ class NDLabelledArray(NDArray):
         # The number of dimensions of the squeezed`data` array (Readonly property).
         if self.data is None and self.is_labeled:
             return 1
-        return super()._squeeze_ndim()
+        return super()._squeeze_ndim
+
+    def _get_label_str(self, lab, idx=None, sep="\n"):
+        arraystr = np.array2string(lab, separator=" ", prefix="")
+        if idx is None:
+            text = "       labels: "
+        else:
+            text = f"    labels[{idx}]: "
+        text += f"\0{arraystr}\0{sep}"
+        return text
 
     # ..................................................................................
-    def _loc2index(self, loc, dim=None, *, units=None):
-        # Return the index of a location (label or values such as coordinates) along
-        # a 1D array. Do not apply for multidimensional arrays (ndim>1)
-        if self.ndim > 1:
-            raise NotImplementedError(
-                f"not implemented for {type(self).__name__} objects which are "
-                f"not 1-dimensional: (current ndim:{self.ndim})"
-            )
+    def _str_value(
+        self, sep="\n", ufmt=" {:~K}", prefix="", header="         data: ... \n"
+    ):
+        text = super()._str_value(sep, ufmt, prefix, header)
+        text += sep
 
-        # check units compatibility
-        if (
-            units is not None
-            and (is_number(loc) or is_sequence(loc))
-            and units != self.units
-        ):
-            raise ValueError(
-                f"Units of the location {loc} {units} are not compatible with "
-                f"those of this array: {self.units}"
-            )
-
-        if self.is_empty and not self.is_labeled:
-
-            raise IndexError(f"Could not find this location {loc} on an empty array")
-
-        else:
-
-            data = self.data
-
-            if is_number(loc):
-                # get the index of a given values
-                error = None
-                if np.all(loc > data.max()) or np.all(loc < data.min()):
-                    print_(
-                        f"This coordinate ({loc}) is outside the axis limits "
-                        f"({data.min()}-{data.max()}).\n"
-                        f"The closest limit index is returned"
-                    )
-                    error = "out_of_limits"
-                index = (np.abs(data - loc)).argmin()
-                # TODO: add some precision to this result
-                if not error:
-                    return index
+        if self.is_labeled:
+            lab = self.labels
+            idx = 0
+            if self.data is None:
+                if lab.ndim > 1:
+                    idx = 1
                 else:
-                    return index, error
-
-            elif is_sequence(loc):
-                # TODO: is there a simpler way to do this with numpy functions
-                index = []
-                for lo in loc:
-                    index.append(
-                        (np.abs(data - lo)).argmin()
-                    )  # TODO: add some precision to this result
-                return index
-
-            elif self.is_labeled:
-
-                # TODO: look in all row of labels
-                labels = self._labels
-                indexes = np.argwhere(labels == loc).flatten()
-                if indexes.size > 0:
-                    return indexes[0]
+                    # already in data
+                    lab = None
+            if lab is not None:
+                if lab.ndim == 1 and idx == 0:
+                    text += self._get_label_str(lab, sep=sep)
                 else:
-                    raise IndexError(f"Could not find this label: {loc}")
-
-            elif isinstance(loc, np.datetime64):
-                # not implemented yet
-                raise NotImplementedError(
-                    "datetime as location is not yet implemented"
-                )  # TODO: date!
-
-            else:
-                raise IndexError(f"Could not find this location: {loc}")
+                    for i in range(idx, len(lab)):
+                        text += self._get_label_str(lab[i], i, sep=sep)
+        return text.rstrip()
 
     # ..........................................................................
     def get_labels(self, level=0):
@@ -2884,16 +2969,18 @@ class NDLabelledArray(NDArray):
         if not self.is_labeled:
             return None
 
-        if level > self.labels.ndim - 1:
-            warnings.warn(
+        if (self.labels.ndim > 1 and level > len(self.labels) - 1) or (
+            self.labels.ndim == 1 and level > 0
+        ):
+            warning_(
                 "There is no such level in the existing labels", SpectroChemPyWarning
             )
             return None
 
-        if self.labels.ndim > 1:
+        if len(self.labels) > 1 and self.labels.ndim > 1:
             return self.labels[level]
         else:
-            return self._labels
+            return self.labels
 
     @property
     @_docstring.dedent
@@ -2911,7 +2998,7 @@ class NDLabelledArray(NDArray):
         """
         # label cannot exist for now for nD dataset - only 1D dataset, such
         # as Coord can be labelled.
-        if self._data is not None and self.ndim > 1:
+        if self._data is not None and self._squeeze_ndim > 1:
             return False
         if self._labels is not None and np.any(self.labels != ""):
             return True
@@ -2937,54 +3024,36 @@ class NDLabelledArray(NDArray):
 
         if labels is None:
             return
-
-        if self.ndim > 1:
-            warnings.warn(
-                "We cannot set the labels for multidimentional data - Thus, these labels are ignored",
-                SpectroChemPyWarning,
+        if not self._is_labels_allowed():
+            exception_(
+                LabelsError("We cannot set the labels for multidimentional data.")
             )
+        # make sure labels array is of type np.ndarray or Quantity arrays
+        if not isinstance(labels, np.ndarray):
+            labels = np.array(labels, subok=True, copy=True).astype(object, copy=False)
+        if (self.data is not None) and labels.ndim > 1:
+            # allow the fact that the labels
+            # may have been passed in a transposed array
+            if labels.shape[-1] != self.size and labels.shape[0] == self.size:
+                labels = labels.T
+        if self.data is not None and labels.shape[-1] != self.size:
+            raise LabelsError(
+                f"labels {labels.shape} and data {self.shape} " f"shape mismatch!"
+            )
+        if np.any(self._labels):
+            info_(
+                f"{type(self).__name__} is already a labeled array.\n"
+                f"The explicitly provided labels will "
+                f"be appended to the current labels"
+            )
+            labels = labels.squeeze()
+            self._labels = self._labels.squeeze()
+            self._labels = np.vstack((self._labels, labels))
         else:
-
-            # make sure labels array is of type np.ndarray or Quantity arrays
-            if not isinstance(labels, np.ndarray):
-                labels = np.array(labels, subok=True, copy=True).astype(
-                    object, copy=False
-                )
-
-            if not np.any(labels):
-                # no labels
-                return
-
+            if self._copy:
+                self._labels = labels.copy()
             else:
-                if (self.data is not None) and (labels.shape[0] != self.shape[0]):
-                    # allow the fact that the labels
-                    # may have been passed in a transposed array
-                    if labels.ndim > 1 and (labels.shape[-1] == self.shape[0]):
-                        labels = labels.T
-                    else:
-                        raise ValueError(
-                            f"labels {labels.shape} and data {self.shape} "
-                            f"shape mismatch!"
-                        )
-
-                if np.any(self._labels):
-                    info_(
-                        f"{type(self).__name__} is already a labeled array.\n"
-                        f"The explicitly provided labels will "
-                        f"be appended to the current labels"
-                    )
-
-                    labels = labels.squeeze()
-                    self._labels = self._labels.squeeze()
-                    if self._labels.ndim > 1:
-                        self._labels = self._labels.T
-                    self._labels = np.vstack((self._labels, labels)).T
-
-                else:
-                    if self._copy:
-                        self._labels = labels.copy()
-                    else:
-                        self._labels = labels
+                self._labels = labels
 
     @property
     @_docstring.dedent
@@ -3028,7 +3097,7 @@ class NDLabelledArray(NDArray):
             return self.labels.shape[-1]
 
         elif self.data is None:
-            return None
+            return 0
         else:
             return self.data.size
 
@@ -3038,18 +3107,14 @@ class NDLabelledArray(NDArray):
     def values(self):
         """%(values)s"""
         if self.data is not None:
-            if self.is_masked:
-                data = self._umasked(self.masked_data, self.mask)
-                if self.units:
-                    return Quantity(data, self.units)
-            else:
-                data = self._uarray(self.data, self.units)
-            if self.size > 1:
-                return data
-            else:
-                return data.squeeze()[()]
+            return self.uarray.squeeze()[()]
         elif self.is_labeled:
-            return self._labels[()]
+            if self.labels.size == 1:
+                return np.asscalar(self.labels)
+            elif self.labels.ndim == 1:
+                return self.labels
+            else:
+                return self.labels[0]
 
 
 # ======================================================================================

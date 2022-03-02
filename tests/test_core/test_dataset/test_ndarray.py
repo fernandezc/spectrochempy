@@ -12,19 +12,23 @@ from copy import copy, deepcopy
 
 import numpy as np
 import pytest
-from traitlets import TraitError
 from quaternion import as_float_array, as_quat_array, quaternion
+from traitlets import TraitError
 
 import spectrochempy
 from spectrochempy.core.dataset.ndarray import (
-    NDArray,
     CastingError,
+    NDArray,
     NDComplexArray,
-    NDMaskedComplexArray,
     NDLabelledArray,
+    NDMaskedComplexArray,
+)
+from spectrochempy.core.exceptions import (
+    DimensionalityError,
+    LabelsError,
+    UnknownTimeZoneError,
 )
 from spectrochempy.core.units import Quantity, ur
-from spectrochempy.core.exceptions import DimensionalityError, UnknownTimeZoneError
 from spectrochempy.utils import (
     INPLACE,
     MASKED,
@@ -34,8 +38,8 @@ from spectrochempy.utils import (
     TYPE_INTEGER,
     RandomSeedContext,
     assert_approx_equal,
-    assert_array_equal,
     assert_array_almost_equal,
+    assert_array_equal,
     assert_equal,
     assert_produces_warning,
 )
@@ -54,11 +58,9 @@ with RandomSeedContext(12345):
     ref_mask[0, 0] = True
 
 
-# ------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 # Fixtures: some NDArray's
-# ------------------------------------------------------------------
-
-
+# --------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
 def refarray():
     return ref_data
@@ -115,9 +117,10 @@ def test_ndarray_getitem(ndarray, ndarrayunit, refarray):
     assert nd.dims == ["y", "x"]
     # slicing is different in scpy than with numpy. We always return
     # unsqueezed dimensions, except for array of size 1, which are considered as scalar
-    with pytest.raises(IndexError):
-        # too many keys
-        nd[0, 0, 1]
+    nd0 = nd[0]
+    nd0 = nd[-1]
+    assert nd0.ndim == 2
+    assert nd0.shape == (1, 8)
     nd1 = nd[0, 0]
     assert_equal(nd1.data, nd.data[0:1, 0:1])
     assert nd1 is not nd[0, 0]
@@ -152,7 +155,7 @@ def test_ndarray_getitem(ndarray, ndarrayunit, refarray):
     nd4 = nd2[:, 1]
     assert nd4.shape == (3, 1)
     assert nd4.dims == ["y", "x"]
-    # squezzing
+    # squeezing
     nd5 = nd4.squeeze()
     assert nd5.shape == (3,)
     assert nd5.dims == ["y"]
@@ -166,22 +169,55 @@ def test_ndarray_getitem(ndarray, ndarrayunit, refarray):
     assert_array_equal(ndf.data, df)
     # inplace assignment
     ndf = nd[[-1, 1, 0], INPLACE]
-    assert_array_equal(ndf, nd)
+    assert ndf == nd
     # use with selection from other numpy functions
     nd = ndarray.copy()
     am = np.argmax(nd.data, axis=1)
     assert_array_equal(am, np.array([6, 3, 2, 2, 0, 0, 5, 3, 4, 7]))
     amm = nd.data[..., am]
     assert_array_equal(nd[..., am].data, amm)
+    with pytest.raises(IndexError):
+        # too many keys
+        nd[0, 0, 1]
+    with pytest.raises(IndexError):
+        # not integer keys
+        nd[0.0]
+    # slicing with non integer:
+    # values or quantity
+    d = [np.arange(0, 2, 0.01)]
+    # 1D array
+    nd = NDArray(d[0])
+    assert nd.shape == (200,)
+    assert nd[0.01].data == 0.01
+    # pseudo 1D-array
+    nd = NDArray(d)
+    assert nd.shape == (1, 200)
+    assert nd[0, 0.01].data == 0.01
+    # slice
+    nd = NDArray(d[0])
+    assert nd[0.01:0.04] == NDArray([0.01, 0.02, 0.03, 0.04])
+    assert nd[0.01:0.04:2] == NDArray([0.01, 0.03])  # integer step
+    assert nd[[0.00, 0.02, 0.03]] == NDArray([0.00, 0.02, 0.03])
+    with pytest.raises(IndexError):
+        nd[0.01:0.04:0.005]
+    # datetime
+    d = np.arange("2020", "2025", 6, dtype="<M8[M]")
+    nd = NDArray(d)
+    assert nd["2020-06"].data == np.datetime64("2020-07")
+    assert nd[np.datetime64("2020-08")].data == np.datetime64("2020-07")
+    assert nd["2020-01":"2022-01"].size == 5
 
 
-def test_ndarray_init(refarray, refmask, ndarray, ndarraymask):
+def test_ndarray_init(refarray, ndarray):
     # initialisation with null array
     nd = NDArray()
     assert nd._implements("NDArray")
     assert nd._implements() == "NDArray"
     assert isinstance(nd, NDArray)
     assert nd.is_empty
+    assert not nd.is_float
+    assert not nd.is_integer
+    assert nd.limits is None
     assert nd.id.startswith("NDArray_")
     assert not nd.has_data
     assert len(nd) == 0
@@ -423,10 +459,16 @@ def test_ndarray_get_axis(ndarray):
     axis, dim = nd.get_axis("yoyo", negative_axis=True)
     assert axis == -2
     assert dim == "yoyo"
-
     with pytest.raises(ValueError):
         # axis not exits
         nd.get_axis("notexists", negative_axis=True)
+    axis, dim = nd.get_axis(0, axis=1)  # conflict between args and kwargs (prioprity
+    # to kwargs)
+    assert axis == 1
+    assert dim == "xaxa"
+    with pytest.raises(TypeError):
+        nd._get_dims_index(1.1)
+    assert nd._get_dims_index(-1) == (1,)
 
 
 def test_ndarray_has_data():
@@ -825,20 +867,20 @@ def test_ndcomplexarray_init():
     # we should not be able to put complex data in a NDArray
     arr = [1.0j, 2.0j, 3.0j]
     with pytest.raises(CastingError):
-        nd = NDArray(arr)
+        NDArray(arr)
     nd1 = NDComplexArray(arr)
     nd2 = NDComplexArray(nd1)
     assert nd1 is not nd2  # shallow copy only data
     assert nd1.data is nd2.data  # by default copy is false
 
-    # ndComplexarray can also accept other type at initialisation
+    # NDComplexarray can also accept other type at initialisation
     nd = NDComplexArray([25])
     assert nd.data == np.array([25])
     assert nd.data.dtype in TYPE_INTEGER
 
     with pytest.raises(CastingError):
         # must have even number of colums
-        nd = NDComplexArray([25], dtype=np.complex128)
+        NDComplexArray([25], dtype=np.complex128)
     nd = NDComplexArray([25, 1], dtype=np.complex128)
     assert_array_equal(nd.data, np.array([25 + 1.0j]))
     assert nd.data.dtype in TYPE_COMPLEX
@@ -893,6 +935,15 @@ def test_ndcomplexarray_astype():
 
 def test_ndcomplexarray_components():
     d = np.arange(24).reshape(3, 2, 4)
+    nd = NDComplexArray(d)
+    with pytest.raises(AttributeError):
+        nd.X
+    with pytest.raises(ValueError):
+        nd.R
+    with pytest.raises(ValueError):
+        nd.component("R")
+    assert nd.imag is None
+    assert nd.real is nd
     nd = NDComplexArray(d, dtype=np.complex128)
     assert nd.shape == (3, 2, 2)
     assert nd.is_complex
@@ -904,6 +955,10 @@ def test_ndcomplexarray_components():
     assert ndi.is_real
     ndi = nd.I
     assert ndi.is_real
+    with pytest.raises(AttributeError):
+        assert nd.X
+    with pytest.raises(ValueError):
+        nd.component("X")
     assert_array_equal(nd.RR, nd.real)
     assert_array_equal(nd.RI, nd.imag)
     with pytest.raises(CastingError):
@@ -925,13 +980,20 @@ def test_ndcomplexarray_components():
     assert nd.RR.is_real
     assert nd.II.is_real
     assert nd.RI.is_real
-
+    with pytest.raises(AttributeError):
+        nd.RX
+    with pytest.raises(ValueError):
+        nd.component("RX")
     np.random.seed(12345)
     d = np.random.random((2, 2)) * np.exp(0.1j)
     d3 = NDComplexArray(d)
     new = d3.copy()
     new.data = d3.real.data + 1j * d3.imag.data
     assert_equal(d3.data, new.data)
+    d4 = NDComplexArray(d, dtype="complex128")
+    new = d4.copy()
+    new.data = d4.real.data + 1j * d4.imag.data
+    assert_equal(d4.data, new.data)
 
     np.random.seed(12345)
     d = np.random.random((2, 2)) * np.exp(0.1j)
@@ -1093,8 +1155,6 @@ def test_ndcomplexarray_swapdims_transpose():
 # ###########################
 # TEST NDMaskedComplexArray #
 # ###########################
-
-
 @pytest.fixture(scope="module")
 def ndarraymask():
     # return a simple ndarray with some data, units, and masks
@@ -1135,6 +1195,9 @@ def test_ndmaskedcomplexarray_get_and_setitem(ndarray):
 def test_ndmaskedcomplexarray_init_complex_with_mask():
     # test with complex with mask and units
 
+    nd = NDMaskedComplexArray()
+    assert str(nd) == "name: value\nempty"
+    assert not nd.is_masked
     np.random.seed(12345)
     d = np.random.random((2, 2)) * np.exp(0.1j)
 
@@ -1162,12 +1225,31 @@ def test_ndmaskedcomplexarray_init_complex_with_mask():
     assert isinstance(nd[1, 1].values, Quantity)
     assert nd[1, 1].values.magnitude == d[1, 1]
 
+    data = np.ma.array([1, 2], mask=[True, False])
+    nd = NDMaskedComplexArray(data)
+    assert np.all(nd.mask == [True, False])
+    assert str(nd) == "name: value\ndata: [      --        2]\nsize: 2"
+    assert repr(nd) == "NDMaskedComplexArray (value): [int64] unitless (size: 2)"
+
+    d = np.ones((2, 1)) * np.exp(0.1j)
+    nd = NDMaskedComplexArray(d, dtype=typequaternion, mask=NOMASK)
+    assert nd.shape == (1, 1)
+    assert not nd.is_masked
+    nd.mask = [[True]]
+    assert nd.is_masked
+    nd.mask = True
+    nd.mask = NOMASK
+    nd.mask = MASKED
+    with pytest.raises(ValueError):
+        # bad shape
+        nd.mask = [True]
+
 
 def test_ndmaskedcomplexarray_swapdims():
 
     d = np.arange(24).reshape(3, 2, 4)
     d = as_quat_array(d)
-    nd = NDComplexArray(d)
+    nd = NDMaskedComplexArray(d)
     nd1 = nd.swapdims(1, 0)
     assert nd1.shape == (2, 3)
     assert_array_equal(nd1.real.data, [[0, 8, 16], [4, 12, 20]])
@@ -1175,7 +1257,7 @@ def test_ndmaskedcomplexarray_swapdims():
 
     np.random.seed(12345)
     d = np.random.random((4, 3)) * np.exp(0.1j)
-    d3 = NDComplexArray(
+    d3 = NDMaskedComplexArray(
         d,
         units=ur.Hz,
         mask=[
@@ -1199,7 +1281,7 @@ def test_ndmaskedcomplexarray_swapdims():
 
     np.random.seed(12345)
     d = np.random.random((4, 3)) * np.exp(0.1j)
-    d0 = NDComplexArray(
+    d0 = NDMaskedComplexArray(
         d,
         units=ur.Hz,
         mask=[[False, True, False], [True, False, False]],
@@ -1207,12 +1289,12 @@ def test_ndmaskedcomplexarray_swapdims():
     )  # with units & mask
     assert d0.shape == (2, 3)
     assert (
-        repr(d0) == "NDComplexArray (value): "
+        repr(d0) == "NDMaskedComplexArray (value): "
         "[quaternion] Hz (shape: (y:2(complex), x:3(complex)))"
     )
     np.random.seed(12345)
     d = np.random.random((4, 3)) * np.exp(0.1j)
-    d3 = NDComplexArray(
+    d3 = NDMaskedComplexArray(
         d,
         units=ur.Hz,
         mask=[
@@ -1228,6 +1310,12 @@ def test_ndmaskedcomplexarray_swapdims():
     assert not d3.is_hypercomplex
     assert d3.dims == ["y", "x"]
     d4 = d3.swapdims(0, 1)
+    assert d4.dims == ["x", "y"]
+    assert d4.shape == (3, 4)
+    assert d4._data.shape == (3, 4)
+    assert d4.has_complex_dims
+    assert not d4.is_hypercomplex
+    d4 = d3.transpose()
     assert d4.dims == ["x", "y"]
     assert d4.shape == (3, 4)
     assert d4._data.shape == (3, 4)
@@ -1264,21 +1352,101 @@ def test_ndlabelledarray_docstring():
 
 
 def test_ndlabelledarray_init():
-    nd = NDLabelledArray(labels=list("abcdefghij"), title="labelled")
+    nd = NDLabelledArray(labels=None)
+    assert not nd.is_labeled
+    assert nd.size == 0
+    assert nd.shape == ()
+    assert nd.is_empty
+    assert nd.get_labels() is None
+
+    # Without data
+    nd = NDLabelledArray(labels=list("abcdefghij"))
     assert nd.is_labeled
+    assert nd.data is None
     assert nd.ndim == 1
     assert nd.shape == (10,)
+    assert nd.size == 10
+    assert list(nd.get_labels()) == list("abcdefghij")
+    assert nd.get_labels(level=1) is None
+
+    # With data
+    nd = NDLabelledArray(data=np.arange(10), labels=list("abcdefghij"))
+    assert nd.is_labeled
+    assert nd.ndim == 1
+    assert nd.data.shape == (10,)
+    assert nd.shape == (10,)
+
+    # 2D (not allowed)
+    with pytest.raises(LabelsError):
+        d = np.random.random((10, 10))
+        NDLabelledArray(data=d, labels=list("abcdefghij"))
+
+    # 2D but with the one of the dimensions being of size one.
+    d = np.random.random((1, 10))
+    nd = NDLabelledArray(data=d, labels=list("abcdefghij"))
+    assert nd.is_labeled
+    assert nd.ndim == 2
+    assert nd.data.shape == (1, 10)
+    assert nd.shape == (1, 10)
+
+    d = np.random.random((10, 1))
+    nd = NDLabelledArray(data=d, labels=list("abcdefghij"))
+    assert nd.is_labeled
+    assert nd.ndim == 2
+    assert nd.data.shape == (10, 1)
+    assert nd.shape == (10, 1)
+
+    # multidimensional labels
+    nd = NDLabelledArray(
+        data=np.arange(10), labels=[list("abcdefghij"), list("klmnopqrst")]
+    )
+    assert nd.is_labeled
+    assert nd.ndim == 1
+    assert nd.data.shape == (10,)
+    assert nd.shape == (10,)
+
+    d = np.random.random((10, 1))
+    nd = NDLabelledArray(data=d, labels=[list("abcdefghij"), list("klmnopqrst")])
+    assert nd.is_labeled
+
+    d = np.random.random((10, 1))
+    l = np.array([list("abcdefghij"), list("klmnopqrst")])
+    nd = NDLabelledArray(data=d, labels=l)
+    assert nd.is_labeled
+
+    # transposed labels
+    nd = NDLabelledArray(data=d, labels=l.T)
+    assert nd.is_labeled
+
+    l = np.array([list("abcdefghijx"), list("klmnopqrstx")])
+    with pytest.raises(LabelsError):
+        NDLabelledArray(data=d, labels=l)
 
 
 def test_ndlabelledarray_getitem():
     # slicing only-label array
-
-    nd = NDLabelledArray(labels=list("abcdefghij"), title="labelled")
+    nd = NDLabelledArray(labels=list("abcdefghij"))
     assert nd[1].labels == ["b"]
     assert nd[1].values == "b"
     assert nd["b"].values == "b"
     assert nd["c":"d"].shape == (2,)
     assert_array_equal(nd["c":"d"].values, np.array(["c", "d"]))
+    assert_array_equal(nd["c":"j":2].values, np.array(["c", "e", "g", "i"]))
+
+    # multilabels
+    nd = NDLabelledArray(
+        data=np.arange(10),
+        labels=[list("abcdefghij"), list("0123456789"), list("lmnopqrstx")],
+    )
+    assert_array_equal(nd["o":"x":2].values, np.array([3, 5, 7, 9]))
+
+    nd._data = np.arange("2020", "2030", dtype="<M8[Y]")
+    assert_array_equal(
+        nd["o":"x":2].values, np.arange("2023", "2030", 2, dtype="<M8[Y]")
+    )
+    assert_array_equal(
+        nd["2023":"2029":2].values, np.arange("2023", "2030", 2, dtype="<M8[Y]")
+    )
 
 
 def test_ndlabelledarray_sort():
@@ -1290,8 +1458,8 @@ def test_ndlabelledarray_sort():
         units="s",
         name="wavelength",
     )
-
     assert nd.is_labeled
+    assert list(nd.get_labels()) == list("abcdefghij")
 
     d1 = nd._sort()
     assert d1.data[0] == 1000
@@ -1312,26 +1480,47 @@ def test_ndlabelledarray_sort():
     assert d3 is not nd
 
     # multilabels
-    # add a row of labels to d0
+    # add rows of labels to d0
     nd.labels = "bc cd de ef ab fg gh hi ja ij ".split()
-
+    nd.labels = list("0123456789")
+    nd.labels = [list("klmnopqrst"), list("uvwxyzéèàç")]
+    assert list(nd.get_labels(level=2)) == list("0123456789")
     d1 = nd._sort()
     assert d1.data[0] == 1000
-    assert_array_equal(d1.labels[0], ["j", "ij"])
+    assert_array_equal(d1.labels[:, 0], ["j", "ij", "9", "t", "ç"])
 
     d1._sort(descend=True, inplace=True)
     assert d1.data[0] == 4000
-    assert_array_equal(d1.labels[0], ["a", "bc"])
+    assert_array_equal(d1.labels[:, 0], ["a", "bc", "0", "k", "u"])
 
     d1 = d1._sort(by="label[1]", descend=True)
-    assert np.all(d1.labels[0] == ["i", "ja"])
+    assert np.all(d1.labels[:, 0] == ["i", "ja", "8", "s", "à"])
 
     # other way
-    d2 = d1._sort(by="label", pos=1, descend=True)
-    assert np.all(d2.labels[0] == d1.labels[0])
+    d2 = d1._sort(by="label", level=1, descend=True)
+    assert np.all(d2.labels[:, 0] == d1.labels[:, 0])
 
     d3 = d1.copy()
     d3._labels = None
     with pytest.raises(KeyError):
         # no label!
-        d3._sort(by="label", pos=1, descend=True)
+        d3._sort(by="label", level=6, descend=True)
+
+
+def test_ndlabelledarray_str_repr():
+    nd = NDLabelledArray(labels=list("abcdefghij"))
+    assert str(nd) == "name: value\ndata: [  a   b   c ...   h   i   j]\nsize: 10"
+
+    nd = NDLabelledArray(
+        labels=[list("abcdefghij"), list("0123456789"), list("lmnopqrstx")]
+    )
+    assert "labels[1]" in str(nd)
+
+    nd = NDLabelledArray(
+        data=np.arange("2020", "2030", dtype="<M8[Y]"), labels=list("abcdefghij")
+    )
+    print
+    assert (
+        str(nd) == "  name: value\n  data: [  2020   2021   2022 ...   2027   "
+        "2028   2029]\nlabels: [  a   b ...   i   j]\n  size: 10"
+    )

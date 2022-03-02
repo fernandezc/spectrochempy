@@ -19,6 +19,7 @@ __all__ = [
     "SpectroChemPyException",
     "CastingError",
     "NoDataError",
+    "LabelsError",
     "UnitsCompatibilityError",
     "IncompatibleShapeError",
     "InvalidDimensionNameError",
@@ -66,7 +67,15 @@ class CastingError(SpectroChemPyException):
 
 class NoDataError(SpectroChemPyException):
     """
-    Exception raised when no data is present in ah object.
+    Exception raised when no data is present in an object.
+    """
+
+
+class LabelsError(SpectroChemPyException):
+    """
+    Exception raised when an array cannot be labeled.
+
+    For instance, if the array is multidimensional.
     """
 
 
