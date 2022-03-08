@@ -5,62 +5,56 @@ import spectrochempy
 import spectrochempy as scp
 
 
+DATADIR = scp.preferences.datadir
+SPG_FILE = DATADIR / "irdata/nh4y-activation.spg"
+UNREADABLE = DATADIR / "irdata/omnic series/GC Demo.srs"
+
+
 @pytest.fixture(scope="module")
 def X():
-    X = scp.read_omnic("irdata/nh4y-activation.spg")
+    X = scp.read_omnic(SPG_FILE)
     X.y -= X.y[0]
     return X
 
 
-def test_baselinecorrector_uploader_single():
-    # check uploader
+def test_baselinecorrector_load_clicked(X, monkeypatch):
+    def open_ok(*args, **kwargs):
+        # mock opening a dialog
+        return SPG_FILE
 
-    # single file
+    def open_cancel(*args, **kwargs):
+        # mock dialog canceled
+        return None
+
+    def open_wrong(*args, **kwargs):
+        # mock opening a dialog
+        return UNREADABLE
+
     out = scp.BaselineCorrector()
-    assert out._fig is None, "No plot"
-    assert not hasattr(out, "original")
     assert out.corrected.is_empty
-    datadir = scp.preferences.datadir
-    with open(datadir / "irdata/nh4y-activation.spg", "rb") as fil:
-        content = fil.read()
-    CONTENT = {"nh4y-activation.spg": {"content": memoryview(content)}}
-    out._uploader.set_trait("value", CONTENT)
-    # out.process_clicked()
-    # process is triggered properly
+    # save
+    # write without parameters and dialog cancel
+    monkeypatch.setenv(
+        "KEEP_DIALOGS", "True"
+    )  # we ask to display dialogs as we will mock them.
+
+    monkeypatch.setattr(spectrochempy.core, "open_dialog", open_cancel)
+    assert out._load_clicked() is None
+
+    monkeypatch.setattr(spectrochempy.core, "open_dialog", open_ok)
+    out._load_clicked()
     assert out.original.name == "nh4y-activation"
-    assert out.original.shape == (55, 5549)
 
-
-def test_baselinecorrector_uploader():
-    # check uploader
-
-    datadir = scp.preferences.datadir
-    with open(datadir / "irdata/nh4y-activation.spg", "rb") as fil:
-        content = fil.read()
-    CONTENT = {"nh4y-activation.spg": {"content": memoryview(content)}}
-
-    # multiple files that can be merged
     out = scp.BaselineCorrector()
-    CONTENT2 = {}
-    for i in range(4):
-        with open(datadir / f"irdata/OPUS/test.000{i}", "rb") as fil:
-            content = fil.read()
-            CONTENT2.update({f"test.000{i}": {"content": memoryview(content)}})
-    out._uploader.set_trait("value", CONTENT2)
-    assert out.original.name == "test.0003"
-    assert out.original.shape == (4, 2567)
-
-    # incompatibles files
-    out = scp.BaselineCorrector()
-    CONTENT3 = CONTENT
-    CONTENT3.update(CONTENT2)
-    with pytest.raises(IOError):
-        out._uploader.set_trait("value", CONTENT3)
+    monkeypatch.setattr(spectrochempy.core, "open_dialog", open_wrong)
+    out._load_clicked()
+    assert out.original.is_empty
 
 
 def test_baselinecorrector_slicing(X):
 
     out = scp.BaselineCorrector(X)
+
     assert out.corrected.shape == (55, 5549)
     assert len(out._fig.axes[0].lines) == 110, "original + baselines"
     assert len(out._fig.axes[1].lines) == 55, "corrected"
@@ -70,7 +64,7 @@ def test_baselinecorrector_slicing(X):
     # slicing
     out._x_limits_control.value = "[5000.56 : 649.9 : 1]"
     out._y_limits_control.value = "[0:55:2]"
-    out.process_clicked()
+    out._process_clicked()
     assert len(out._fig.axes[0].lines) == 56, "original + baselines"
     assert len(out._fig.axes[1].lines) == 28, "corrected"
     assert np.all(out._fig.axes[1].lines[0].get_xdata() == X.x[5000.56:649.9].data)
@@ -88,7 +82,7 @@ def test_baselinecorrector_slicing(X):
     [800.0, 850.0],
     )
     """
-    out.process_clicked()
+    out._process_clicked()
     assert out.corrected.shape == (28, 4771)
     initial_ranges = (
         [5900.0, 5400.0],
@@ -101,63 +95,90 @@ def test_baselinecorrector_slicing(X):
     )
     out2 = scp.BaselineCorrector(X, initial_ranges=initial_ranges)
     out2._x_limits_control.value = "[5400.56 : 800.9 : 1]"
-    out2.process_clicked()
+    out2._process_clicked()
     assert np.all(out2._fig.axes[1].lines[0].get_xdata() == X.x[5400.56:800.9].data)
 
     assert np.all(
         out._fig.axes[1].lines[0].get_xdata() == out2._fig.axes[1].lines[0].get_xdata()
     )
 
-    # reset slicing
-    out._x_limits_control.value = "[5999.56 : 649.9 : 1]"
-    out._y_limits_control.value = "[0:55:1]"
-    out.process_clicked()
-    assert out.corrected.shape == (55, 5549)
+    # slicing limits out of coord range
+    out = scp.BaselineCorrector(X[::50, :])
+    out._x_limits_control.value = "[4000.0 : 2000.0 : 1]"
+    out._ranges_control.value = """
+    (
+    [5900.0, 5400.0],
+    [800.0, 850.0],
+    )
+    """
+    out._process_clicked()
+    assert out.corrected.shape == (2, 2075)
+
+    out._ranges_control.value = """
+    (
+    5900.,
+    [800.0, 850.0],
+    )
+    """
+    out._process_clicked()
+    assert out.corrected.shape == (2, 2075)
+
+    out._ranges_control.value = """
+    (
+    [5900.0, 5400.0],
+    850.0
+    )
+    """
+    out._process_clicked()
+    assert out.corrected.shape == (2, 2075)
 
     # other slicing format
+    out = scp.BaselineCorrector(X)
     out._y_limits_control.value = "[0.0:3000.0:1]"  # y location
-    out.process_clicked()
+    out._process_clicked()
     assert out.corrected.shape == (6, 5549)
 
     # missing parts in slice
     out._y_limits_control.value = "[:3000.0]"  # y location
-    out.process_clicked()
+    out._process_clicked()
     assert out.corrected.shape == (6, 5549)
 
     out._y_limits_control.value = "::2"  # y location
-    out.process_clicked()
+    out._process_clicked()
     assert out.corrected.shape == (28, 5549)
 
     out._y_limits_control.value = "0:10:2"  # y location
-    out.process_clicked()
+    out._process_clicked()
     assert out.corrected.shape == (5, 5549)
 
     out._x_limits_control.value = "::100"  # y location
-    out.process_clicked()
+    out._process_clicked()
     assert out.corrected.shape == (5, 56)
+
+    out._x_limits_control.value = "::100:"  # y location
+    with pytest.raises(ValueError):
+        out._process_clicked()
 
 
 def test_baselinecorrector_not_a_NDDataset(X):
-
     with pytest.raises(ValueError):
         scp.BaselineCorrector(X.x)
 
 
 def test_baselinecorrector_parameters(X):
-
     _X = X[0:10, 0:100]
     out = scp.BaselineCorrector(_X)
     # sequential
-    assert out._methodselector in out._method_control.children
-    assert out._npcslider not in out._method_control.children
+    assert out._method_selector in out._method_control.children
+    assert out._npc_slider not in out._method_control.children
 
-    out._interpolationselector.value = "pchip"
-    out.process_clicked()
+    out._interpolation_selector.value = "pchip"
+    out._process_clicked()
 
     # try higher polyorder
-    out._orderslider.value = 3
-    out._interpolationselector.value = "polynomial"
-    out.process_clicked()
+    out._order_slider.value = 3
+    out._interpolation_selector.value = "polynomial"
+    out._process_clicked()
 
     assert out.corrected.shape == (10, 100)
     assert len(out._fig.axes[0].lines) == 20, "original + baselines"
@@ -165,17 +186,17 @@ def test_baselinecorrector_parameters(X):
     assert np.all(out._fig.axes[1].lines[0].get_xdata() == _X.x.data)
 
     # try multivariate
-    out._methodselector.value = "multivariate"
-    assert out._methodselector in out._method_control.children
-    assert out._npcslider in out._method_control.children
+    out._method_selector.value = "multivariate"
+    assert out._method_selector in out._method_control.children
+    assert out._npc_slider in out._method_control.children
 
     # try multivariate, with 2 pcs
-    out._npcslider.value = 2
-    out.process_clicked()
+    out._npc_slider.value = 2
+    out._process_clicked()
 
-    out._methodselector.value = "sequential"
-    assert out._methodselector in out._method_control.children
-    assert out._npcslider not in out._method_control.children
+    out._method_selector.value = "sequential"
+    assert out._method_selector in out._method_control.children
+    assert out._npc_slider not in out._method_control.children
 
 
 def test_baselinecorrector_save_clicked(X, monkeypatch):
@@ -195,10 +216,10 @@ def test_baselinecorrector_save_clicked(X, monkeypatch):
     )  # we ask to display dialogs as we will mock them.
 
     monkeypatch.setattr(spectrochempy.core, "save_dialog", dialog_cancel)
-    assert out.save_clicked() is None
+    assert out._save_clicked() is None
 
     monkeypatch.setattr(spectrochempy.core, "save_dialog", dialog_save)
-    filename = out.save_clicked()
+    filename = out._save_clicked()
     assert filename == scp.pathclean("spec.scp")  # <-
     assert filename.exists()
     if filename.exists:
