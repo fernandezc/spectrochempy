@@ -65,7 +65,7 @@ __all__ += api.__all__
 # check version of pint
 def _check_pint_version():
     import pint
-    from spectrochempy import optional
+    from spectrochempy.utils import optional
     from spectrochempy.utils.version import Version
 
     vers = Version(optional.get_module_version(pint))

@@ -95,7 +95,7 @@ class Meta(object):  # HasTraits):
         self.name = data.pop("name", None)
         self._data = data
 
-    def __dir__(self):
+    def _attributes(self):
         return ["data", "readonly", "parent", "name"]
 
     def __setattr__(self, key, value):
@@ -117,14 +117,14 @@ class Meta(object):  # HasTraits):
             ] = value  # to avoid a recursive call  # we can not use  # self._readonly = value!
 
     def __getattr__(self, key):
-        if key.startswith("_ipython") or key.startswith("_repr"):
+        if key.startswith("_ipython") or key.startswith("_repr") or key == "_cstr":
             raise AttributeError
         if key in ["__wrapped__"]:
             return False
         return self[key]
 
     def __setitem__(self, key, value):
-        if key in self.__dir__() or key.startswith("_"):
+        if key in self._attributes() or key.startswith("_"):
             raise KeyError("`{}` can not be used as a metadata key".format(key))
         elif not self.readonly:
             self._data.update({key: value})
@@ -183,7 +183,7 @@ class Meta(object):  # HasTraits):
     # public methods
     # ------------------------------------------------------------------------
 
-    def implements(self, name=None):
+    def _implements(self, name=None):
         if name is None:
             return "Meta"
         else:

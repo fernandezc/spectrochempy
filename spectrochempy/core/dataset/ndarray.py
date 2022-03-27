@@ -1,306 +1,277 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
-This module implements the |NDArray| base class.
-"""
+This module implements the base class |NDArray| and several subclasses of |NDArray|.
+with (hyper)complexes related attributes, masks or labels .
 
-__all__ = ["NDArray", "DEFAULT_DIM_NAME"]
+These base classes are not intended to be used directly by the end user.
+They serve as abstract classes that already implement the basic methods to define
+spectral arrays and related attribute methods.
+
+More specifically, derived classes such as NDDataset or Coord implement additional
+methods and attributes.
+
+What are the basic attributes of the NDArray class?
+-----------------------------------------------------
+
+The most used ones:
+~~~~~~~~~~~~~~~~~~~
+* `id`: A unique identifier of the NDArray object.
+* `data`: An array of data contained in the object (default: None)
+* `name`: A friendly name for the object (default: id)
+* `dims`: The names of the dimensions.
+* `title`: The title of the data array, often a quantity name(e.g, `frequency`)
+* `units`: The units of the data array (for example, `Hz`).
+
+Useful additional attributes:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* `meta`: A dictionary of any additional metadata.
+
+Read-only attributes:
+~~~~~~~~~~~~~~~~~~~~~
+* `dtype`: data type (see numpy definition of dtypes).
+
+Most attributes are optional and automatically set by default.
+Even data can be absent.  In this case, the NDArray is considered empty.
+
+Derived classes
+---------------
+* NDComplexArray : This class has the same attributes as NDArray,
+  but unlike NDArray, it accepts complex or hypercomplex data.
+
+* NDMaskedComplexArray : This class has the same attributes as NDComplexArray,
+  but has an additional attribute `mask`: NOMASK or a boolean array of the same form
+  as the data array.
+
+* NDLabeledArray : This class is a 1D NDArray, with an additional attribute `labels`.
+  Labels can be defined in addition to the main data or replace it completely.
+"""
 
 import copy as cpy
-import warnings
+import itertools
+import pathlib
 import re
 import textwrap
 import uuid
-import itertools
-import pathlib
-from datetime import datetime, timezone
+from datetime import datetime
 
 import numpy as np
-from traitlets import (
-    List,
-    Unicode,
-    Instance,
-    Bool,
-    Union,
-    Integer,
-    HasTraits,
-    default,
-    validate,
-    observe,
-    All,
-)
+import pint
+import traitlets as tr
+from quaternion import as_float_array, as_quat_array
 from traittypes import Array
 
-from spectrochempy.core import info_, error_, print_
-from spectrochempy.core.dataset.meta import Meta
-from spectrochempy.core.units import (
-    Unit,
-    ur,
-    Quantity,
-    set_nmr_context,
-    DimensionalityError,
-)
-from spectrochempy.utils import (
-    TYPE_INTEGER,
-    TYPE_FLOAT,
-    MaskedConstant,
+from spectrochempy.core import error_, exception_, info_, print_, warning_
+from spectrochempy.core.common.compare import is_datetime64, is_number, is_sequence
+from spectrochempy.core.common.complex import as_quaternion
+from spectrochempy.core.common.constants import (
+    DEFAULT_DIM_NAME,
+    INPLACE,
     MASKED,
     NOMASK,
-    INPLACE,
-    is_sequence,
-    is_number,
-    numpyprintoptions,
-    insert_masked_print,
+    TYPE_INTEGER,
+    MaskedConstant,
+    typequaternion,
+)
+from spectrochempy.core.common.datetimes import from_dt64_units
+from spectrochempy.core.common.docstrings import DocstringProcessor
+from spectrochempy.core.common.exceptions import (
+    CastingError,
+    DimensionalityError,
+    LabelsError,
+    ShapeError,
     SpectroChemPyWarning,
-    make_new_object,
+)
+from spectrochempy.core.common.print import (
     convert_to_html,
-    get_user_and_node,
-    pathclean,
+    insert_masked_print,
+    numpyprintoptions,
+)
+from spectrochempy.core.dataset.meta import Meta
+from spectrochempy.core.units import (
+    Quantity,
+    Unit,
+    get_units,
+    remove_units,
+    set_nmr_context,
+    ur,
 )
 
-# ======================================================================================================================
-# Constants
-# ======================================================================================================================
-
-DEFAULT_DIM_NAME = list("xyzuvwpqrstijklmnoabcdefgh")[::-1]
-"""Default dimension names."""
-
-# ======================================================================================================================
 # Printing settings
-# ======================================================================================================================
-
+# --------------------------------------------------------------------------------------
 numpyprintoptions()
 
 
-# ======================================================================================================================
+# docstring substitution (docrep)
+# --------------------------------------------------------------------------------------
+_docstring = DocstringProcessor()
+
+
+# Validators
+def _check_dtype():
+    def validator(trait, value):
+        if value.dtype.kind == "m":
+            raise CastingError(
+                value.dtype,
+                "if you want to pass a timedelta64 array to the "
+                "data attribute, use the property  "
+                "'data' and not the hidden '_data' attribute.\n"
+                "e.g.,  self.data = a_timedelta64_array\n "
+                "\tnot  self._data = a_timedelta64_array  ",
+            )
+        return value
+
+    return validator
+
+
+# ======================================================================================
 # The basic NDArray class
-# ======================================================================================================================
+# ======================================================================================
 
 
-class NDArray(HasTraits):
+class NDArray(tr.HasTraits):
     """
     The basic |NDArray| object.
 
-    The |NDArray| class is an array (numpy |ndarray|-like) container, usually not intended to be used directly,
-    as its basic functionalities may be quite limited, but to be subclassed.
+    The |NDArray| class is an array (numpy |ndarray|-like) container, usually not
+    intended to be used directly, as its basic functionalities may be quite limited,
+    but to be subclassed.
 
-    Indeed, both the classes |NDDataset| and |Coord| which respectively implement a full dataset (with
-    coordinates) and the coordinates in a given dimension, are derived from |NDArray| in |scpy|.
-
-    The key distinction from raw numpy |ndarray| is the presence of optional properties such as dimension names,
-    labels, masks, units and/or extensible metadata dictionary.
+    The key distinction from raw numpy |ndarray| is the presence of optional properties
+    such as dimension names, units and metadata.
 
     Parameters
     ----------
-    data : array of floats
-        Data array contained in the object. The data can be a list, a tuple, a |ndarray|, a ndarray-like,
-        a |NDArray| or any subclass of |NDArray|. Any size or shape of data is accepted. If not given, an empty
-        |NDArray| will be inited.
-        At the initialisation the provided data will be eventually cast to a numpy-ndarray.
-        If a subclass of |NDArray| is passed which already contains some mask, labels, or units, these elements
-        will
-        be used to accordingly set those of the created object. If possible, the provided data will not be copied
-        for `data` input, but will be passed by reference, so you should make a copy of the `data` before passing
-        them if that's the desired behavior or set the `copy` argument to True.
+    data : list, tuple, or |ndarray|-like object
+        Data array contained in the object. Any
+        size or shape of data is accepted. If not given, an empty object will
+        be inited. At the initialisation the provided data will be eventually cast to a
+        numpy-ndarray. If possible, the provided data will not be copied for `data`
+        input, but will be passed by reference, so you should make a copy of the
+        `data` before passing them if that's the desired behavior or set the `copy`
+        argument to True.
     **kwargs
         Optional keywords parameters. See Other Parameters.
 
     Other Parameters
     ----------------
+    copy : bool, optional, Default:False
+        If True, a deep copy of the passed object is performed.
     dtype : str or dtype, optional, default=np.float64
-        If specified, the data will be cast to this dtype, else the data will be cast to float64.
-    dims : list of chars, optional.
-        If specified the list must have a length equal to the number of data dimensions (ndim).
-        If not specified, dimension names are automatically attributed in the order given by
-        `DEFAULT_DIM_NAME`.
-    name : str, optional
-        A user-friendly name for this object. If not given, the automatic `id` given at the object creation will be
-        used as a name.
-    labels : array of objects, optional
-        Labels for the `data`. Note that the labels can be used only for 1D-datasets.
-        The labels array may have an additional dimension, meaning several series of labels for the same data.
-        The given array can be a list, a tuple, a |ndarray|, a ndarray-like, a |NDArray| or any subclass of
-        |NDArray|.
-    mask : array of bool or `NOMASK`, optional
-        Mask for the data. The mask array must have the same shape as the data. The given array can be a list,
-        a tuple, or a |ndarray|. Each values in the array must be `False` where the data are *valid* and True when
-        they are not (like in numpy masked arrays). If `data` is already a :class:`~numpy.ma.MaskedArray`, or any
-        array object (such as a |NDArray| or subclass of it), providing a `mask` here will cause the mask from the
-        masked array to be ignored.
-    units : |Unit| instance or str, optional
-        Units of the data. If data is a |Quantity| then `units` is set to the unit of the `data`; if a unit is also
-        explicitly provided an error is raised. Handling of units use the `pint <https://pint.readthedocs.org/>`_
-        package.
+        If specified, the data will be cast to this dtype.
+    dims : list of chars, optional
+        If specified the list must have a length equal to the number of data
+        dimensions (ndim).
+        If not specified, dimension names are automatically attributed in the order
+        given by `DEFAULT_DIM_NAME`.
     title : str, optional
-        The title of the dimension. It will later be used for instance for labelling plots of the data.
-        It is optional but recommended giving a title to each ndarray.
-    dlabel :  str, optional.
-        Alias of `title`.
-    meta : dict-like object, optional.
+        The title of the array.
+        It is optional but recommended giving a title to each array.
+    meta : dict-like object, optional
         Additional metadata for this object. Must be dict-like but no
         further restriction is placed on meta.
-    author : str, optional.
-        name(s) of the author(s) of this dataset. BNy default, name of the computer note where this dataset is
-        created.
-    description : str, optional.
-        An optional description of the nd-dataset. A shorter alias is `desc`.
-    history : str, optional.
-        A string to add to the object history.
-    copy : bool, optional, Default:False.
-        If True, a deep copy of the passed object is performed.
-
-    See Also
-    --------
-    NDDataset : Object which subclass |NDArray| with the addition of coordinates.
-    Coord : Object which subclass |NDArray| (coordinates object).
-    LinearCoord : Object which subclass |NDArray| (Linear coordinates object).
-
-    Examples
-    --------
-
-    >>> myarray = scp.NDArray([1., 2., 3.], name='myarray')
-    >>> assert myarray.name == 'myarray'
+    name : str, optional
+        A user-friendly name for this object. If not given, the automatic `id`
+        given at the object creation will be used as a name.
+    timezone : datetime.tzinfo, optional
+        The timezone where the data were created. If not specified, the local
+        timezone is assumed.
+    units : |Unit| instance or str, optional
+        Units of the data. If data is a |Quantity| then `units` is set to the unit of
+        the `data`; if a unit is also explicitly provided an error is raised.
+        Handling of units use the `pint <https://pint.readthedocs.org/>`__
+        package.
     """
+
+    _docstring.get_sections(_docstring.dedent(__doc__), base="NDArray")
 
     # Hidden properties
 
-    # Main array properties
-    _id = Unicode()
-    _name = Unicode()
-    _title = Unicode(allow_none=True)
-    _data = Array(allow_none=True)
-    _dtype = Instance(np.dtype, allow_none=True)
-    _dims = List(Unicode())
-    _mask = Union((Bool(), Array(Bool()), Instance(MaskedConstant)))
-    _labels = Array(allow_none=True)
-    _units = Instance(Unit, allow_none=True)
+    _id = tr.Unicode()
+    _name = tr.Unicode()
+    _title = tr.Unicode(allow_none=True)
+    _data = Array(None, allow_none=True).valid(_check_dtype())
+    _dtype = tr.Instance(np.dtype, allow_none=True)
+    _dims = tr.List(tr.Unicode(), allow_none=True)
+    _units = tr.Instance(Unit, allow_none=True)
+    _meta = tr.Instance(Meta, allow_none=True)
 
     # Region of interest
-    _roi = List(allow_none=True)
-
-    # Dates
-    _date = Instance(datetime)
-    _modified = Instance(datetime)
-
-    # Metadata
-    _author = Unicode()
-    _description = Unicode()
-    _origin = Unicode()
-    _history = List(Unicode(), allow_none=True)
-    _meta = Instance(Meta, allow_none=True)
-    _transposed = Bool(False)
+    _roi = Array(allow_none=True)
 
     # Basic NDArray setting.
     # by default, we do shallow copy of the data
     # which means that if the same numpy array is used for too different NDArray,
     # they will share it.
-    _copy = Bool(False)
-
-    _labels_allowed = Bool(True)
-    # Labels are allowed for the data, if the data are 1D only
-    # they will essentially serve as coordinates labelling.
+    _copy = tr.Bool(False)
 
     # Other settings
-    _text_width = Integer(120)
-    _html_output = Bool(False)
-    _filename = Union((Instance(pathlib.Path), Unicode()), allow_none=True)
+    _text_width = tr.Integer(88)
+    _html_output = tr.Bool(False)
+    _filename = tr.Union((tr.Instance(pathlib.Path), tr.Unicode()), allow_none=True)
 
-    # ..........................................................................
+    def _implements(self, name=None):
+        """
+        Utility to check if the current object _implements a given class.
+
+        Rather than isinstance(obj, <class>) use object._implements('<classname>').
+        This is useful to check type without importing the module.
+
+        Parameters
+        ----------
+        name : str, optional
+            Name of the class implemented.
+
+        Returns
+        -------
+        str or bool
+            Return the class name or a boolean if the type is checked
+        """
+        if name is None:
+            return self.__class__.__name__
+        return name == self.__class__.__name__
+
     def __init__(self, data=None, **kwargs):
-
-        super().__init__()
-
-        # Creation date.
-        self._date = datetime.now(timezone.utc)
-
+        super().__init__(**kwargs)
         # By default, we try to keep a reference to the data, so we do not copy them.
-        self._copy = kwargs.pop("copy", False)  #
-
+        self._copy = kwargs.pop("copy", False)
         dtype = kwargs.pop("dtype", None)
         if dtype is not None:
             self._dtype = np.dtype(dtype)
-
-        if data is not None:
-            self.data = data
-
-        if data is None or self.data is None:
-            self._data = None
-            self._dtype = None  # default
-
-        if self._labels_allowed:
-            self.labels = kwargs.pop("labels", None)
-
+            if self._dtype.kind == "M":
+                # by default datatime must be set in ns (at least internally, e.g.
+                # due to comparison purpose
+                self._dtype = np.dtype("datetime64[ns]")
+        self.data = data
         self.title = kwargs.pop("title", self.title)
-
-        mask = kwargs.pop("mask", NOMASK)
-        if mask is not NOMASK:
-            self.mask = mask
-
-        if "dims" in kwargs.keys():
+        if "dims" in kwargs:
             self.dims = kwargs.pop("dims")
-
-        self.units = kwargs.pop("units", None)
-
-        self.meta = kwargs.pop("meta", None)
-
-        self.name = kwargs.pop("name", None)
-
-        self.description = kwargs.pop("description", kwargs.pop("desc", ""))
-
-        author = kwargs.pop("author", get_user_and_node())
-        if author:
-            try:
-                self.author = author
-            except AttributeError:
-                # This happens for coord for which we cannot set the author (no need)
-                pass
-
-        history = kwargs.pop("history", None)
-        if history is not None:
-            self.history = history
-
-        self._modified = self._date
+        self.units = kwargs.pop("units", self.units)
+        self.name = kwargs.pop("name", self.name)
+        self.meta = kwargs.pop("meta", self.meta)
 
     # ------------------------------------------------------------------------
     # Special methods
     # ------------------------------------------------------------------------
 
-    # ..........................................................................
     def __copy__(self):
-        return self.copy(deep=False)
+        # in SpectroChemPy, copy is equivalent to deepcopy
+        # To do a shallow copy, just use assignment.
+        return self.copy()
 
-    # ..........................................................................
     def __deepcopy__(self, memo=None):
-        return self.copy(deep=True, memo=memo)
+        # memo not used
+        return self.copy()
 
-    # ..........................................................................
-    def __dir__(self):
-        return [
-            "data",
-            "dims",
-            "mask",
-            "labels",
-            "units",
-            "meta",
-            "title",
-            "name",
-            "origin",
-            "roi",
-            "author",
-            "description",
-            "history",
-            "transposed",
-        ]
-
-    # ..........................................................................
     def __eq__(self, other, attrs=None):
-
-        eq = True
-
+        equ = True
+        otherunits = False
+        otherdata = None
         if not isinstance(other, NDArray):
             # try to make some assumption to make useful comparison.
             if isinstance(other, Quantity):
@@ -309,544 +280,423 @@ class NDArray(HasTraits):
             elif isinstance(other, (float, int, np.ndarray)):
                 otherdata = other
                 otherunits = False
-            else:  # pragma: no cover
-                return False
-
-            if not self.has_units and not otherunits:
-                eq = np.all(self._data == otherdata)
-            elif self.has_units and otherunits:
-                eq = np.all(self._data * self._units == otherdata * otherunits)
-            else:  # pragma: no cover
-                return False
-            return eq
-
-        if attrs is None:
-            attrs = self.__dir__()
-
-        for attr in ["name", "history"]:
-            if attr in attrs:
-                attrs.remove(attr)
-
-        for attr in attrs:
-            if attr != "units":
-                sattr = getattr(self, f"_{attr}")
-                if hasattr(other, f"_{attr}"):
-                    oattr = getattr(other, f"_{attr}")
-                    # to avoid deprecation warning issue for unequal array
-                    if sattr is None and oattr is not None:  # pragma: no cover
-                        return False
-                    if oattr is None and sattr is not None:  # pragma: no cover
-                        return False
-                    # noinspection PyUnresolvedReferences
-                    if (
-                        hasattr(oattr, "size")
-                        and hasattr(sattr, "size")
-                        and oattr.size != sattr.size
-                    ):
-                        # particular case of mask
-                        if attr != "mask":
-                            return False
-                        else:
-                            if other.mask != self.mask:
-                                return False
-                    eq &= np.all(sattr == oattr)
-                    if not eq:
-                        return False
-                else:
-                    return False
             else:
-                # no unit and dimensionless are supposed equals
-                sattr = self._units
-                if sattr is None:
-                    sattr = ur.dimensionless
-                if hasattr(other, "_units"):
-                    oattr = other._units
-                    if oattr is None:
-                        oattr = ur.dimensionless
+                equ = False
+            if equ:
+                if not self.has_units and not otherunits:
+                    equ = np.all(self.data == otherdata)
+                elif self.has_units and otherunits:
+                    equ = np.all(self.data * self.units == otherdata * otherunits)
+                else:  # pragma: no cover
+                    equ = False
+        else:
+            if attrs is None:
+                attrs = self._attributes()
+                attrs.remove("name")  # name are uniques, so should not be compared
+            for attr in attrs:
+                equ &= self._compare_attribute(other, attr)
+                if not equ:
+                    break
+        return equ
 
-                    eq &= np.all(sattr == oattr)
-                    if not eq:
-                        return False
-                else:
-                    return False
-
-        return eq
-
-    # ..........................................................................
     def __getitem__(self, items, return_index=False):
-
         if isinstance(items, list):
             # Special case of fancy indexing
             items = (items,)
-
-        # # allow passing a quantity as indice or in slices
-        # def remove_units(items):
-        #     # recursive function
-        #     if isinstance(items, (tuple,)):
-        #         items = tuple(remove_units(item) for item in items)
-        #
-        #     elif isinstance(items, slice):
-        #         items = slice(
-        #             remove_units(items.start),
-        #             remove_units(items.stop),
-        #             remove_units(items.step),
-        #         )
-        #
-        #     else:
-        #         items = float(items.m) if isinstance(items, Quantity) else items
-        #
-        #     return items
-        #
-        # items = remove_units(items)
-
         # choose, if we keep the same or create new object
         inplace = False
         if isinstance(items, tuple) and items[-1] == INPLACE:
             items = items[:-1]
             inplace = True
-
         # Eventually get a better representation of the indexes
-        keys = self._make_index(items)
-
+        items = self._make_index(items)
         # init returned object
-        if inplace:
-            new = self
-        else:
-            new = self.copy()
-
-        # slicing by index of all internal array
+        new = self if inplace else self.copy()
         if new.data is not None:
-            udata = new.masked_data[keys]
+            udata = new.data[items]
             new._data = np.asarray(udata)
-
-        if self.is_labeled:
-            # case only of 1D dataset such as Coord
-            new._labels = np.array(self._labels[keys])
-
         if new.is_empty:
             error_(
-                f"Empty array of shape {new._data.shape} resulted from slicing.\n"
-                f"Check the indexes and make sure to use floats for location slicing"
+                f"Empty array of shape {new.data.shape} resulted from slicing.\n"
+                f"Check the indexes."
             )
             new = None
-
-        elif (self.data is not None) and hasattr(udata, "mask"):
-            new._mask = udata.mask
-        else:
-            new._mask = NOMASK
-
         # for all other cases,
         # we do not need to take care of dims, as the shape is not reduced by
         # this operation. Only a subsequent squeeze operation will do it
         if not return_index:
             return new
-        else:
-            return new, keys
+        return new, items
 
-    # ..........................................................................
     def __hash__(self):
-        # all instance of this class has same hash, so they can be compared
-        return hash((type(self), self.shape, self._units))
+        # all instance of this class have same hashes, so they can be compared
+        return hash((type(self), self.shape, self.units))
 
-    # ..........................................................................
     def __iter__(self):
         # iterate on the first dimension
-        if self.ndim == 0:
-            error_("iteration over a 0-d array is not possible")
-            return None
+        for idx in range(len(self)):
+            yield self[idx]
 
-        for n in range(len(self)):
-            yield self[n]
-
-    # ..........................................................................
     def __len__(self):
         # len of the last dimension
         if not self.is_empty:
             return self.shape[0]
-        else:
-            return 0
+        return 0
 
-    # ..........................................................................
     def __ne__(self, other, attrs=None):
         return not self.__eq__(other, attrs)
 
-    # ..........................................................................
     def __repr__(self):
-        out = f"{self._repr_value().strip()} ({self._repr_shape().strip()})"
-        out = out.rstrip()
-        return out
+        prefix = f"{type(self).__name__} ({self.title}): "
+        units = ""
+        sizestr = ""
 
-    # ..........................................................................
+        def _unitless_or_dimensionless(units):
+            return " unitless" if self.is_unitless else " dimensionless"
+
+        if not self.is_empty and self.data is not None:
+            sizestr = f" ({self._str_shape().strip()})"
+            dtype = self.dtype
+            data = ""
+            units = (
+                f" {self.units:~P}"
+                if self.has_units
+                else _unitless_or_dimensionless(self.units)
+            )
+            body = f"[{dtype}]{data}"
+        else:
+            body = "empty"
+        return "".join([prefix, body, units, sizestr]).rstrip()
+
     def __setitem__(self, items, value):
-
         keys = self._make_index(items)
-
-        if isinstance(value, (bool, np.bool_, MaskedConstant)):
-            # the mask is modified, not the data
-            if value is MASKED:
-                value = True
-            if not np.any(self._mask):
-                self._mask = np.zeros(self._data.shape).astype(np.bool_)
-            self._mask[keys] = value
-            return
-
-        elif isinstance(value, Quantity):
+        if isinstance(value, Quantity):
             # first convert value to the current units
-            value.ito(self.units)
+            try:
+                value.ito(self.units)
+            except pint.DimensionalityError as exc:
+                raise DimensionalityError(
+                    exc.dim1, exc.dim2, exc.units1, exc.units2, extra_msg=exc.extra_msg
+                ) from exc
+
             # self._data[keys] = np.array(value.magnitude, subok=True, copy=self._copy)
             value = np.array(value.magnitude, subok=True, copy=self._copy)
+        self._data[keys] = value
 
-        if self._data.dtype == np.dtype(np.quaternion) and np.isscalar(value):
-            # sometimes do not work directly : here is a work around
-            self._data[keys] = np.full_like(self._data[keys], value).astype(
-                np.dtype(np.quaternion)
-            )
-        else:
-            self._data[keys] = value
-
-    # ..........................................................................
     def __str__(self):
-        return repr(self)
+        strg = "\n".join(self._cstr()).replace("\0", "")
+        strg = textwrap.dedent(strg).rstrip()
+        return strg
 
-    # ------------------------------------------------------------------------
-    # Private methods and properties
-    # ------------------------------------------------------------------------
-
-    # ..........................................................................
-    @observe(All)
-    def _anytrait_changed(self, change):
-
-        # ex: change {
-        #   'owner': object, # The HasTraits instance
-        #   'new': 6, # The new value
-        #   'old': 5, # The old value
-        #   'name': "foo", # The name of the changed trait
-        #   'type': 'change', # The event type of the notification, usually 'change'
-        # }
-
-        if change["name"] in ["_date", "_modified", "trait_added"]:
-            return
-
-        # all the time -> update modified date
-        self._modified = datetime.now(timezone.utc)
-        return
-
-    # ..........................................................................
-    def _argsort(self, by=None, pos=None, descend=False):
-        # found the indices sorted by values or labels
-
-        if by is None:
-            warnings.warn(
-                "parameter `by` should be set to `value` or `label`, use `value` by default",
-                SpectroChemPyWarning,
-            )
-            by = "value"
-
-        if by == "value":
-            args = np.argsort(self.data)
-        elif "label" in by and not self.is_labeled:
-            # by = 'value'
-            # pos = None
-            warnings.warn(
-                "no label to sort, use `value` by default", SpectroChemPyWarning
-            )
-            args = np.argsort(self.data)
-        elif "label" in by and self.is_labeled:
-            labels = self._labels
-            if len(self._labels.shape) > 1:
-                # multidimensional labels
-                if not pos:
-                    pos = 0
-                    # try to find a pos in the by string
-                    pattern = re.compile(r"label\[(\d)]")
-                    p = pattern.search(by)
-                    if p is not None:
-                        pos = int(p[1])
-                labels = self._labels[..., pos]
-            args = np.argsort(labels)
-
+    def _argsort(self, descend=False, **kwargs):
+        # find the indices sorted by values
+        args = np.argsort(self.data)
         if descend:
             args = args[::-1]
         return args
 
-    # ..........................................................................
+    @staticmethod
+    def _attributes():
+        return [
+            "dims",
+            "data",
+            "name",
+            "units",
+            "title",
+            "meta",
+            "roi",
+        ]
+
+    def _compare_attribute(self, other, attr):
+        equ = True
+        sattr = getattr(self, f"_{attr}")
+        if not hasattr(other, f"_{attr}"):  # pragma: no cover
+            equ = False
+        else:
+            oattr = getattr(other, f"_{attr}")
+            if sattr is None and oattr is None:
+                equ = True
+            elif sattr is None and oattr is not None:  # pragma: no cover
+                equ = False
+            elif oattr is None and sattr is not None:  # pragma: no cover
+                equ = False
+            elif attr == "data" and sattr is not None and sattr.dtype.kind == "M":
+                equ &= np.mean(sattr - oattr) < np.timedelta64(10, "ns")
+            elif attr != "data" and hasattr(sattr, "__eq__"):
+                equ &= np.all(sattr.__eq__(oattr))
+            else:
+                equ &= np.all(sattr == oattr)
+        # print(attr, eq)
+        return equ
+
     def _cstr(self):
-        out = f"{self._str_value()}\n{self._str_shape()}"
-        out = out.rstrip()
-        return out
+        str_name = f"         name: {self.name}"
+        return str_name, self._str_value(), self._str_shape()
 
-    # ..........................................................................
-    @default("_data")
-    def _data_default(self):
-        return None
+    @staticmethod
+    def _data_and_units_from_td64(data):
+        if data.dtype.kind != "m":  # pragma: no cover
+            raise CastingError(data.dtype, "Not a timedelta array")
+        newdata = data.astype(float)
+        dt64unit = re.findall(r"^<m\d\[(\w+)\]$", data.dtype.str)[0]
+        newunits = from_dt64_units(dt64unit)
+        return newdata, newunits
 
-    # ..........................................................................
-    @validate("_data")
+    @tr.validate("_data")
     def _data_validate(self, proposal):
-        # validation of the _data attribute
         data = proposal["value"]
-
-        # cast to the desired type
-        if self._dtype is not None:
-            data = data.astype(np.dtype(self._dtype, copy=False))
-
+        owner = proposal["owner"]
+        if owner._implements("NDArray"):
+            # we accept only float or integer values
+            accepted = "iufM"
+            if data.dtype.kind not in accepted:
+                raise CastingError(
+                    data.dtype,
+                    "The NDArray.data attribute accept only float, integer or "
+                    "datetime64 arrays",
+                )
         # return the validated data
         if self._copy:
             return data.copy()
-        else:
-            return data
+        return data
 
-    # ..........................................................................
-    @default("_dims")
+    @tr.default("_dims")
     def _dims_default(self):
-        return DEFAULT_DIM_NAME[-self.ndim :]
+        if self.ndim > 0:
+            return DEFAULT_DIM_NAME[-self.ndim :]
+        return []
 
-    # ..........................................................................
+    @tr.default("_title")
+    def _title_default(self):
+        return "value"
+
     def _get_dims_from_args(self, *dims, **kwargs):
         # utility function to read dims args and kwargs
         # sequence of dims or axis, or `dim`, `dims` or `axis` keyword are accepted
-
         # check if we have arguments
         if not dims:
             dims = None
-
         # Check if keyword dims (or synonym axis) exists
         axis = kwargs.pop("axis", None)
-
         kdims = kwargs.pop("dims", kwargs.pop("dim", axis))  # dim or dims keyword
         if kdims is not None:
             if dims is not None:
-                warnings.warn(
-                    "the unnamed arguments are interpreted as `dims`. But a named argument `dims` or `axis`"
-                    "(DEPRECATED) has been specified. \nThe unnamed arguments will thus be ignored.",
+                warning_(
+                    "The unnamed arguments are interpreted as `dims`. But a named "
+                    "argument `dims` or `axis` has been specified. The unnamed "
+                    "arguments will thus be ignored.",
                     SpectroChemPyWarning,
                 )
             dims = kdims
-
         if dims is not None and not isinstance(dims, list):
             if isinstance(dims, tuple):
                 dims = list(dims)
             else:
                 dims = [dims]
-
         if dims is not None:
             for i, item in enumerate(dims[:]):
                 if item is not None and not isinstance(item, str):
                     item = self.dims[item]
                 dims[i] = item
-
         if dims is not None and len(dims) == 1:
             dims = dims[0]
-
         return dims
 
-    # ..........................................................................
     def _get_dims_index(self, dims):
-        # get the index(es) corresponding to the given dim(s) which can be expressed as integer or string
-
+        # get the index(es) corresponding to the given dim(s) which can be expressed
+        # as integer or string
         if dims is None:
-            return
-
+            return None
         if is_sequence(dims):
             if np.all([d is None for d in dims]):
-                return
+                return None
         else:
             dims = [dims]
-
         axis = []
         for dim in dims:
-            if isinstance(dim, TYPE_INTEGER):
+            if isinstance(dim, int):
                 axis.append(dim)  # nothing else to do
-
             elif isinstance(dim, str):
                 if dim not in self.dims:
                     raise ValueError(
-                        f"Error: Dimension `{dim}` is not recognized "
+                        f"Dimension `{dim}` is not recognized "
                         f"(not in the dimension's list: {self.dims})."
                     )
                 idx = self.dims.index(dim)
                 axis.append(idx)
-
             else:
                 raise TypeError(
-                    f"Dimensions must be specified as string or integer index, but a value of type "
-                    f"{type(dim)} has been passed (value:{dim})!"
+                    f"Dimensions must be specified as string or integer index, "
+                    f"but a value of type {type(dim)} has been passed (value:{dim})!"
                 )
-
         for i, item in enumerate(axis):
             # convert to positive index
             if item < 0:
                 axis[i] = self.ndim + item
-
         axis = tuple(axis)
-
         return axis
 
-    # ..........................................................................
-    def _get_slice(self, key, dim):
+    @tr.default("_id")
+    def _id_default(self):
+        # Return a unique id
+        return f"{type(self).__name__}_{str(uuid.uuid1()).split('-', maxsplit=1)[0]}"
 
-        info = None
+    @staticmethod
+    def _ellipsis_in_keys(_keys):
+        # Check if ellipsis (...) is present in the keys.
+        test = False
+        try:
+            # Ellipsis
+            if isinstance(_keys[0], np.ndarray):
+                return False
+            test = Ellipsis in _keys
+        except ValueError as err:
+            if err.args[0].startswith("The truth "):
+                # probably an array of index (Fancy indexing)
+                # should not happen anymore with the test above
+                test = False
+        finally:
+            return test
 
-        # allow passing a quantity as indice or in slices
-        def remove_units(items):
-            # recursive function
+    def _value_to_index(self, value):
+        data = self.data
+        error = None
+        if np.all(value > data.max()) or np.all(value < data.min()):
+            print_(
+                f"This ({value}) values is outside the axis limits "
+                f"({data.min()}-{data.max()}).\n"
+                f"The closest limit index is returned"
+            )
+            error = "out_of_limits"
+        index = (np.abs(data - value)).argmin()
+        return index, error
 
-            units = None
+    def _interpret_strkey(self, key):
+        # key can be a date
+        try:
+            key = np.datetime64(key)
+        except ValueError as exc:
+            raise NotImplementedError from exc
 
-            if isinstance(items, (tuple,)):
-                items = tuple(remove_units(item) for item in items)
+        index, error = self._value_to_index(key)
+        return index, error
 
-            elif isinstance(items, slice):
-                start, units = remove_units(items.start)
-                end, _ = remove_units(items.stop)
-                step, _ = remove_units(items.step)
-                items = slice(start, end, step)
+    def _interpret_key(self, key):
 
-            else:
-                if isinstance(items, Quantity):
-                    units = items.u
-                    items = float(items.m)
+        # Interpreting a key which is not an integer is only possible if the array is
+        # single-dimensional.
+        if self.is_empty:
+            raise IndexError(f"Can not interpret this key:{key} on an empty array")
 
-            return items, units
+        if self._squeeze_ndim != 1:
+            raise IndexError("Index for slicing must be integer.")
 
+        # Allow passing a Quantity as indices or in slices
         key, units = remove_units(key)
 
+        # Check units compatibility
+        if (
+            units is not None
+            and (is_number(key) or is_sequence(key))
+            and units != self.units
+        ):
+            raise ValueError(
+                f"Units of the key {key} {units} are not compatible with "
+                f"those of this array: {self.units}"
+            )
+
+        if is_number(key) or isinstance(key, np.datetime64):
+            # Get the index of a given values
+            index, error = self._value_to_index(key)
+
+        elif is_sequence(key):
+            index = []
+            error = None
+            for lo_ in key:
+                idx, err = self._value_to_index(lo_)
+                index.append(idx)
+                if err:
+                    error = err
+
+        elif isinstance(key, str):
+            index, error = self._interpret_strkey(key)
+
+        else:
+            raise IndexError(f"Could not find this location: {key}")
+
+        if not error:
+            return index
+        return index, error
+
+    def _get_slice(self, key, dim):
+
+        error = None
+
+        # In the case of ordered 1D arrays, we can use values as slice keys.
+        # allow passing a quantity as index or in slices
+        # For multidimensional arrays, only integer index can be used as for numpy
+        # arrays.
+
         if not isinstance(key, slice):
-            # integer or float
             start = key
-            if not isinstance(key, TYPE_INTEGER):
-                start = self._loc2index(key, dim, units=units)
+            if not isinstance(key, int):
+                # float or quantity
+                start = self._interpret_key(key)
                 if isinstance(start, tuple):
-                    start, info = start
+                    start, error = start
                 if start is None:
                     return slice(None)
             else:
+                # integer
                 if key < 0:  # reverse indexing
                     axis, dim = self.get_axis(dim)
                     start = self.shape[axis] + key
             stop = start + 1  # in order to keep a non squeezed slice
             return slice(start, stop, 1)
-        else:
-            start, stop, step = key.start, key.stop, key.step
-            if start is not None and not isinstance(start, TYPE_INTEGER):
-                start = self._loc2index(start, dim, units=units)
-                if isinstance(start, tuple):
-                    start, info = start
-            if stop is not None and not isinstance(stop, TYPE_INTEGER):
-                stop = self._loc2index(stop, dim, units=units)
-                if isinstance(stop, tuple):
-                    stop, info = stop
-                if start is not None and stop < start:
-                    start, stop = stop, start
-                if stop != start:
-                    stop = stop + 1  # to include last loc or label index
-            if step is not None and not isinstance(step, (int, np.int_, np.int64)):
-                raise NotImplementedError(
-                    "step in location slicing is not yet possible."
-                )  # TODO: we have may be a special case with
-                # datetime  # step = 1
+
+        # Slice (which allows float and quantity in the slice)
+        start, stop, step = key.start, key.stop, key.step
+        if start is not None and not isinstance(start, TYPE_INTEGER):
+            start = self._interpret_key(start)
+            if isinstance(start, tuple):
+                start, error = start
+        if stop is not None and not isinstance(stop, TYPE_INTEGER):
+            stop = self._interpret_key(stop)
+            if isinstance(stop, tuple):
+                stop, error = stop
+            if start is not None and stop < start:
+                start, stop = stop, start
+            if stop != start:
+                stop = stop + 1  # to include last loc or label index
+        if step is not None and not isinstance(step, TYPE_INTEGER):
+            raise IndexError("Not integer step in slicing is not possible.")
+            # TODO: we have may be a special case with datetime  # step = 1
         if step is None:
             step = 1
-        if start is not None and stop is not None and start == stop and info is None:
+        if start is not None and stop is not None and start == stop and error is None:
             stop = stop + 1  # to include last index
 
         newkey = slice(start, stop, step)
         return newkey
 
-    # ..........................................................................
-    @default("_id")
-    def _id_default(self):
-        # a unique id
-        return f"{type(self).__name__}_{str(uuid.uuid1()).split('-')[0]}"
-
-    # ..........................................................................
-    @default("_labels")
-    def _labels_default(self):
-        return None
-
-    # ..........................................................................
-    def _loc2index(self, loc, dim=None, *, units=None):
-        # Return the index of a location (label or values such as coordinates) along a 1D array.
-        # Do not apply for multidimensional arrays (ndim>1)
-        if self.ndim > 1:
-            raise NotImplementedError(
-                f"not implemented for {type(self).__name__} objects which are not 1-dimensional "
-                f"(current ndim:{self.ndim})"
-            )
-
-        # check units compatibility
-        if (
-            units is not None
-            and (is_number(loc) or is_sequence(loc))
-            and units != self.units
-        ):
-            raise ValueError(
-                f"Units of the location {loc} {units} are not compatible with those of this array:"
-                f" {self.units}"
-            )
-
-        if self.is_empty and not self.is_labeled:
-
-            raise IndexError(f"Could not find this location {loc} on an empty array")
-
-        else:
-
-            data = self.data
-
-            if is_number(loc):
-                # get the index of a given values
-                error = None
-                if np.all(loc > data.max()) or np.all(loc < data.min()):
-                    print_(
-                        f"This coordinate ({loc}) is outside the axis limits ({data.min()}-{data.max()}).\n"
-                        f"The closest limit index is returned"
-                    )
-                    error = "out_of_limits"
-                index = (np.abs(data - loc)).argmin()
-                # TODO: add some precision to this result
-                if not error:
-                    return index
-                else:
-                    return index, error
-
-            elif is_sequence(loc):
-                # TODO: is there a simpler way to do this with numpy functions
-                index = []
-                for lo in loc:
-                    index.append(
-                        (np.abs(data - lo)).argmin()
-                    )  # TODO: add some precision to this result
-                return index
-
-            elif self.is_labeled:
-
-                # TODO: look in all row of labels
-                labels = self._labels
-                indexes = np.argwhere(labels == loc).flatten()
-                if indexes.size > 0:
-                    return indexes[0]
-                else:
-                    raise IndexError(f"Could not find this label: {loc}")
-
-            elif isinstance(loc, datetime):
-                # not implemented yet
-                raise NotImplementedError(
-                    "datetime as location is not yet implemented"
-                )  # TODO: date!
-
-            else:
-                raise IndexError(f"Could not find this location: {loc}")
-
-    # ..........................................................................
     def _make_index(self, key):
 
+        # Case where we can proceed directly with the provided key:
+        # - a boolean selection.
         if isinstance(key, np.ndarray) and key.dtype == bool:
-            # this is a boolean selection
-            # we can proceed directly
             return key
+        # # - already a slice or tuple of slice.
+        # if isinstance(key, slice) or (
+        #     isinstance(key, (tuple, list))
+        #     and all([isinstance(k, slice) for k in key])
+        # ):
+        #     return key (this does not work if slice elements are not integer.
 
-        # we need to have a list of slice for each argument
-        # or a single slice acting on the axis=0
+        # For the other case, we need to have a list of slice for each argument
+        # or a single slice acting on the axis=0, so some transformations are
+        # necessary.
+
+        # For iteration, we need to have lis, not tuple, nor scalar.
         if isinstance(key, tuple):
             keys = list(key)
         else:
@@ -854,156 +704,85 @@ class NDArray(HasTraits):
                 key,
             ]
 
-        def ellipsisinkeys(_keys):
-            try:
-                # Ellipsis
-                if isinstance(_keys[0], np.ndarray):
-                    return False
-                test = Ellipsis in _keys
-            except ValueError as e:
-                if e.args[0].startswith("The truth "):
-                    # probably an array of index (Fancy indexing)  # should not happen anymore with the test above
-                    test = False
-            return test
-
-        while ellipsisinkeys(keys):
+        # Iterate ellipsis.
+        while self._ellipsis_in_keys(keys):
             i = keys.index(Ellipsis)
             keys.pop(i)
-            for j in range(self.ndim - len(keys)):
+            for _ in range(self.ndim - len(keys)):
                 keys.insert(i, slice(None))
 
+        # Number of keys should not be higher than the number of dims!
         if len(keys) > self.ndim:
             raise IndexError("invalid index")
 
+        # If the length of keys is lower than the number of dimension,
         # pad the list with additional dimensions
         for i in range(len(keys), self.ndim):
             keys.append(slice(None))
 
-        for axis, key in enumerate(keys):
-            # the keys are in the order of the dimension in self.dims!
+        # Now make slices or list of indexes for fancy indexing with all the list
+        # elements
+        for axis, key_ in enumerate(keys):
+            # The keys are in the order of the dimension in self.dims!
             # so we need to get the correct dim in the coordinates lists
             dim = self.dims[axis]
-            if is_sequence(key) and not isinstance(key, Quantity):
-                # fancy indexing
-                # all items of the sequence must be integer index
-                keys[axis] = key
+            if is_sequence(key_):
+                # Fancy indexing: all items of the sequence must be integer index
+                if self._squeeze_ndim == 1:
+                    key_ = [
+                        self._interpret_key(k) if not isinstance(k, TYPE_INTEGER) else k
+                        for k in key_
+                    ]
+                keys[axis] = key_
             else:
-                keys[axis] = self._get_slice(key, dim)
+                # We need a little more work to get the slices in a correct format
+                # allowing use of values for instances...
+                keys[axis] = self._get_slice(key_, dim)
         return tuple(keys)
 
-    # ..........................................................................
-    @default("_mask")
-    def _mask_default(self):
-        return NOMASK if self._data is None else np.zeros(self._data.shape).astype(bool)
-
-    # ..........................................................................
-    @validate("_mask")
-    def _mask_validate(self, proposal):
-        pv = proposal["value"]
-        mask = pv
-
-        if mask is None or mask is NOMASK:
-            return mask
-
-        # mask will be stored in F_CONTIGUOUS mode, if data are in this mode
-        if not mask.flags["F_CONTIGUOUS"] and self._data.flags["F_CONTIGUOUS"]:
-            mask = np.asfortranarray(mask)
-            # no more need for an eventual copy
-            self._copy = False
-
-        # no particular validation for now.
-        if self._copy:
-            return mask.copy()
-        else:
-            return mask
-
-    # ..........................................................................
-    @default("_meta")
+    @tr.default("_meta")
     def _meta_default(self):
         return Meta()
 
-    # ..........................................................................
-    @default("_name")
+    @tr.default("_name")
     def _name_default(self):
-        return ""
+        return self.id
 
-    # ..........................................................................
+    @tr.validate("_name")
+    def _name_validate(self, proposal):
+        name = proposal["value"]
+        if not name:
+            return "value"
+        regex = r"[a-z,A-Z,0-9,_,-]+"
+        pattern = re.compile(regex)
+        match = pattern.findall(name)
+        if len(match) != 1 or match[0] != name:
+            exception_(
+                ValueError(
+                    f"name of {self._implements()} objects can't contain any space or "
+                    f"special characters. Ideally it should be a single word or "
+                    f"multiple words linked by an underscore `_` or a dash '-'."
+                )
+            )
+        return name
+
+    @tr.validate("_title")
+    def _title_validate(self, proposal):
+        title = proposal["value"]
+        if title and "GMT" in title:
+            title = title.replace("GMT", "UTC")
+        return title
+
     def _repr_html_(self):
         return convert_to_html(self)
 
-    # ..........................................................................
-    def _repr_shape(self):
-
-        if self.is_empty:
-            return "size: 0"
-
-        out = ""
-
-        shape_ = (
-            x for x in itertools.chain.from_iterable(list(zip(self.dims, self.shape)))
-        )
-
-        shape = (", ".join(["{}:{}"] * self.ndim)).format(*shape_)
-
-        size = self.size
-
-        out += f"size: {size}" if self.ndim < 2 else f"shape: ({shape})"
-
-        return out
-
-    # ..........................................................................
-    def _repr_units(self):
-        if self.has_units:
-            # if not self.units.dimensionless or self.units.scaling != 1:
-            strunits = f"{self.units:~P}"
-            if strunits == "":
-                strunits = "dimensionless"
-        else:
-            strunits = "unitless"
-        return strunits
-
-    def _repr_value(self):
-
-        numpyprintoptions(precision=4, edgeitems=0, spc=1, linewidth=120)
-
-        prefix = type(self).__name__ + ": "
-        units = ""
-
-        size = ""
-        if not self.is_empty:
-
-            if self.data is not None:
-
-                dtype = self.dtype
-                data = ""
-                if self.implements("Coord") or self.implements("LinearCoord"):
-                    size = f" (size: {self.data.size})"
-                units = " " + self._repr_units()
-            else:
-                # no data but labels
-                lab = self.get_labels()
-                data = f" {lab}"
-                size = f" (size: {len(lab)})"
-                dtype = "labels"
-
-            body = f"[{dtype}]{data}"
-
-        else:
-            size = ""
-            body = "empty"
-
-        numpyprintoptions()
-        return "".join([prefix, body, units, size])
-
-    # ..........................................................................
-    @default("_roi")
+    @tr.default("_roi")
     def _roi_default(self):
         return None
 
-    # ..........................................................................
     def _set_data(self, data):
-
         if data is None:
+            self._data = None
             return
 
         if isinstance(data, NDArray):
@@ -1011,7 +790,7 @@ class NDArray(HasTraits):
             # No need to check the validity of the data
             # because the data must have been already
             # successfully initialized for the passed NDArray.data
-            for attr in self.__dir__():
+            for attr in self._attributes():
                 try:
                     val = getattr(data, f"_{attr}")
                     if self._copy:
@@ -1020,147 +799,117 @@ class NDArray(HasTraits):
                 except AttributeError:
                     # some attribute of NDDataset are missing in NDArray
                     pass
-            try:
-                self.history = f"Copied from object:{data.name}"
-            except AttributeError:
-                pass
-
+            if self._dtype is not None:
+                self._data = self.data.astype(
+                    self._dtype, casting="unsafe", copy=self._copy
+                )
         elif isinstance(data, Quantity):
-            self._data = np.array(data.magnitude, subok=True, copy=self._copy)
+            self._data = np.array(
+                data.magnitude, dtype=self._dtype, subok=True, copy=self._copy
+            )
             self._units = data.units
-
-        elif hasattr(data, "mask"):
-            # an object with data and mask attributes
-            self._data = np.array(data.data, subok=True, copy=self._copy)
-            if isinstance(data.mask, np.ndarray) and data.mask.shape == data.data.shape:
-                self.mask = np.array(data.mask, dtype=np.bool_, copy=False)
-
         elif (
             not hasattr(data, "shape")
             or not hasattr(data, "__getitem__")
             or not hasattr(data, "__array_struct__")
-        ):
+        ) and not isinstance(data, (list, tuple)):
             # Data doesn't look like a numpy array, try converting it to
             # one.
+            self._data = np.array(data, dtype=self._dtype, subok=True, copy=False)
+        else:
             try:
-                self._data = np.array(data, subok=True, copy=False)
+                data = np.array(data, dtype=self._dtype, subok=True, copy=self._copy)
+            except TypeError as exc:
+                # Generally a casting error
+                raise CastingError(self._dtype, exc.args[0]) from exc
             except ValueError:
                 # happens if data is a list of quantities
                 if isinstance(data[0], Quantity):
-                    self._data = np.array([d.m for d in data], subok=True, copy=False)
-                self._units = data[0].units
+                    self._data = np.array(
+                        [d.m for d in data], dtype=self._dtype, subok=True, copy=False
+                    )
+                    self._units = data[0].units
+                    return
+            if data.dtype.kind == "O":  # likely None value
+                self._data = data.astype(float)
+            elif data.dtype.kind == "m":  # timedelta64
+                data, units = self._data_and_units_from_td64(data)
+                self._data, self._units = data, units
+                self._title = "time"
+            else:
+                self._data = data
 
-        else:
-            data = np.array(data, subok=True, copy=self._copy)
-            if data.dtype == np.object_:  # likely None value
-                data = data.astype(float)
-            self._data = data
-
-    # ..........................................................................
-    def _sort(self, by=None, pos=None, descend=False, inplace=False):
-        # sort an ndarray using data or label values
-
-        args = self._argsort(by, pos, descend)
-
-        if not inplace:
-            new = self[args]
-        else:
-            new = self[args, INPLACE]
-
+    def _sort(self, descend=False, inplace=False, **kwargs):
+        # sort an ndarray using data values
+        args = self._argsort(descend, **kwargs)
+        new = self if inplace else self.copy()
+        new = new[args, INPLACE]
         return new
 
-    # ..........................................................................
     @property
     def _squeeze_ndim(self):
         # The number of dimensions of the squeezed`data` array (Readonly property).
-
-        if self.data is None and self.is_labeled:
-            return 1
         if self.data is None:
             return 0
-        else:
-            return len([x for x in self.data.shape if x > 1])
+        return len([x for x in self.data.shape if x > 1])
 
-    # ..........................................................................
     def _str_shape(self):
-
         if self.is_empty:
-            return "         size: 0\n"
-
+            return ""
         out = ""
-
         shape_ = (
             x for x in itertools.chain.from_iterable(list(zip(self.dims, self.shape)))
         )
-
         shape = (", ".join(["{}:{}"] * self.ndim)).format(*shape_)
-
         size = self.size
-
         out += (
             f"         size: {size}\n"
             if self.ndim < 2
             else f"        shape: ({shape})\n"
         )
-
         return out
 
-    # ..........................................................................
-    def _str_value(self, sep="\n", ufmt=" {:~P}", header="         data: ... \n"):
-        # prefix = ['']
-        if self.is_empty and "data: ..." not in header:
-            return header + "{}".format(textwrap.indent("empty", " " * 9))
-        elif self.is_empty:
-            return "{}".format(textwrap.indent("empty", " " * 9))
+    def _str_formatted_array(self, data, sep="\n", prefix="", units=""):
+        das = data.copy()
+        arraystr = np.array2string(das, separator=" ", prefix=prefix)
+        arraystr = arraystr.replace("\n", sep)
+        text = "".join([arraystr, units])
+        text += sep
+        return text
 
-        print_unit = True
+    def _get_data_to_print(self, ufmt=" {:~K}"):
         units = ""
+        data = self.values
+        if isinstance(data, Quantity):
+            data = data.magnitude
+            units = ufmt.format(self.units) if self.has_units else ""
+        return data, units
 
-        def mkbody(d, pref, _units):
-            # work around printing masked values with formatting
-            ds = d.copy()
-            if self.is_masked:
-                dtype = self.data.dtype
-                mask_string = f"--{dtype}"
-                ds = insert_masked_print(ds, mask_string=mask_string)
-            _body = np.array2string(ds, separator=" ", prefix=pref)
-            _body = _body.replace("\n", sep)
-            _text = "".join([pref, _body, _units])
-            _text += sep
-            return _text
-
-        text = ""
-        if not self.is_empty:
-
-            if self.data is not None:
-                data = self.umasked_data
-            else:
-                # no data but labels
-                data = self.get_labels()
-                print_unit = False
-
-            if isinstance(data, Quantity):
-                data = data.magnitude
-
-            if print_unit:
-                units = ufmt.format(self.units) if self.has_units else ""
-
-            text += mkbody(data, "", units)
-
-        out = ""  # f'        title: {self.title}\n' if self.title else ''
-        text = text.strip()
+    def _str_value(
+        self, sep="\n", ufmt=" {:~K}", prefix="", header="         data: ... \n"
+    ):
+        #
+        # Empty data case
+        if self.is_empty and "data: ..." not in header:
+            return f'{header}{textwrap.indent("empty", " " * 9)}'
+        if self.is_empty:
+            return f'{textwrap.indent("empty", " " * 9)}'
+        #
+        # set numpy formatting options
+        numpyprintoptions(precision=4, edgeitems=3, spc=1, linewidth=88)
+        #
+        # Create and return formatted output
+        data, units = self._get_data_to_print(ufmt)
+        text = self._str_formatted_array(data, sep, prefix, units).strip()
+        out = ""
         if "\n" not in text:  # single line!
             out += header.replace("...", f"\0{text}\0")
         else:
             out += header
-            out += "\0{}\0".format(textwrap.indent(text, " " * 9))
+            out += f'\0{textwrap.indent(text, " " * 9)}\0'
         out = out.rstrip()  # remove the trailing '\n'
+        numpyprintoptions()
         return out
-
-    # ..........................................................................
-    @default("_title")
-    def _title_default(self):
-        return None
 
     @staticmethod
     def _unittransform(new, units):
@@ -1168,14 +917,11 @@ class NDArray(HasTraits):
         udata = (new.data * oldunits).to(units)
         new._data = udata.m
         new._units = udata.units
-
         if new._roi is not None:
             roi = (np.array(new.roi) * oldunits).to(units)
-            new._roi = list(roi)
-
+            new._roi = roi.m
         return new
 
-    # ..........................................................................
     @staticmethod
     def _uarray(data, units=None):
         # return the array or scalar with units
@@ -1185,292 +931,166 @@ class NDArray(HasTraits):
         uar = data
         if units:
             return Quantity(uar, units)
-        else:
-            return uar
+        return uar
 
-    # ..........................................................................
-    @staticmethod
-    def _umasked(data, mask):
-        # This ensures that a masked array is returned.
-
-        if not np.any(mask):
-            mask = np.zeros(data.shape).astype(bool)
-        data = np.ma.masked_where(mask, data)  # np.ma.masked_array(data, mask)
-
-        return data
-
-    # ------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------
     # Public Methods and Properties
-    # ------------------------------------------------------------------------
-    def asfortranarray(self):
-        """
-        Make data and mask (ndim >= 1) laid out in Fortran order in memory.
-        """
-        # data and mask will be converted to F_CONTIGUOUS mode
-        if not self._data.flags["F_CONTIGUOUS"]:
-            self._data = np.asfortranarray(self._data)
-            if self.is_masked:
-                self._mask = np.asfortranarray(self._mask)
-
-    def astype(self, dtype=None, **kwargs):
+    # ----------------------------------------------------------------------------------
+    @_docstring.get_docstring(base="astype")
+    @_docstring.dedent
+    def astype(self, dtype=None, casting="safe", inplace=False):
         """
         Cast the data to a specified type.
+
+        Modify the data type according to the casting rules.
 
         Parameters
         ----------
         dtype : str or dtype
             Typecode or data-type to which the array is cast.
+        casting : {‘no’, ‘equiv’, ‘safe’, ‘same_kind’, ‘unsafe’}, optional
+            Controls what kind of data casting may occur. Defaults to ‘safe'
+
+            * ‘no’ means the data types should not be cast at all.
+            * ‘equiv’ means only byte-order changes are allowed.
+            * ‘safe’ means only casts which can preserve values are allowed.
+            * ‘same_kind’ means only safe casts or casts within a kind,
+              like float64 to float32, are allowed.
+            * ‘unsafe’ means any data conversions may be done.
+        %(inplace)s
+
+        Returns
+        -------
+        %(out)s
         """
-        self._data = self._data.astype(dtype, **kwargs)
+        if self.has_data and dtype is not None:
+            new = self.copy() if not inplace else self
+            dtype = np.dtype(dtype)
+            try:
+                new._data = new.data.astype(dtype, casting=casting, copy=False)
+                return new
+            except TypeError as exc:
+                raise CastingError(dtype, exc) from exc
+            except (tr.TraitError, CastingError) as exc:
+                if dtype.kind == "m":
+                    new.data = new.data.astype(dtype, casting=casting, copy=False)
+                    return new
+                raise CastingError(dtype, exc.message) from exc
         return self
 
-    # ...........................................................................................................
-    @property
-    def author(self):
+    @_docstring.dedent
+    def copy(self, keepname=True):
         """
-        Creator of the array (str).
-        """
-        return self._author
+        Make a copy of the current object.
 
-    # ..........................................................................
-    @author.setter
-    def author(self, value):
-        self._author = value
-
-    # ..........................................................................
-    def copy(self, deep=True, keepname=False, **kwargs):
-        """
-        Make a disconnected copy of the current object.
+        The copy is a deepcopy disconnected from the original.
 
         Parameters
         ----------
-        deep : bool, optional
-            If True a deepcopy is performed which is the default behavior.
-        keepname : bool
+        keepname : bool, optional, default=True
             If True keep the same name for the copied object.
 
         Returns
         -------
-        object
-            An exact copy of the current object.
-
-        Examples
-        --------
-
-        >>> nd1 = scp.NDArray([1. + 2.j, 2. + 3.j])
-        >>> nd1
-        NDArray: [complex128] unitless (size: 2)
-        >>> nd2 = nd1
-        >>> nd2 is nd1
-        True
-        >>> nd3 = nd1.copy()
-        >>> nd3 is not nd1
-        True
+        %(new)s
         """
-
-        if deep:
-            do_copy = cpy.deepcopy
-        else:
-            do_copy = cpy.copy
-
-        new = make_new_object(self)
-        for (
-            attr
-        ) in (
-            self.__dir__()
-        ):  # do not use  dir(self) as the order in __dir__ list is important
-            try:
-                _attr = do_copy(getattr(self, f"_{attr}"))
-                setattr(new, f"_{attr}", _attr)
-
-            except ValueError:
-                # ensure that if deepcopy do not work, a shadow copy can be done
-                _attr = do_copy(getattr(self, f"_{attr}"))
-                setattr(new, f"_{attr}", _attr)
-
+        copy = cpy.deepcopy
+        new = type(self)()
+        for attr in self._attributes():
+            _attr = copy(getattr(self, f"_{attr}"))
+            setattr(new, f"_{attr}", _attr)
         # name must be changed
         if not keepname:
-            new.name = ""  # default
-
+            new._name = ""  # reinit to default
         return new
 
-    # ..........................................................................
-    @property
-    def created(self):
-        """
-        Creation date object (Datetime).
-        """
-        return self._date
-
-    # ..........................................................................
-    @created.setter
-    def created(self, date):
-
-        self.date = date
-
-    # ..........................................................................
     @property
     def data(self):
         """
-        The `data` array (|ndarray|).
+        Return or set the `data` array.
 
-        If there is no data but labels, then the labels are returned instead of data.
+        The `data` array contains the object values if any or None.
         """
         return self._data
 
-    # ..........................................................................
     @data.setter
     def data(self, data):
         # property.setter for data
         # note that a subsequent validation is done in _data_validate
         # NOTE: as property setter doesn't work with super(),
-        # see https://stackoverflow.com/questions/10810369/python-super-and-setting-parent-class-property
+        # see
+        # https://stackoverflow.com/
+        #              questions/10810369/python-super-and-setting-parent-class-property
         # we use an intermediate function that can be called from a subclass
-
         self._set_data(data)
 
-    # ..........................................................................
-    magnitude = data
-    m = data
-
-    # ..........................................................................
     @property
-    def date(self):
+    def is_dimensionless(self):
         """
-        Creation date object - equivalent to the attribute `created` (Datetime).
-        """
-        return self._date
+        Return whether the `data` array is dimensionless.
 
-    # ..........................................................................
-    @date.setter
-    def date(self, date):
-
-        if isinstance(date, datetime):
-            self._date = date
-
-        elif isinstance(date, str):
-            try:
-                self._date = datetime.strptime(date, "%Y/%m/%d")
-            except ValueError:
-                self._date = datetime.strptime(date, "%d/%m/%Y")
-
-    # ...........................................................................................................
-    @property
-    def description(self):
-        """
-        Provides a description of the underlying data (str).
-        """
-        return self._description
-
-    desc = description
-    desc.__doc__ = """Alias to the description attribute."""
-
-    # ..........................................................................
-    @description.setter
-    def description(self, value):
-        self._description = value
-
-    # ..........................................................................
-    @property
-    def dimensionless(self):
-        """
-        True if the `data` array is dimensionless - Readonly property (bool).
+        This property is read-only.
 
         See Also
         --------
-        unitless : True if data has no units.
-        has_units : True if data has units.
+        is_unitless : Return whether the data have no units.
+        has_units : Return whether the data have units.
 
-         Notes
+        Notes
         -----
-        `Dimensionless` is different of `unitless` which means no unit.
+        `Dimensionless` is different of `unitless` which means no units.
         """
-        if self.unitless:
+        if self.is_unitless:
             return False
-        return self._units.dimensionless
+        return self.units.dimensionless
 
-    # ..........................................................................
     @property
     def dims(self):
         """
-        Names of the dimensions (list).
+        Return the names of the dimensions.
 
-        The name of the dimensions are 'x', 'y', 'z'.... depending on the number of dimension.
+        By default, the name of the dimensions are 'x', 'y', 'z'....
+        depending on the number of dimensions.
         """
         ndim = self.ndim
         if ndim > 0:
-            # if len(self._dims)< ndim:
-            #    self._dims = self._dims_default()
             dims = self._dims[:ndim]
             return dims
-        else:
-            return []
+        return []
 
-    # ..........................................................................
     @dims.setter
     def dims(self, values):
-
         if isinstance(values, str) and len(values) == 1:
             values = [values]
-
         if not is_sequence(values) or len(values) != self.ndim:
             raise ValueError(
-                f"a sequence of chars with a length of {self.ndim} is expected, but `{values}` "
-                f"has been provided"
+                f"a sequence of chars with a length of {self.ndim} is expected, "
+                f"but `{values}` has been provided"
             )
-
-        for value in values:
-            if value not in DEFAULT_DIM_NAME:
-                raise ValueError(
-                    f"{value} value is not admitted. Dimension's name must be among "
-                    f"{DEFAULT_DIM_NAME[::-1]}."
-                )
-
         self._dims = tuple(values)
 
-    # ..........................................................................
     @property
     def dtype(self):
         """
-        Data type (np.dtype).
+        Return the data type.
         """
         if self.is_empty:
-            self._dtype = None
-        else:
-            self._dtype = self.data.dtype
-        return self._dtype
-
-    @property
-    def filename(self):
-        """
-        Current filename for this dataset (`Pathlib` object).
-        """
-        if self._filename:
-            return self._filename.stem + self.suffix
-        else:
             return None
+        return self.data.dtype
 
-    @filename.setter
-    def filename(self, val):
-        self._filename = pathclean(val)
-
-    # ..........................................................................
-    def get_axis(self, *args, **kwargs):
+    @_docstring.dedent
+    def get_axis(self, *dims, **kwargs):
         """
-        Helper function to determine an axis index whatever the syntax used (axis index or dimension names).
+        Helper function to determine an axis index.
+
+        It is designed to work whatever the syntax used: axis index or dimension names.
 
         Parameters
         ----------
-        dim, axis, dims : str, int, or list of str or index
-            The axis indexes or dimensions names - they can be specified as argument or using keyword 'axis', 'dim'
-            or 'dims'.
-        negative_axis : bool, optional, default=False
-            If True a negative index is returned for the axis value (-1 for the last dimension, etc...).
-        allows_none : bool, optional, default=False
-            If True, if input is none then None is returned.
-        only_first : bool, optional, default: True
-            By default return only information on the first axis if dim is a list.
-            Else, return a list for axis and dims information.
+        *dims : str, int, or list of str or index
+            The axis indexes or dimensions names - they can be specified as argument
+            or using keyword 'axis', 'dim' or 'dims'.
+        %(kwargs)s
 
         Returns
         -------
@@ -1478,78 +1098,47 @@ class NDArray(HasTraits):
             The axis indexes.
         dim : str
             The axis name.
+
+        Other Parameters
+        ----------------
+        negative_axis : bool, optional, default=False
+            If True a negative index is returned for the axis value
+            (-1 for the last dimension, etc...).
+        allow_none : bool, optional, default=False
+            If True, if input is none then None is returned.
+        only_first : bool, optional, default: True
+            By default return only information on the first axis if dim is a list.
+            Else, return a list for axis and dims information.
         """
         # handle the various syntax to pass the axis
-        dims = self._get_dims_from_args(*args, **kwargs)
+        dims = self._get_dims_from_args(*dims, **kwargs)
         axis = self._get_dims_index(dims)
-        allows_none = kwargs.get("allows_none", False)
-
-        if axis is None and allows_none:
+        allow_none = kwargs.get("allow_none", False)
+        if axis is None and allow_none:
             return None, None
-
         if isinstance(axis, tuple):
             axis = list(axis)
-
         if not isinstance(axis, list):
             axis = [axis]
-
         dims = axis[:]
-        for i, a in enumerate(axis[:]):
+        for i, cax in enumerate(axis[:]):
             # axis = axis[0] if axis else self.ndim - 1  # None
-            if a is None:
-                a = self.ndim - 1
+            if cax is None:
+                cax = self.ndim - 1
             if kwargs.get("negative_axis", False):
-                if a >= 0:
-                    a = a - self.ndim
-            axis[i] = a
-            dims[i] = self.dims[a]
-
+                cax = cax - self.ndim if cax >= 0 else cax
+            axis[i] = cax
+            dims[i] = self.dims[cax]
         only_first = kwargs.pop("only_first", True)
-
         if len(dims) == 1 and only_first:
             dims = dims[0]
             axis = axis[0]
-
         return axis, dims
 
-    # ..........................................................................
-    def get_labels(self, level=0):
-        """
-        Get the labels at a given level.
-
-        Used to replace `data` when only labels are provided, and/or for
-        labeling axis in plots.
-
-        Parameters
-        ----------
-        level : int, optional, default:0
-
-        Returns
-        -------
-        |ndarray|
-            The labels at the desired level or None.
-        """
-        if not self.is_labeled:
-            return None
-
-        if level > self.labels.ndim - 1:
-            warnings.warn(
-                "There is no such level in the existing labels", SpectroChemPyWarning
-            )
-            return None
-
-        if self.labels.ndim > 1:
-            return self.labels[level]
-        else:
-            return self._labels
-
-    # ..........................................................................
     @property
     def has_data(self):
         """
-        True if the `data` array is not empty and size > 0.
-
-        (Readonly property).
+        Return whether the `data` array is not empty and size > 0.
         """
         if (self.data is None) or (self.data.size == 0):
             return False
@@ -1568,149 +1157,90 @@ class NDArray(HasTraits):
     @property
     def has_units(self):
         """
-        True if the `data` array have units - Readonly property (bool).
+        Return whether the `data` array have units.
 
         See Also
         --------
-        unitless : True if the data has no unit.
-        dimensionless : True if the data have dimensionless units.
+        is_unitless : Return whether the data have no units.
+        is_dimensionless : Return whether the units of data are dimensionless.
+
+        Notes
+        -----
+        This method return false for both unitless or dimensionless cases.
         """
-        if self._units is not None:
+        if self.units:
+            if not f"{self.units:P}".strip():
+                return False
             return True
         return False
 
-    # ..........................................................................
-    @property
-    def history(self):
-        """
-        Describes the history of actions made on this array (List of strings).
-        """
-        return self._history
-
-    # ..........................................................................
-    @history.setter
-    def history(self, value):
-        self._history.append(value)
-
-    # ..........................................................................
     @property
     def id(self):
         """
-        Object identifier - Readonly property (str).
+        Return a read-only object identifier.
         """
         return self._id
 
-    # ..........................................................................
-    @property
-    def imag(self):
-        return None
-
-    # ..........................................................................
-    def implements(self, name=None):
-        """
-        Utility to check if the current object implements a given class.
-
-        Rather than isinstance(obj, <class>) use object.implements('<classname>').
-        This is useful to check type without importing the module.
-
-        Parameters
-        ----------
-        name : str, optional
-            Name of the class implemented.
-
-        Examples
-        --------
-        >>> from spectrochempy import NDArray
-        >>> ar = NDArray([1., 2., 3.])
-        >>> ar.implements('NDDataset')
-        False
-        >>> ar.implements('NDArray')
-        True
-        >>> ar.implements()
-        'NDArray'
-        """
-        if name is None:
-            return self.__class__.__name__
-        else:
-            return name == self.__class__.__name__
-
-    # ..........................................................................
-    @property
-    def is_float(self):
-        """
-        True if the `data` are real values - Readonly property (bool).
-        """
-        if self.data is None:
-            return False
-
-        return self.data.dtype in TYPE_FLOAT
-
-    # ..........................................................................
-    @property
-    def is_integer(self):
-        """
-        True if the `data` are integer values - Readonly property (bool).
-        """
-        if self.data is None:
-            return False
-
-        return self.data.dtype in TYPE_INTEGER
-
-    # ..........................................................................
     @property
     def is_1d(self):
         """
-        True if the `data` array has only one dimension (bool).
+        Return whether the `data` array has only one dimension.
         """
-        return self.ndim == 1
+        return self._squeeze_ndim == 1
 
-    # ..........................................................................
     @property
+    def is_dt64(self):
+        """
+        Return whether the data have a np.datetime64 dtype.
+        """
+        return is_datetime64(self)
+
+    @property
+    @_docstring.get_docstring(base="is_empty")
+    @_docstring.dedent
     def is_empty(self):
         """
-        True if the `data` array is empty or size=0, and if no label are present.
+        Return whether the `data` array is empty.
 
-        Readonly property (bool).
+        `is_empty`is true if there is no data or the data array has a size=0.
         """
-        if ((self._data is None) or (self._data.size == 0)) and not self.is_labeled:
+        if self.data is None or self.data.size == 0:
             return True
-
         return False
 
-    # ..........................................................................
     @property
-    def is_labeled(self):
+    def is_float(self):
         """
-        True if the `data` array have labels - Readonly property (bool).
+        Return whether the `data` are real float values.
         """
-        # label cannot exist for now for nD dataset - only 1D dataset, such
-        # as Coord can be labelled.
-        if self._data is not None and self.ndim > 1:
+        if self.data is None:
             return False
-        if self._labels is not None and np.any(self.labels != ""):
-            return True
-        else:
-            return False
+        return self.data.dtype.kind == "f"
 
-    # ..........................................................................
     @property
-    def is_masked(self):
+    def is_real(self):
         """
-        True if the `data` array has masked values - Readonly property (bool).
+        Return whether the `data` are real float values.
+
+        (alias of is_float property)
         """
-        if isinstance(self._mask, np.ndarray):
-            return np.any(self._mask)
-        elif self._mask == NOMASK or self._mask is None:
+        return self.is_float
+
+    @property
+    def is_integer(self):
+        """
+        Return whether `data` are integer values.
+        """
+        if self.data is None:
             return False
-        elif isinstance(self._mask, (np.bool_, bool)):
-            return self._mask
+        return self.data.dtype.kind == "i"
 
-        return False
-
-    # ..........................................................................
+    @_docstring.dedent
     def is_units_compatible(self, other):
         """
         Check the compatibility of units with another object.
+
+        This method compare the units of another object with the present units.
 
         Parameters
         ----------
@@ -1719,22 +1249,8 @@ class NDArray(HasTraits):
 
         Returns
         -------
-        result
-            True if units are compatible.
-
-        Examples
-        --------
-        >>> nd1 = scp.NDDataset([1. + 2.j, 2. + 3.j], units='meters')
-        >>> nd1
-        NDDataset: [complex128] m (size: 2)
-        >>> nd2 = scp.NDDataset([1. + 2.j, 2. + 3.j], units='seconds')
-        >>> nd1.is_units_compatible(nd2)
-        False
-        >>> nd1.ito('minutes', force=True)
-        >>> nd1.is_units_compatible(nd2)
-        True
-        >>> nd2[0].values * 60. == nd1[0].values
-        True
+        bool
+            Whether the units are compatible.
         """
         try:
             other.to(self.units, inplace=False)
@@ -1742,11 +1258,11 @@ class NDArray(HasTraits):
             return False
         return True
 
-    # ..........................................................................
     def ito(self, other, force=False):
         """
         Inplace scaling of the current object data to different units.
-        (same as `to` with inplace= True).
+
+        Same as `to` with the `inplace` parameters is True.
 
         Parameters
         ----------
@@ -1759,274 +1275,129 @@ class NDArray(HasTraits):
         --------
         to : Rescaling of the current object data to different units.
         to_base_units : Rescaling of the current object data to different units.
-        ito_base_units : Inplace rescaling of the current object data to different units.
+        ito_base_units : Inplace rescaling of the current object to different units.
         to_reduced_units : Rescaling to reduced units.
         ito_reduced_units : Rescaling to reduced units.
         """
         self.to(other, inplace=True, force=force)
 
-    # ..........................................................................
     def ito_base_units(self):
         """
         Inplace rescaling to base units.
 
+        Same as `to_base_units` with the `inplace`parameter set to True.
+
         See Also
         --------
         to : Rescaling of the current object data to different units.
         ito : Inplace rescaling of the current object data to different units.
         to_base_units : Rescaling of the current object data to different units.
-        to_reduced_units : Rescaling to redunced units.
+        to_reduced_units : Rescaling to reduced units.
         ito_reduced_units : Inplace rescaling to reduced units.
         """
         self.to_base_units(inplace=True)
 
-    # ..........................................................................
     def ito_reduced_units(self):
         """
         Quantity scaled in place to reduced units, inplace.
 
-        Scaling to reduced units means one unit per
-        dimension. This will not reduce compound units (e.g., 'J/kg' will not
-        be reduced to m**2/s**2).
+        Same as `to_reduced_units` with `inplace` set to True.
 
         See Also
         --------
         to : Rescaling of the current object data to different units.
         ito : Inplace rescaling of the current object data to different units.
         to_base_units : Rescaling of the current object data to different units.
-        ito_base_units : Inplace rescaling of the current object data to different units.
+        ito_base_units : Inplace rescaling of the current object to different units.
         to_reduced_units : Rescaling to reduced units.
         """
         self.to_reduced_units(inplace=True)
 
-    # ..........................................................................
-    @property
-    def labels(self):
-        """
-        An array of labels for `data` (|ndarray| of str).
-
-        An array of objects of any type (but most generally string), with the last dimension size equal to that of the
-        dimension of data. Note that's labelling is possible only for 1D data. One classical application is
-        the labelling of coordinates to display informative strings instead of numerical values.
-        """
-        return self._labels
-
-    # ..........................................................................
-    @labels.setter
-    def labels(self, labels):
-
-        if labels is None:
-            return
-
-        if self.ndim > 1:
-            warnings.warn(
-                "We cannot set the labels for multidimentional data - Thus, these labels are ignored",
-                SpectroChemPyWarning,
-            )
-        else:
-
-            # make sure labels array is of type np.ndarray or Quantity arrays
-            if not isinstance(labels, np.ndarray):
-                labels = np.array(labels, subok=True, copy=True).astype(
-                    object, copy=False
-                )
-
-            if not np.any(labels):
-                # no labels
-                return
-
-            else:
-                if (self.data is not None) and (labels.shape[0] != self.shape[0]):
-                    # allow the fact that the labels may have been passed in a transposed array
-                    if labels.ndim > 1 and (labels.shape[-1] == self.shape[0]):
-                        labels = labels.T
-                    else:
-                        raise ValueError(
-                            f"labels {labels.shape} and data {self.shape} shape mismatch!"
-                        )
-
-                if np.any(self._labels):
-                    info_(
-                        f"{type(self).__name__} is already a labeled array.\nThe explicitly provided labels will "
-                        f"be appended to the current labels"
-                    )
-
-                    labels = labels.squeeze()
-                    self._labels = self._labels.squeeze()
-                    if self._labels.ndim > 1:
-                        self._labels = self._labels.T
-                    self._labels = np.vstack((self._labels, labels)).T
-
-                else:
-                    if self._copy:
-                        self._labels = labels.copy()
-                    else:
-                        self._labels = labels
-
-    # ..........................................................................
     @property
     def limits(self):
         """
-        Range of the data (list).
+        Return the maximum range of the data.
         """
         if self.data is None:
             return None
+        return np.array([self.data.min(), self.data.max()])
 
-        return [self.data.min(), self.data.max()]
-
-    # ..........................................................................
     @property
-    def mask(self):
+    def local_timezone(self):
         """
-        Mask for the data (|ndarray| of bool).
+        Return the local timezone.
         """
-        if not self.is_masked:
-            return NOMASK
+        return str(datetime.utcnow().astimezone().tzinfo)
 
-        return self._mask
-
-    # ..........................................................................
-    @mask.setter
-    def mask(self, mask):
-
-        if mask is NOMASK or mask is MASKED:
-            pass
-        elif isinstance(mask, (np.bool_, bool)):
-            if not mask:
-                mask = NOMASK
-            else:
-                mask = MASKED
-        else:
-            # from now, make sure mask is of type np.ndarray if it provided
-            if not isinstance(mask, np.ndarray):
-                mask = np.array(mask, dtype=np.bool_)
-            if not np.any(mask):
-                # all element of the mask are false
-                mask = NOMASK
-            elif mask.shape != self.shape:
-                raise ValueError(
-                    f"mask {mask.shape} and data {self.shape} shape mismatch!"
-                )
-
-        # finally, set the mask of the object
-        if isinstance(mask, MaskedConstant):
-            self._mask = (
-                NOMASK if self.data is None else np.ones(self.shape).astype(bool)
-            )
-        else:
-            if np.any(self._mask):
-                # this should happen when a new mask is added to an existing one
-                # mask to be combined to an existing one
-                info_(
-                    f"{type(self).__name__} is already a masked array.\n The new mask will be combined with the "
-                    f"current array's mask."
-                )
-                self._mask |= mask  # combine (is a copy!)
-            else:
-                if self._copy:
-                    self._mask = mask.copy()
-                else:
-                    self._mask = mask
-
-    # ..........................................................................
     @property
-    def masked_data(self):
+    def title(self):
         """
-        The actual masked `data` array - Readonly property (|ma.ndarray|).
-        """
-        if self.is_masked and not self.is_empty:
-            return self._umasked(self.data, self.mask)
-        else:
-            return self.data
+        Return a user-friendly name for the array title.
 
-    # ..........................................................................
+        When the title is provided, it can be used for labeling the object,
+        e.g., axe title in a matplotlib plot.
+        """
+        return self._title
+
+    @title.setter
+    def title(self, value):
+        self._title = value
+
+    @property
+    def m(self):
+        """
+        Alias for data.
+        """
+        return self.data
+
+    @property
+    def magnitude(self):
+        """
+        Alias for data.
+        """
+        return self.data
+
     @property
     def meta(self):
         """
-        Additional metadata (|Meta|).
+        Return an additional metadata dictionary.
         """
         return self._meta
 
-    # ..........................................................................
     @meta.setter
     def meta(self, meta):
-
         if meta is not None:
             self._meta.update(meta)
 
-    # ..........................................................................
-    @property
-    def modified(self):
-        """
-        Date of modification (readonly property).
-        """
-        return self._modified
-
-    # ..........................................................................
     @property
     def name(self):
         """
-        A user-friendly name (str).
-
-        When no name is provided, the `id` of the object is returned instead.
+        Return a user-friendly name.
         """
         if self._name:
             return self._name
-        else:
-            return self._id
+        return self._id
 
-    # ..........................................................................
     @name.setter
     def name(self, name):
-
-        if name:
-            if self._name:
-                pass
+        if name is not None:
             self._name = name
 
-    # ..........................................................................
     @property
+    @_docstring.get_docstring(base="ndim")
+    @_docstring.dedent
     def ndim(self):
         """
-        The number of dimensions of the `data` array (Readonly property).
+        Return the number of dimensions of the `data` array.
         """
-        if self.data is None and self.is_labeled:
-            return 1
-
         if not self.size:
             return 0
-        else:
-            return self.data.ndim
+        return self.data.ndim
 
-    # ..........................................................................
-    @property
-    def origin(self):
-        """
-        Origin of the data (str).
-        """
-        return self._origin
-
-    # ..........................................................................
-    @origin.setter
-    def origin(self, origin):
-        self._origin = origin
-
-    @property
-    def real(self):
-        return self
-
-    # ..........................................................................
-    def remove_masks(self):
-        """
-        Remove all masks previously set on this array.
-        """
-        self._mask = NOMASK
-
-    # ..........................................................................
     @property
     def roi(self):
         """
-        Region of interest (ROI) limits (list).
+        Return the region of interest (ROI) limits.
         """
         if self._roi is None:
             self._roi = self.limits
@@ -2034,272 +1405,85 @@ class NDArray(HasTraits):
 
     @roi.setter
     def roi(self, val):
-        self._roi = val
+        self._roi = np.array(val)
 
     @property
     def roi_values(self):
+        """
+        Return the values correcponding to the region of interest (ROI) limits.
+        """
         if self.units is None:
-            return list(np.array(self.roi))
-        else:
-            return list(self._uarray(self.roi, self.units))
+            return self.roi
+        return self._uarray(self.roi, self.units)
 
-    # ..........................................................................
     @property
+    @_docstring.get_summary(base="shape")
+    @_docstring.dedent
     def shape(self):
         """
-        A tuple with the size of each dimension - Readonly property.
+        Return a tuple with the size of each dimension.
 
-        The number of `data` element on each dimension (possibly complex).
-        For only labelled array, there is no data, so it is the 1D and the size is the size of the array of labels.
+        The number of `data` element on each dimension.
         """
-        if self.data is None and self.is_labeled:
-            return (self.labels.shape[0],)
-
-        elif self.data is None:
+        if self.data is None:
             return ()
+        return self.data.shape
 
-        else:
-            return self.data.shape
-
-    # ..........................................................................
     @property
     def size(self):
         """
-        Size of the underlying `data` array - Readonly property (int).
+        Return the size of the underlying `data` array.
 
         The total number of data elements (possibly complex or hypercomplex
         in the array).
         """
+        if self.data is None:
+            return 0
+        return self.data.size
 
-        if self._data is None and self.is_labeled:
-            return self.labels.shape[-1]
-
-        elif self._data is None:
-            return None
-        else:
-            return self._data.size
-
-    # ..........................................................................
-    def squeeze(self, *dims, inplace=False, return_axis=False, **kwargs):
-        """
-        Remove single-dimensional entries from the shape of an array.
-
-        Parameters
-        ----------
-        dims : None or int or tuple of ints, optional
-            Selects a subset of the single-dimensional entries in the
-            shape. If a dimension (dim) is selected with shape entry greater than
-            one, an error is raised.
-
-        Returns
-        -------
-        squeezed : same object type
-            The input array, but with all or a subset of the
-            dimensions of length 1 removed.
-
-        Raises
-        ------
-        ValueError
-            If `dims` is not `None`, and the dimension being squeezed is not
-            of length 1
-        """
-        if inplace:
-            new = self
-        else:
-            new = self.copy()
-
-        dims = self._get_dims_from_args(*dims, **kwargs)
-
-        if not dims:
-            s = np.array(new.shape)
-            dims = np.argwhere(s == 1).squeeze().tolist()
-        axis = self._get_dims_index(dims)
-        if axis is None:
-            # nothing to squeeze
-            return new, axis
-
-        # recompute new dims
-        for i in axis[::-1]:
-            del new._dims[i]
-
-        # performs all required squeezing
-        new._data = new._data.squeeze(axis=axis)
-        if self.is_masked:
-            new._mask = new._mask.squeeze(axis=axis)
-
-        if return_axis:  # in case we need to know which axis has been squeezed
-            return new, axis
-
-        return new
-
-    # ..........................................................................
-    def swapdims(self, dim1, dim2, inplace=False):
-        """
-        Interchange two dims of a |NDArray|.
-
-        Parameters
-        ----------
-        dim1 : int or str
-            First dimension index.
-        dim2 : int
-            Second dimension index.
-        inplace : bool, optional, default=`False`
-            Flag to say that the method return a new object (default)
-            or not (inplace=True).
-
-        Returns
-        -------
-        swaped_array
-
-        See Also
-        --------
-        transpose
-        """
-        if not inplace:
-            new = self.copy()
-        else:
-            new = self
-        if self.ndim < 2:  # cannot swap axe for 1D data
-            return new
-
-        i0, i1 = axis = self._get_dims_index([dim1, dim2])
-        new._data = np.swapaxes(new._data, *axis)
-        new._dims[i1], new._dims[i0] = self._dims[i0], self._dims[i1]
-
-        # all other arrays, except labels have also to be swapped to reflect
-        # changes of data ordering.
-        # labels are presents only for 1D array, so we do not have to swap them
-        if self.is_masked:
-            new._mask = np.swapaxes(new._mask, *axis)
-
-        new._meta = new._meta.swap(*axis, inplace=False)
-        return new
-
-    swapaxes = swapdims
-    swapaxes.__doc__ = "Alias of `swapdims`."
-
-    # ..........................................................................
-    @property
-    def T(self):
-        """
-        Transposed array (|NDArray|).
-
-        The same object is returned if `ndim` is less than 2.
-
-        See Also
-        --------
-        transpose
-        """
-        return self.transpose()
-
-    # ..........................................................................
-    @property
-    def title(self):
-        """
-        An user friendly title (str).
-
-        When the title is provided, it can be used for labeling the object,
-        e.g., axe title in a matplotlib plot.
-        """
-        if self._title:
-            return self._title
-        else:
-            return "<untitled>"
-
-    @title.setter
-    def title(self, title):
-
-        if title:
-            self._title = title
-
-    # ..........................................................................
+    @_docstring.dedent
     def to(self, other, inplace=False, force=False):
         """
         Return the object with data rescaled to different units.
+
+        If the required units are not compatible with the present units,
+        it is possible to force the change using the `force` parameter.
 
         Parameters
         ----------
         other : |Quantity| or str
             Destination units.
-        inplace : bool, optional, default=`False`
-            Flag to say that the method return a new object (default)
-            or not (inplace=True).
+        %(inplace)s
         force : bool, optional, default=False
             If True the change of units is forced, even for incompatible units.
 
         Returns
         -------
-        rescaled
+        %(out)s
 
         See Also
         --------
         ito : Inplace rescaling of the current object data to different units.
         to_base_units : Rescaling of the current object data to different units.
-        ito_base_units : Inplace rescaling of the current object data to different units.
-        to_reduced_units : Rescaling to reduced_units.
-        ito_reduced_units : Inplace rescaling to reduced units.
-
-        Examples
-        --------
-        >>> np.random.seed(12345)
-        >>> ndd = scp.NDArray(data=np.random.random((3, 3)),
-        ...                   mask=[[True, False, False],
-        ...                         [False, True, False],
-        ...                         [False, False, True]],
-        ...                   units='meters')
-        >>> print(ndd)
-        NDArray: [float64] m (shape: (y:3, x:3))
-
-        We want to change the units to seconds for instance
-        but there is no relation with meters,
-        so an error is generated during the change
-
-        >>> ndd.to('second')
-        Traceback (most recent call last):
-        ...
-        pint.errors.DimensionalityError: Cannot convert from 'meter' ([length]) to 'second' ([time])
-
-        However, we can force the change
-
-        >>> ndd.to('second', force=True)
-        NDArray: [float64] s (shape: (y:3, x:3))
-
-        By default the conversion is not done inplace, so the original is not
-        modified :
-
-        >>> print(ndd)
-        NDArray: [float64] m (shape: (y:3, x:3))
+        ito_base_units : Inplace rescaling of to different units.
+        to_reduced_units : Rescaling to reduced units.
+        ito_reduced_units : Rescaling to reduced units.
         """
-
         new = self.copy()
-
         if other is None:
-            units = None
             if self.units is None:
                 return new
-            elif force:
+            if force:
                 new._units = None
                 if inplace:
                     self._units = None
-                return new
-
-        elif isinstance(other, str):
-            units = ur.Unit(other)
-
-        elif hasattr(other, "units"):
-            units = other.units
-
-        else:
-            units = ur.Unit(other)
+            return new
+        units = get_units(other)
 
         if self.has_units:
-
             oldunits = self._units
-
             try:
-                # noinspection PyUnresolvedReferences
                 if new.meta.larmor:  # _origin in ['topspin', 'nmr']
-                    # noinspection PyUnresolvedReferences
                     set_nmr_context(new.meta.larmor)
                     with ur.context("nmr"):
                         new = self._unittransform(new, units)
@@ -2330,7 +1514,7 @@ class NDArray(HasTraits):
                             new._title = "transmittance"
                     else:
                         new = self._unittransform(new, units)
-                        # change the title for spectrocopic units change
+                        # change the title for spectroscopic units change
                         if (
                             oldunits.dimensionality
                             in [
@@ -2368,206 +1552,158 @@ class NDArray(HasTraits):
 
                 if force:
                     new._units = units
-
-            except DimensionalityError as exc:
+            except pint.DimensionalityError as exc:
                 if force:
                     new._units = units
                     info_("units forced to change")
                 else:
-                    raise exc
+                    raise DimensionalityError(
+                        exc.dim1,
+                        exc.dim2,
+                        exc.units1,
+                        exc.units2,
+                        extra_msg=exc.extra_msg,
+                    ) from exc
         elif force:
             new._units = units
-
         else:
-            warnings.warn("There is no units for this NDArray!", SpectroChemPyWarning)
-
+            warning_("There is no units for this NDArray!", SpectroChemPyWarning)
         if inplace:
             self._data = new._data
             self._units = new._units
             self._title = new._title
             self._roi = new._roi
 
-        else:
-            return new
+        return new
 
+    @_docstring.dedent
     def to_base_units(self, inplace=False):
         """
         Return an array rescaled to base units.
 
+        E.g. base units of `hour` is `second`.
+
         Parameters
         ----------
-        inplace : bool
-            If True the rescaling is done in place.
+        %(inplace)s
 
         Returns
         -------
-        rescaled
-            A rescaled array
+        %(out)s
+
+        See Also
+        --------
+        to : Rescaling of the current object data to different units.
+        ito : Inplace rescaling of the current object data to different units.
+        ito_base_units : Inplace rescaling of to different units.
+        to_reduced_units : Rescaling to reduced units.
+        ito_reduced_units : Inplace rescaling to reduced units.
         """
-        q = Quantity(1.0, self.units)
-        q.ito_base_units()
-
-        if not inplace:
-            new = self.copy()
-        else:
-            new = self
-
-        new.ito(q.units)
-
+        quant = Quantity(1.0, self.units)
+        quant.ito_base_units()
+        new = self if inplace else self.copy()
+        new.ito(quant.units)
         if not inplace:
             return new
+        return self
 
+    @_docstring.dedent
     def to_reduced_units(self, inplace=False):
         """
         Return an array scaled in place to reduced units.
 
-        Reduced units means one unit per
-        dimension. This will not reduce compound units (e.g., 'J/kg' will not
-        be reduced to m**2/s**2).
+        Scaling to reduced units' means one unit per
+        dimension. This will not reduce compound units (e.g., `J/kg` will not
+        be reduced to `m**2/s**2`).
 
         Parameters
         ----------
-        inplace : bool
-            If True the rescaling is done in place.
+        %(inplace)s
 
         Returns
         -------
-        rescaled
-            A rescaled array.
-        """
-        q = Quantity(1.0, self.units)
-        q.ito_reduced_units()
-
-        if not inplace:
-            new = self.copy()
-        else:
-            new = self
-
-        new.ito(q.units)
-
-        if not inplace:
-            return new
-
-    # ..........................................................................
-    def transpose(self, *dims, inplace=False):
-        """
-        Permute the dimensions of an array.
-
-        Parameters
-        ----------
-        *dims : list int or str
-            Sequence of dimension indexes or names, optional.
-            By default, reverse the dimensions, otherwise permute the dimensions
-            according to the values given. If specified the list of dimension
-            index or names must match the number of dimensions.
-        inplace : bool, optional, default=`False`
-            Flag to say that the method return a new object (default)
-            or not (inplace=True)
-
-        Returns
-        -------
-        transpose
-            A transposed array
+        %(out)s
 
         See Also
         --------
-        swapdims : Interchange two dimensions of an array.
+        to : Rescaling of the current object data to different units.
+        ito : Inplace rescaling of the current object data to different units.
+        to_base_units : Rescaling of the current object data to different units.
+        ito_base_units : Inplace rescaling of the current object to different units.
+        ito_reduced_units : Inplace rescaling to reduced units.
         """
+        quant = Quantity(1.0, self.units)
+        quant.ito_reduced_units()
+        new = self if inplace else self.copy()
+        new.ito(quant.units)
         if not inplace:
-            new = self.copy()
-        else:
-            new = self
-        if self.ndim < 2:  # cannot transpose 1D data
             return new
-        if not dims or list(set(dims)) == [None]:
-            dims = self.dims[::-1]
-        axis = self._get_dims_index(dims)
-
-        new._data = np.transpose(new._data, axis)
-        if new.is_masked:
-            new._mask = np.transpose(new._mask, axis)
-        new._meta = new._meta.permute(*axis, inplace=False)
-
-        new._dims = list(np.take(self._dims, axis))
-
-        new._transposed = not new._transposed  # change the transposed flag
-        return new
+        return self
 
     @property
-    def transposed(self):
-        return self._transposed
-
-    # ..........................................................................
-    @property
-    def umasked_data(self):
+    def is_unitless(self):
         """
-        The actual array with mask and unit (|Quantity|).
-
-        (Readonly property).
+        Return whether the `data` does not have `units`.
         """
-        if self.data is None:
-            return None
-        return self._uarray(self.masked_data, self.units)
+        return self.units is None
 
-    # ..........................................................................
-    @property
-    def unitless(self):
-        """
-        `bool` - True if the `data` does not have `units` (Readonly property).
-        """
-        return not self.has_units
-
-    # ..........................................................................
     @property
     def units(self):
         """
-        |Unit| - The units of the data.
+        Return the units of the data.
         """
         return self._units
 
-    # ..........................................................................
     @units.setter
     def units(self, units):
-
         if units is None:
             return
         if isinstance(units, str):
             units = ur.Unit(units)
         elif isinstance(units, Quantity):
-            raise TypeError(
-                "Units or string representation of unit is expected, not Quantity"
-            )
-        if self.has_units and units != self._units:
+            units = units.units
+        if self.has_units and units != self.units:
             # first try to cast
             try:
                 self.to(units)
-            except Exception:
+            except Exception as err:
                 raise TypeError(
-                    f"Provided units {units} does not match data units: {self._units}.\nTo force a change,"
+                    f"Provided units {units} does not match data units:"
+                    f" {self.units}.\nTo force a change,"
                     f" use the to() method, with force flag set to True"
-                )
+                ) from err
         self._units = units
 
-    # ..........................................................................
     @property
+    @_docstring.get_docstring(base="uarray")
+    @_docstring.dedent
+    def uarray(self):
+        """
+        Return the actual quantity contained in the object.
+
+        For unitless object, the data itself are returned.
+
+        See Also
+        --------
+        values: Similar property but returning squeezed array.
+        value: Alias of values.
+        """
+        if self.data is not None:
+            return self._uarray(self.data, self.units)
+        return None
+
+    @property
+    @_docstring.get_docstring(base="values")
     def values(self):
         """
-        |Quantity| - The actual values (data, units) contained in this object (Readonly property).
-        """
+        Return the actual quantity (data, units) contained in this object.
 
+        It is equivalent to urray property, except for single-element array which are
+        returned as scalar (or quantity)
+        """
         if self.data is not None:
-            if self.is_masked:
-                data = self._umasked(self.masked_data, self.mask)
-                if self.units:
-                    return Quantity(data, self.units)
-            else:
-                data = self._uarray(self.data, self.units)
-            if self.size > 1:
-                return data
-            else:
-                return data.squeeze()[()]
-        elif self.is_labeled:
-            return self._labels[()]
+            return self.uarray.squeeze()[()]
+        return None
 
     @property
     def value(self):
@@ -2575,3 +1711,999 @@ class NDArray(HasTraits):
         Alias of `values`.
         """
         return self.values
+
+
+# ======================================================================================
+# NDArray subclass : NDComplexArray
+# ======================================================================================
+class NDComplexArray(NDArray):
+    __doc__ = _docstring.dedent(
+        """
+    A |NDArray| derived class with complex/quaternion related functionalities.
+
+    The private |NDComplexArray| class is an array (numpy |ndarray|-like) container,
+    usually not intended to be used directly. In addition to the |NDArray|
+    functionalities, this class adds complex/quaternion related methods and properties.
+
+    Parameters
+    ----------
+    %(NDArray.parameters)s
+
+    Other Parameters
+    ----------------
+    %(NDArray.other_parameters)s
+    """
+    )
+
+    _interleaved = tr.Bool(False)
+
+    def __init__(self, data=None, **kwargs):
+        dtype = np.dtype(kwargs.get("dtype", None))
+        if dtype.kind in "cV":
+            kwargs["dtype"] = None  # The treatment will be done after the NDArray
+            # initialisation
+        super().__init__(data, **kwargs)
+        if dtype.kind == "c":
+            self.set_complex(inplace=True)
+        if dtype.kind == "V":  # quaternion
+            self.set_hypercomplex(inplace=True)
+
+    def __getattr__(self, item):
+        if item in "RRRIIIRR":
+            return self.component(select=item)
+        # return super().__getattr__(item)
+        raise AttributeError
+
+    def __setitem__(self, items, value):
+        if self.is_hypercomplex and np.isscalar(value):
+            # sometimes do not work directly : here is a work around
+            keys = self._make_index(items)
+            self._data[keys] = np.full_like(self.data[keys], value).astype(
+                np.dtype(np.quaternion)
+            )
+        else:
+            super().__setitem__(items, value)
+
+    def _make_complex(self, data):
+        if self.is_complex:  # pragma: no cover
+            return data  # normally, this is never used as checks are done before
+            # calling this function
+        if data.shape[-1] % 2 != 0:
+            raise ShapeError(
+                data.shape,
+                "an array of real data to be transformed to complex must have "
+                "an even number of columns!.",
+            )
+        data = data.astype(np.float64, copy=False)
+        data.dtype = np.complex128
+        return data
+
+    def _make_quaternion(self, data, quat_array=False):
+        if data.dtype == typequaternion:
+            # nothing to do
+            return data
+        # as_quat_array
+        if quat_array:
+            if data.shape[-1] != 4:
+                raise ShapeError(
+                    data.shape,
+                    "An array of data to be transformed to quaternion "
+                    "with the option `quat_array` must have its last dimension "
+                    "size equal to 4.",
+                )
+            data = as_quat_array(data)
+            return data
+        # interlaced data
+        if data.ndim % 2 != 0:
+            raise ShapeError(
+                data.shape,
+                "an array of data to be transformed to quaternion must be 2D.",
+            )
+            # TODO: offer the possibility to have more dimension (interleaved)
+        if not self.is_complex:
+            if data.shape[1] % 2 != 0:
+                raise ShapeError(
+                    data.shape,
+                    "an array of real data to be transformed to quaternion "
+                    "must have even number of columns!.",
+                )
+            # convert to double precision complex
+            data = self._make_complex(data)
+        if data.shape[0] % 2 != 0:
+            raise ShapeError(
+                data.shape,
+                "an array data to be transformed to quaternion must have"
+                " even number of rows!.",
+            )
+        rea = data[::2]
+        ima = data[1::2]
+        return as_quaternion(rea, ima)
+
+    def _cplx(self):
+        cplx = [False] * self.ndim
+        if self.is_hypercomplex:
+            cplx = [True, True]
+        elif self.is_complex:
+            cplx[-1] = True
+        return cplx
+
+    @staticmethod
+    def _get_component(data, select="REAL"):
+        """
+        Take selected components of a hypercomplex array (RRR, RIR, ...).
+
+        Parameters
+        ----------
+        data : ndarray
+        select : str, optional, default='REAL'
+            If 'REAL', only real component in all dimensions will be selected.
+            Else a string must specify which real (R) or imaginary (I) component
+            has to be selected along a specific dimension. For instance,
+            a string such as 'RRI' for a 2D hypercomplex array indicated
+            that we take the real component in each dimension except the last
+            one, for which imaginary component is preferred.
+
+        Returns
+        -------
+        component
+            A component of the complex or hypercomplex array.
+        """
+        if select in ["REAL", "R"]:
+            select = "R" * data.ndim
+
+        if data.dtype == typequaternion:
+            w, x, y, z = as_float_array(data).T
+            w, x, y, z = w.T, x.T, y.T, z.T
+            if select == "I":
+                as_float_array(data)[..., 0] = 0
+                # see imag (we just remove the real
+                # part
+            elif select in ["RR", "R"]:
+                data = w
+            elif select == "RI":
+                data = x
+            elif select == "IR":
+                data = y
+            elif select == "II":
+                data = z
+            else:
+                raise ValueError(
+                    f"something wrong: cannot interpret `{select}` for "
+                    f"hypercomplex (quaternion) data!"
+                )
+
+        elif data.dtype.kind in "c":
+            w, x = data.real, data.imag
+            if select in ["R", "RR", "RRR"]:
+                data = w
+            elif select in ["I", "RI", "RRI"]:
+                data = x
+            else:
+                raise ValueError(
+                    f"something wrong: cannot interpret `{select}` for complex "
+                    f"data!"
+                )
+        else:
+            raise ValueError(
+                f"No selection was performed because datasets with no complex data "
+                f"have no `{select}` component. "
+            )
+
+        return data
+
+    def _str_shape(self):
+        if self.is_empty:
+            return ""
+        out = ""
+        cplx = self._cplx()
+        shcplx = (
+            x
+            for x in itertools.chain.from_iterable(
+                list(zip(self.dims, self.shape, cplx))
+            )
+        )
+        shape = (
+            (", ".join(["{}:{}{}"] * self.ndim))
+            .format(*shcplx)
+            .replace("False", "")
+            .replace("True", "(complex)")
+        )
+        size = self.size
+        sizecplx = "" if not self.has_complex_dims else "(complex)"
+        out += (
+            f"         size: {size}{sizecplx}\n"
+            if self.ndim < 2
+            else f"        shape: ({shape})\n"
+        )
+        return out
+
+    @property
+    def has_complex_dims(self):
+        """
+        Return whether at least one of the `data` array dimension is complex.
+        """
+        if self.data is None:
+            return False
+        return self.is_complex or self.is_hypercomplex
+
+    @_docstring.dedent
+    def astype(self, dtype=None, casting="safe", inplace=False):
+        """%(astype)s"""
+        if self.has_data and dtype is not None:
+            new = self.copy() if not inplace else self
+            dtype = np.dtype(dtype)
+            try:
+                if dtype.kind not in "cV":  # not complex nor quaternion
+                    new._data = new.data.astype(dtype, casting=casting, copy=False)
+                elif dtype.kind == "c":  # complex
+                    new._data = self._make_complex(new.data)
+                else:  # quaternion
+                    new._data = self._make_quaternion(new.data)
+            except TypeError as exc:
+                raise CastingError(dtype, exc) from exc
+            return new
+        return self
+
+    @_docstring.get_docstring(base="component")
+    @_docstring.dedent
+    def component(self, select="REAL"):
+        """
+        Take selected components of a hypercomplex array.
+
+        By default, the real component is returned. Using the select keyword any
+        components (e.g. RRR, RIR, ...) of the hypercomplex array can be selected.
+
+        Parameters
+        ----------
+        select : str, optional, default='REAL'
+            If 'REAL', only real component in all dimensions will be selected,
+            else a string must specify which real (R) or imaginary (I) component
+            has to be selected along a specific dimension. For instance,
+            a string such as 'RRI' for a 2D hypercomplex array indicated
+            that we take the real component in each dimension except the last
+            one, for which imaginary component is preferred.
+
+        Returns
+        -------
+        %(new)s
+
+        Notes
+        -----
+        The definition is somewhat different from e.g., Bruker TOPSPIN, as we order the
+        component in the order of the dimensions in dataset:
+        e.g., for dims = ['y','x'], 'IR' means that the `y` component is
+        imaginary while the `x` is real.
+        """
+        new = self.copy()
+        new._data = self._get_component(new.data, select)
+        return new
+
+    @property
+    def is_complex(self):
+        """
+        Return whether the array is complex.
+        """
+        if self.data is None:
+            return False
+        return self.data.dtype.kind == "c"
+
+    @property
+    def is_hypercomplex(self):
+        """
+        Return whether the array is hypercomplex.
+        """
+        if self.data is None:
+            return False
+        return self.data.dtype.kind == "V"
+
+    # #
+    #
+    #
+    #
+    #
+    # TODO: should we keep this possibility of storing complex number?
+    #       For the moment, no functions use this.
+    #  ..................................................................................
+    # @property
+    # def is_interleaved(self):
+    #     """
+    #     Return whether the hypercomplex array has interleaved data.
+    #     """
+    #     if self.data is None:
+    #         return False
+    #     return self._interleaved
+
+    @property
+    def imag(self):
+        """
+        Return the imaginary component of the complex array.
+        """
+        new = self.copy()
+        if not new.has_complex_dims:
+            return None
+        data = new.data
+        if self.is_complex:
+            new._data = data.imag.data
+        elif self.is_hypercomplex:
+            # this is a more complex situation than for real component
+            # get the imaginary component (vector component)
+            # q = a + bi + cj + dk  ->   qi = bi+cj+dk
+            as_float_array(data)[..., 0] = 0  # keep only the imaginary component
+            new._data = data  # .data
+        return new
+
+    @property
+    def limits(self):
+        """
+        Return the range of the data.
+        """
+        if self.data is None:
+            return None
+        if self.is_complex:
+            return [self.data.real.min(), self.data.real.max()]
+        if self.is_hypercomplex:
+            data = as_float_array(self.data)[..., 0]
+            return [data.min(), data.max()]
+        return [self.data.min(), self.data.max()]
+
+    @property
+    def real(self):
+        """
+        Return the real component of a complex array.
+        """
+        new = self.copy()
+        if not new.has_complex_dims:
+            return self
+        data = new.data
+        if self.is_complex:
+            new._data = data.real
+        elif self.is_hypercomplex:
+            # get the scalar component
+            # q = a + bi + cj + dk  ->   qr = a
+            new._data = as_float_array(data)[..., 0]
+        return new
+
+    @_docstring.dedent
+    def set_complex(self, inplace=False):
+        """
+        Set the object data as complex.
+
+        When nD-dimensional array are set to complex, we assume that it is along the
+        first dimension. Two succesives rows are merged to form a complex rows. This
+        means that the number of row must be even. If the complexity is to be applied
+        in other dimension, either transpose/swapdims your data before applying this
+        function in order that the complex dimension is the first in the array.
+
+        Parameters
+        ----------
+        %(inplace)s
+
+        Returns
+        -------
+        %(out)s
+
+        """
+        new = self if inplace else self.copy()
+        if new.has_complex_dims:
+            # not necessary in this case, it is already complex
+            return new
+        new._data = new._make_complex(new.data)
+        return new
+
+    @_docstring.dedent
+    def set_hypercomplex(self, quat_array=False, inplace=False):
+        """
+        Set the object data as hypercomplex.
+
+        Four components are created : RR, RI, IR, II if they not already exit.
+
+        Parameters
+        ----------
+        quat_array : bool, optional, default: False
+            If True, this indicates that the four coponents of quaternion are given in
+            an extra dimension: e.g., an array with shape (3,2,4) will be transfored to
+            a quaternion array with shape (3,2) with each element of type quaternion.
+            If False, the components are supposed to be interlaced: e.g, an array
+            with shape (6,4) with float dtype or an array of shape (6,2) of complex
+            dtype, will both be transformed to an array of shape (3,2) with quaternion
+            dtype.
+        %(inplace)s
+
+        Returns
+        -------
+        %(out)s
+        """
+        new = self if inplace else self.copy()
+        new._data = new._make_quaternion(new.data, quat_array=quat_array)
+        return new
+
+    @property
+    @_docstring.dedent
+    def shape(self):
+        """%(shape.summary)s
+
+        The number of `data` element on each dimension (possibly complex).
+        """
+        return super().shape
+
+
+# ======================================================================================
+# NDArray subclass : NDMaskedComplexArray
+# ======================================================================================
+class NDMaskedComplexArray(NDComplexArray):
+    __doc__ = _docstring.dedent(
+        """
+    A |NDComplexArray| derived class with additional mask and related functionalities.
+
+    The private |NDMaskedComplexArray| class is an array (numpy |ndarray|-like)
+    container, usually not intended to be used directly. In addition to the
+    |NDComplexArray| functionalities, this class adds a mask and related methods and
+    properties.
+
+    Parameters
+    ----------
+    %(NDArray.parameters)s
+
+    Other Parameters
+    ----------------
+    %(NDArray.other_parameters)s
+    mask : array of bool or `NOMASK`, optional
+        Mask for the data. The mask array must have the same shape as the
+        data. The given array can be a list,
+        a tuple, or a |ndarray|. Each values in the array must be `False`
+        where the data are *valid* and True when
+        they are not (like in numpy masked arrays). If `data` is already a
+        :class:`~numpy.ma.MaskedArray`, or any object providing a `mask`, the mask
+        diefined by this parameter and the mask from the mask from the data will be
+        combined (`mask` OR `data.mask`).
+    """
+    )
+    _docstring.get_sections(__doc__, base="NDMaskedComplexArray")
+
+    # masks
+    _mask = tr.Union((tr.Bool(), Array(tr.Bool()), tr.Instance(MaskedConstant)))
+
+    def __init__(self, data=None, **kwargs):
+        super().__init__(data, **kwargs)
+        mask = kwargs.pop("mask", NOMASK)
+        if np.any(mask):
+            self.mask = mask
+
+    def __getitem__(self, items, return_index=False):
+        new, keys = super().__getitem__(items, return_index=True)
+        if (new.data is not None) and new.is_masked:
+            new._mask = new._mask[keys]
+        else:
+            new._mask = NOMASK
+        if not return_index:
+            return new
+        return new, keys
+
+    def __setitem__(self, items, value):
+        if isinstance(value, (bool, np.bool_, MaskedConstant)):
+            keys = self._make_index(items)
+            # the mask is modified, not the data
+            if value is MASKED:
+                value = True
+            if not np.any(self._mask):
+                self._mask = np.zeros(self.data.shape).astype(np.bool_)
+            self._mask[keys] = value
+            return
+        super().__setitem__(items, value)
+
+    def _attributes(self):
+        return super()._attributes() + ["mask"]
+
+    @tr.default("_mask")
+    def _mask_default(self):
+        return NOMASK if self.data is None else np.zeros(self.data.shape).astype(bool)
+
+    @tr.validate("_mask")
+    def _mask_validate(self, proposal):
+        pv = proposal["value"]
+        mask = pv
+        if mask is None or mask is NOMASK:
+            return mask
+        # no particular validation for now.
+        if self._copy:
+            return mask.copy()
+        return mask
+
+    def _set_data(self, data):
+        mask = NOMASK
+        if hasattr(data, "mask"):
+            # an object with data and mask attributes
+            if isinstance(data.mask, np.ndarray) and data.mask.shape == data.data.shape:
+                mask = np.array(data.mask, dtype=np.bool_, copy=False)
+        super()._set_data(data)
+        if np.any(mask):
+            self.mask = mask
+
+    def _str_formatted_array(self, data, sep="\n", prefix="", units=""):
+        ds = data.copy()
+        if self.is_masked:
+            dtype = self.data.dtype
+            mask_string = f"--{dtype}"
+            ds = insert_masked_print(ds, mask_string=mask_string)
+        arraystr = np.array2string(ds, separator=" ", prefix=prefix)
+        arraystr = arraystr.replace("\n", sep)
+        text = "".join([arraystr, units])
+        text += sep
+        return text
+
+    @staticmethod
+    def _masked_data(data, mask):
+        # This ensures that a masked array is returned.
+        if not np.any(mask):
+            mask = np.zeros(data.shape).astype(bool)
+        data = np.ma.masked_where(mask, data)  # np.ma.masked_array(data, mask)
+        return data
+
+    @_docstring.dedent
+    def component(self, select="REAL"):
+        """%(component)s"""
+        new = super().component(select)
+        if new is not None and self.is_masked:
+            new._mask = self.mask
+        else:
+            new._mask = NOMASK
+        return new
+
+    @property
+    def is_masked(self):
+        """
+        Whether the `data` array has masked values.
+        """
+        try:
+            if isinstance(self._mask, np.ndarray):
+                return np.any(self._mask)
+            if self._mask == NOMASK or self._mask is None:
+                return False
+            if isinstance(self._mask, (np.bool_, bool)):
+                return self._mask
+        except Exception:
+            if self._data.dtype == typequaternion:
+                return np.any(self._mask["R"])
+        return False
+
+    @property
+    def mask(self):
+        """
+        Mask for the data (|ndarray| of bool).
+        """
+        if not self.is_masked:
+            return NOMASK
+        return self._mask
+
+    @mask.setter
+    def mask(self, mask):
+        if mask is NOMASK or mask is MASKED:
+            pass
+        elif isinstance(mask, (np.bool_, bool)):
+            if not mask:
+                mask = NOMASK
+            else:
+                mask = MASKED
+        else:
+            # from now, make sure mask is of type np.ndarray if it provided
+            if not isinstance(mask, np.ndarray):
+                mask = np.array(mask, dtype=np.bool_)
+            if not np.any(mask):
+                # all element of the mask are false
+                mask = NOMASK
+            elif mask.shape != self.shape:
+                raise ValueError(
+                    f"mask {mask.shape} and data {self.shape} shape mismatch!"
+                )
+        # finally, set the mask of the object
+        if isinstance(mask, MaskedConstant):
+            self._mask = (
+                NOMASK if self.data is None else np.ones(self.shape).astype(bool)
+            )
+        else:
+            if np.any(self._mask):
+                # this should happen when a new mask is added to an existing one
+                # mask to be combined to an existing one
+                info_(
+                    f"{type(self).__name__} is already a masked array.\n"
+                    f"The new mask will be combined with the current array's mask."
+                )
+                self._mask |= mask  # combine (is a copy!)
+            else:
+                if self._copy:
+                    self._mask = mask.copy()
+                else:
+                    self._mask = mask
+
+    @property
+    def masked_data(self):
+        """
+        The actual masked `data` array .
+        """
+        if not self.is_empty:
+            return self._masked_data(self.data, self.mask)
+        return self.data
+
+    @property
+    def real(self):
+        """
+        Return the real component of complex array (Readonly property).
+        """
+        new = super().real
+        if new is not None and self.is_masked:
+            new._mask = self.mask
+        return new
+
+    @property
+    def imag(self):
+        """
+        Return the imaginary component of complex array (Readonly property).
+        """
+        new = super().imag
+        if new is not None and self.is_masked:
+            new._mask = self.mask
+        return new
+
+    def remove_masks(self):
+        """
+        Remove data masks.
+
+        Remove all masks previously set on this array, unconditionnaly.
+        """
+        self._mask = NOMASK
+
+    @property
+    @_docstring.dedent
+    def uarray(self):
+        """%(uarray)s"""
+        if self.data is not None:
+            return self._uarray(self.masked_data, self.units)
+        return None
+
+
+# ======================================================================================
+# NDArray subclass : NDLabeledArray
+# ======================================================================================
+class NDLabeledArray(NDArray):
+    __doc__ = _docstring.dedent(
+        """
+    A |NDArray| derived class with additional labels and related functionalities.
+
+    The private |NDLabeledArray| class is an array (numpy |ndarray|-like)
+    container, usually not intended to be used directly. In addition to the
+    |NDArray| functionalities, this class adds labels and related methods and
+    properties.
+
+    Parameters
+    ----------
+    %(NDArray.parameters)s
+
+    Other Parameters
+    ----------------
+    %(NDArray.other_parameters)s
+    labels : list, tuple, or |ndarray|-like object, optional
+        Labels for the `data`.
+        The labels array may have an additional dimension, meaning several
+        series of labels for the same data.
+    """
+    )
+    _docstring.get_sections(__doc__, base="NDLabeledArray")
+
+    _labels = Array(allow_none=True)
+
+    def __init__(self, data=None, **kwargs):
+        super().__init__(data, **kwargs)
+        self.labels = kwargs.pop("labels", None)
+
+    def __getitem__(self, items, return_index=False):
+        new, keys = super().__getitem__(items, return_index=True)
+        if self.is_labeled:
+            if new._labels.ndim == 1:
+                new._labels = np.array(self._labels[keys[0]])
+            else:
+                new._labels = np.array(self._labels[:, keys[0]])
+        if not return_index:
+            return new
+        return new, keys
+
+    def __repr__(self):
+        rep = super().__repr__()
+        if "empty" in rep and self.is_labeled:
+            # no data but labels
+            lab = self.get_labels(level=0)
+            data = f" {lab}"
+            size = f" (size: {len(lab)})"
+            dtype = "labels"
+            body = f"[{dtype}]{data}{size}"
+            rep = rep.replace("empty", body)
+        return rep
+
+    def _argsort(self, descend=False, by="value", level=None):
+        # found the indices sorted by values or labels
+        args = self.data
+        if by == "value":
+            args = np.argsort(self.data)
+        elif "label" in by and not self.is_labeled:
+            exception_(KeyError, "no label to sort")
+        elif "label" in by and self.is_labeled:
+            labels = self.labels
+            if len(self.labels.shape) > 1:
+                # multidimensional labels
+                if not level:
+                    level = 0
+                    # try to find a pos in the by string
+                    pattern = re.compile(r"label\[(\d)]")
+                    p = pattern.search(by)
+                    if p is not None:
+                        level = int(p[1])
+                labels = self.labels[level]
+            args = np.argsort(labels)
+        if descend:
+            args = args[::-1]
+        return args
+
+    def _attributes(self):
+        return super()._attributes() + ["labels"]
+
+    def _is_labels_allowed(self):
+        return self._squeeze_ndim <= 1
+
+    def _interpret_strkey(self, key):
+
+        if self.is_labeled:
+            labels = self._labels
+            indexes = np.argwhere(labels == key).flatten()
+            if indexes.size > 0:
+                return indexes[-1], None
+
+        # key can be a date
+        try:
+            key = np.datetime64(key)
+        except ValueError as exc:
+            raise NotImplementedError from exc
+
+        index, error = self._value_to_index(key)
+        return index, error
+
+    def _get_data_to_print(self, ufmt=" {:~K}"):
+        units = ""
+        data = self.values
+        if isinstance(data, Quantity):
+            data = data.magnitude
+            units = ufmt.format(self.units) if self.has_units else ""
+        return data, units
+
+    @tr.default("_labels")
+    def _labels_default(self):
+        return None
+
+    # def _repr_shape(self):
+    #     if self.is_empty:
+    #         return "size: 0"
+    #     out = ""
+    #     shape_ = (
+    #         x for x in itertools.chain.from_iterable(list(zip(self.dims, self.shape)))
+    #     )
+    #     shape = (", ".join(["{}:{}"] * self.ndim)).format(*shape_)
+    #     size = self.size
+    #     out += f"size: {size}" if self.ndim < 2 else f"shape: ({shape})"
+    #     return out
+    #
+
+    # def _repr_value(self):
+    #     numpyprintoptions(precision=4, edgeitems=0, spc=1, linewidth=120)
+    #     prefix = f"{type(self).__name__} ({self.name}): "
+    #     units = ""
+    #     if not self.is_empty:
+    #         if self.data is not None:
+    #             dtype = self.dtype
+    #             data = ""
+    #             units = " {:~K}".format(self.units) if self.has_units else " unitless"
+    #         else:
+    #             # no data but labels
+    #             lab = self.get_labels()
+    #             data = f" {lab}"
+    #             dtype = "labels"
+    #         body = f"[{dtype}]{data}"
+    #     else:
+    #         body = "empty"
+    #     numpyprintoptions()
+    #     return "".join([prefix, body, units])
+
+    @property
+    def _squeeze_ndim(self):
+        # The number of dimensions of the squeezed`data` array (Readonly property).
+        if self.data is None and self.is_labeled:
+            return 1
+        return super()._squeeze_ndim
+
+    @staticmethod
+    def _get_label_str(lab, idx=None, sep="\n"):
+        arraystr = np.array2string(lab, separator=" ", prefix="")
+        if idx is None:
+            text = "       labels: "
+        else:
+            text = f"    labels[{idx}]: "
+        text += f"\0{arraystr}\0{sep}"
+        return text
+
+    def _str_value(
+        self, sep="\n", ufmt=" {:~K}", prefix="", header="         data: ... \n"
+    ):
+        text = super()._str_value(sep, ufmt, prefix, header)
+        text += sep
+
+        if self.is_labeled:
+            lab = self.labels
+            idx = 0
+            if self.data is None:
+                if lab.ndim > 1:
+                    idx = 1
+                else:
+                    # already in data
+                    lab = None
+            if lab is not None:
+                if lab.ndim == 1 and idx == 0:
+                    text += self._get_label_str(lab, sep=sep)
+                else:
+                    for i in range(idx, len(lab)):
+                        text += self._get_label_str(lab[i], i, sep=sep)
+        return text.rstrip()
+
+    def get_labels(self, level=0):
+        """
+        Get the labels at a given level.
+
+        Used to replace `data` when only labels are provided, and/or for
+        labeling axis in plots.
+
+        Parameters
+        ----------
+        level : int, optional, default:0
+            For multilabel array, specify the label row to extract.
+
+        Returns
+        -------
+        |ndarray|
+            The label array at the desired level or None.
+        """
+        if not self.is_labeled:
+            return None
+
+        if (self.labels.ndim > 1 and level > len(self.labels) - 1) or (
+            self.labels.ndim == 1 and level > 0
+        ):
+            warning_(
+                "There is no such level in the existing labels", SpectroChemPyWarning
+            )
+            return None
+
+        if len(self.labels) > 1 and self.labels.ndim > 1:
+            return self.labels[level]
+        return self.labels
+
+    @property
+    @_docstring.dedent
+    def is_empty(self):
+        """%(is_empty)s"""
+        if self.is_labeled:
+            return False
+        return super().is_empty
+
+    @property
+    def is_labeled(self):
+        """
+        Return whether the `data` array have labels.
+        """
+        # label cannot exist for now for nD dataset - only 1D dataset, such
+        # as Coord can be labeled.
+        if self._data is not None and self._squeeze_ndim > 1:
+            return False
+        return self._labels is not None and np.any(self.labels != "")
+
+    @property
+    def labels(self):
+        """
+        An array of labels for `data` (|ndarray| of str).
+
+        An array of objects of any type (but most generally string), with the last
+        dimension size equal to that of the dimension of data. Note that's labeling
+        is possible only for 1D data. One classical application is the labeling of
+        coordinates to display informative strings instead of numerical values.
+        """
+        return self._labels
+
+    @labels.setter
+    def labels(self, labels):
+
+        if labels is None:
+            return
+        if not self._is_labels_allowed():
+            exception_(
+                LabelsError("We cannot set the labels for multidimentional data.")
+            )
+        # make sure labels array is of type np.ndarray or Quantity arrays
+        if not isinstance(labels, np.ndarray):
+            labels = np.array(labels, subok=True, copy=True).astype(object, copy=False)
+        if (self.data is not None) and labels.ndim > 1:
+            # allow the fact that the labels
+            # may have been passed in a transposed array
+            if labels.shape[-1] != self.size and labels.shape[0] == self.size:
+                labels = labels.T
+        if self.data is not None and labels.shape[-1] != self.size:
+            raise LabelsError(
+                f"labels {labels.shape} and data {self.shape} " f"shape mismatch!"
+            )
+        if np.any(self._labels):
+            info_(
+                f"{type(self).__name__} is already a labeled array.\n"
+                f"The explicitly provided labels will "
+                f"be appended to the current labels"
+            )
+            labels = labels.squeeze()
+            self._labels = self._labels.squeeze()
+            self._labels = np.vstack((self._labels, labels))
+        else:
+            if self._copy:
+                self._labels = labels.copy()
+            else:
+                self._labels = labels
+
+    @property
+    @_docstring.dedent
+    def ndim(self):
+        """%(ndim)s"""
+        if self.data is None and self.is_labeled:
+            return 1
+        return super().ndim
+
+    @property
+    @_docstring.dedent
+    def shape(self):
+        """%(shape.summary)s
+
+        The number of `data` element on each dimension (possibly complex or
+        hypercomplex).
+        For only labeled array, there is no data, so it is the 1D and the size
+        is the size of the array of labels.
+        """
+        if self.data is None and self.is_labeled:
+            # noinspection PyRedundantParentheses
+            return (self.labels.shape[0],)
+        if self.data is None:
+            return ()
+        return self.data.shape
+
+    @property
+    def size(self):
+        """
+        Size of the underlying `data` array - Readonly property (int).
+
+        The total number of data elements (possibly complex or hypercomplex
+        in the array).
+        """
+
+        if self.data is None and self.is_labeled:
+            return self.labels.shape[-1]
+        if self.data is None:
+            return 0
+        return self.data.size
+
+    @property
+    @_docstring.dedent
+    def values(self):
+        """%(values)s"""
+        if self.data is not None:
+            return self.uarray.squeeze()[()]
+        if self.is_labeled:
+            if self.labels.size == 1:
+                return np.asscalar(self.labels)
+            if self.labels.ndim == 1:
+                return self.labels
+            return self.labels[0]
+        return None
+
+
+# ======================================================================================
+if __name__ == "__main__":
+    pass

@@ -3,12 +3,11 @@
 import pathlib
 import os
 
-import spectrochempy.utils.exceptions
-from pathlib import Path
+import spectrochempy.core.common.exceptions
 import pytest
 
 from spectrochempy import NDDataset  # , preferences as prefs
-from spectrochempy.utils import pathclean
+from spectrochempy.utils.pathlib import pathclean
 
 from spectrochempy.core.readers.importer import (
     read,
@@ -170,7 +169,7 @@ def test_importer(monkeypatch, fs):
         read_fake(f)
 
     # Generic read with a wrong protocol
-    with pytest.raises(spectrochempy.utils.exceptions.ProtocolError):
+    with pytest.raises(spectrochempy.core.exceptions.ProtocolError):
         read(f, protocol="wrongfake")
 
     # Generic read with a wrong file extension

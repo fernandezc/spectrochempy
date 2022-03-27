@@ -10,12 +10,12 @@ File utilities.
 from os import environ
 import re
 import warnings
-from pathlib import Path, WindowsPath, PosixPath
+from spectrochempy.utils.pathlib import pathclean
+from pathlib import PurePath, Path
 
 __all__ = [
     "get_filenames",
     "get_directory_name",
-    "pathclean",
     "patterns",
     "check_filenames",
     "check_filename_to_open",
@@ -47,71 +47,6 @@ def patterns(filetypes, allcase=True):
         return patterns
     else:
         return [_insensitive_case_glob(p) for p in patterns]
-
-
-def pathclean(paths):
-    """
-    Clean a path or a series of path in order to be compatible with windows and unix-based system.
-
-    Parameters
-    ----------
-    paths :  str or a list of str
-        Path to clean. It may contain windows or conventional python separators.
-
-    Returns
-    -------
-    out : a pathlib object or a list of pathlib objects
-        Cleaned path(s)
-
-    Examples
-    --------
-    >>> from spectrochempy.utils import pathclean
-
-    Using unix/mac way to write paths
-    >>> filename = pathclean('irdata/nh4y-activation.spg')
-    >>> filename.suffix
-    '.spg'
-    >>> filename.parent.name
-    'irdata'
-
-    or Windows
-    >>> filename = pathclean("irdata\\\\nh4y-activation.spg")
-    >>> filename.parent.name
-    'irdata'
-
-    Due to the escape character \\ in Unix, path string should be escaped \\\\ or the raw-string prefix `r` must be used
-    as shown below
-    >>> filename = pathclean(r"irdata\\nh4y-activation.spg")
-    >>> filename.suffix
-    '.spg'
-    >>> filename.parent.name
-    'irdata'
-    """
-    from spectrochempy.utils import is_windows
-
-    def _clean(path):
-        if isinstance(path, (Path, PosixPath, WindowsPath)):
-            path = path.name
-        if is_windows():
-            path = WindowsPath(path)  # pragma: no cover
-        else:  # some replacement so we can handle window style path on unix
-            path = path.strip()
-            path = path.replace("\\", "/")
-            path = path.replace("\n", "/n")
-            path = path.replace("\t", "/t")
-            path = path.replace("\b", "/b")
-            path = path.replace("\a", "/a")
-            path = PosixPath(path)
-        return Path(path)
-
-    if paths is not None:
-        if isinstance(paths, (str, Path, PosixPath, WindowsPath)):
-            path = str(paths)
-            return _clean(path).expanduser()
-        elif isinstance(paths, (list, tuple)):
-            return [_clean(p).expanduser() if isinstance(p, str) else p for p in paths]
-
-    return paths
 
 
 def _get_file_for_protocol(f, **kwargs):
@@ -171,7 +106,7 @@ def check_filenames(*args, **kwargs):
     filenames = None
 
     if args:
-        if isinstance(args[0], (str, Path, PosixPath, WindowsPath)):
+        if isinstance(args[0], (str, PurePath)):
             # one or several filenames are passed - make Path objects
             filenames = pathclean(args)
         elif isinstance(args[0], bytes):
@@ -179,9 +114,7 @@ def check_filenames(*args, **kwargs):
             # as filename where not given we passed the 'unnamed' string
             # return a dictionary
             return {pathclean(f"no_name_{i}"): arg for i, arg in enumerate(args)}
-        elif isinstance(args[0], list) and isinstance(
-            args[0][0], (str, Path, PosixPath, WindowsPath)
-        ):
+        elif isinstance(args[0], list) and isinstance(args[0][0], (str, PurePath)):
             filenames = pathclean(args[0])
         elif isinstance(args[0], list) and isinstance(args[0][0], bytes):
             return {pathclean(f"no_name_{i}"): arg for i, arg in enumerate(args[0])}
@@ -214,7 +147,9 @@ def check_filenames(*args, **kwargs):
             # in which directory ?
             directory = filename.parent
 
-            if directory.resolve() == Path.cwd() or directory == Path("."):
+            if directory.resolve() == Path.cwd() or directory == Path(
+                "../../utils_old"
+            ):
                 directory = ""
             kw_directory = pathclean(kwargs.get("directory", None))
             if directory and kw_directory and directory != kw_directory:
@@ -497,13 +432,11 @@ def get_filenames(*filenames, **kwargs):
 
     # now we have either a list of the selected files
     if isinstance(filenames, list):
-        if not all(
-            isinstance(elem, (Path, PosixPath, WindowsPath)) for elem in filenames
-        ):
+        if not all(isinstance(elem, PurePath) for elem in filenames):
             raise IOError("one of the list elements is not a filename!")
 
     # or a single filename
-    if isinstance(filenames, (str, Path, PosixPath, WindowsPath)):
+    if isinstance(filenames, (str, PurePath)):
         filenames = [filenames]
 
     filenames = pathclean(filenames)

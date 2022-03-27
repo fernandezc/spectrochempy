@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+# ======================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+# ======================================================================================
 from pathlib import Path
 from matplotlib import cycler
 
@@ -14,6 +15,27 @@ __all__ = ["MetaConfigurable", "Range"]
 
 
 class MetaConfigurable(Configurable):
+    """
+    Create a configurable given a config config.
+
+    Parameters
+    ----------
+    jsonfile : str
+        Filename of the json file storing the configuration parameters when they are
+        modified form the default.
+    **kwargs
+        Optional keyword parameters. See Other Parameters.
+
+    Other Parameters
+    ----------------
+    config : Config
+        If this is empty, default values are used. If config is a
+        :class:`Config` instance, it will be used to configure the
+        instance.
+    parent : Configurable instance, optional
+        The parent Configurable instance of this object.
+    """
+
     def __init__(self, jsonfile=None, **kwargs):  # lgtm[py/missing-call-to-init]
 
         super().__init__(**kwargs)

@@ -14,7 +14,7 @@ from spectrochempy.analysis.models import (
     gaussianmodel,
     asymmetricvoigtmodel,
 )
-from spectrochempy.utils import show
+from spectrochempy.core.common.plots import show
 
 
 def test_MCRALS_Jaumot():

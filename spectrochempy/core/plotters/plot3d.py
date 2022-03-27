@@ -12,7 +12,10 @@ __all__ = ["plot_surface", "plot_waterfall"]
 
 __dataset_methods__ = __all__
 
-from spectrochempy.utils import plot_method, add_docstring
+from spectrochempy.core.common.plots import plot_method
+from spectrochempy.core.common.docstrings import (
+    add_docstring,
+)  # TODO: replace this by docrep if possible
 
 _PLOT3D_DOC = """
 ax : |Axes| instance. Optional

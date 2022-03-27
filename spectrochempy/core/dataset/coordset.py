@@ -30,12 +30,9 @@ from traitlets import (
 
 from spectrochempy.core.dataset.ndarray import NDArray, DEFAULT_DIM_NAME
 from spectrochempy.core.dataset.coord import Coord, LinearCoord
-from spectrochempy.utils import (
-    is_sequence,
-    colored_output,
-    convert_to_html,
-    SpectroChemPyWarning,
-)
+from spectrochempy.core.common.compare import is_sequence
+from spectrochempy.core.common.print import colored_output, convert_to_html
+from spectrochempy.core.common.exceptions import SpectroChemPyWarning
 
 
 # ======================================================================================================================
@@ -130,7 +127,7 @@ class CoordSet(HasTraits):
     # ------------------------------------------------------------------------
     # initialization
     # ------------------------------------------------------------------------
-    # ..........................................................................
+
     def __init__(self, *coords, **kwargs):
 
         self._copy = kwargs.pop("copy", True)
@@ -272,8 +269,7 @@ class CoordSet(HasTraits):
         # initialize the base class with the eventual remaining arguments
         super().__init__(**kwargs)
 
-    # ..........................................................................
-    def implements(self, name=None):
+    def _implements(self, name=None):
         """
         Utility to check if the current object implement `CoordSet`.
 
@@ -289,7 +285,7 @@ class CoordSet(HasTraits):
     # ------------------------------------------------------------------------
     # Validation methods
     # ------------------------------------------------------------------------
-    # ..........................................................................
+
     @validate("_coords")
     def _coords_validate(self, proposal):
         coords = proposal["value"]
@@ -347,7 +343,6 @@ class CoordSet(HasTraits):
         else:
             return None
 
-    # ..........................................................................
     @default("_id")
     def _id_default(self):
         # a unique id
@@ -357,7 +352,6 @@ class CoordSet(HasTraits):
     # Readonly Properties
     # ------------------------------------------------------------------------
 
-    # ..........................................................................
     @property
     def available_names(self):
         """
@@ -371,7 +365,6 @@ class CoordSet(HasTraits):
                 _available_names.remove(item)
         return _available_names
 
-    # ..........................................................................
     @property
     def coords(self):
         """
@@ -379,7 +372,6 @@ class CoordSet(HasTraits):
         """
         return self._coords
 
-    # ..........................................................................
     @property
     def has_defined_name(self):
         """
@@ -387,7 +379,6 @@ class CoordSet(HasTraits):
         """
         return not (self.name == self.id)
 
-    # ..........................................................................
     @property
     def id(self):
         """
@@ -395,7 +386,6 @@ class CoordSet(HasTraits):
         """
         return self._id
 
-    # ..........................................................................
     @property
     def is_empty(self):
         """
@@ -406,7 +396,6 @@ class CoordSet(HasTraits):
         else:
             return False
 
-    # ..........................................................................
     @property
     def is_same_dim(self):
         """
@@ -414,12 +403,10 @@ class CoordSet(HasTraits):
         """
         return self._is_same_dim
 
-    # ..........................................................................
     @property
     def references(self):
         return self._references
 
-    # ..........................................................................
     @property
     def sizes(self):
         """
@@ -444,7 +431,6 @@ class CoordSet(HasTraits):
     # alias
     size = sizes
 
-    # ..........................................................................
     # @property
     # def coords(self):  #TODO: replace with itertiems, items etc ... to simulate a dict
     #     """
@@ -453,7 +439,6 @@ class CoordSet(HasTraits):
     #     """
     #     return self._coords
 
-    # ..........................................................................
     @property
     def names(self):
         """
@@ -483,7 +468,6 @@ class CoordSet(HasTraits):
         # return the first coordinates
         return self.default.data
 
-    # ..........................................................................
     @property
     def name(self):
         if self._name:
@@ -496,7 +480,6 @@ class CoordSet(HasTraits):
         if value is not None:
             self._name = value
 
-    # ..........................................................................
     @property
     def titles(self):
         """
@@ -514,7 +497,6 @@ class CoordSet(HasTraits):
                 raise ValueError("Something wrong with the titles!")
         return _titles
 
-    # ..........................................................................
     @property
     def labels(self):
         """
@@ -529,7 +511,6 @@ class CoordSet(HasTraits):
         """
         return any([item.is_labeled for item in self])
 
-    # ..........................................................................
     @property
     def units(self):
         """
@@ -540,7 +521,7 @@ class CoordSet(HasTraits):
     # ------------------------------------------------------------------------
     # public methods
     # ------------------------------------------------------------------------
-    # ..........................................................................
+
     def copy(self, keepname=False):
         """
         Make a disconnected copy of the current coords.
@@ -552,7 +533,6 @@ class CoordSet(HasTraits):
         """
         return self.__copy__()
 
-    # ..........................................................................
     def keys(self):
         """
         Alias for names.
@@ -569,14 +549,12 @@ class CoordSet(HasTraits):
             keys.extend(list(self.references.keys()))
         return keys
 
-    # ..........................................................................
     def select(self, val):
         """
         Select the default coord index.
         """
         self._default = min(max(0, int(val) - 1), len(self.names))
 
-    # ...........................................................................................................
     def set(self, *args, **kwargs):
         """
         Set one or more coordinates in the current CoordSet.
@@ -612,7 +590,6 @@ class CoordSet(HasTraits):
                 item._is_same_dim = True
             self[k] = item
 
-    # ..........................................................................
     def set_titles(self, *args, **kwargs):
         """
         Set one or more coord title at once.
@@ -645,7 +622,6 @@ class CoordSet(HasTraits):
         for k, item in kwargs.items():
             self[k].title = item
 
-    # ..........................................................................
     def set_units(self, *args, **kwargs):
         """
         Set one or more coord units at once.
@@ -682,7 +658,6 @@ class CoordSet(HasTraits):
         for k, item in kwargs.items():
             self[k].to(item, force=force, inplace=True)
 
-    # ..........................................................................
     def to_dict(self):
         """
         Return a dict of the coordinates from the coordset.
@@ -694,7 +669,6 @@ class CoordSet(HasTraits):
         """
         return dict(zip(self.names, self._coords))
 
-    # ..........................................................................
     def update(self, **kwargs):
         """
         Update a specific coordinates in the CoordSet.
@@ -715,7 +689,6 @@ class CoordSet(HasTraits):
     # private methods
     # ------------------------------------------------------------------------
 
-    # ..........................................................................
     def _append(self, coord):
         # utility function to append coordinate with full validation
         if not isinstance(coord, tuple):
@@ -729,7 +702,6 @@ class CoordSet(HasTraits):
             # no coordinates yet, start a new tuple of coordinate
             self._coords = (*coord,)
 
-    # ..........................................................................
     def _loc2index(self, loc):
         # Return the index of a location
         for coord in self.coords:
@@ -740,14 +712,12 @@ class CoordSet(HasTraits):
         # not found!
         raise IndexError
 
-    # ..........................................................................
     def _set_names(self, names):
         # utility function to change names of coordinates (in batch)
         # useful when a coordinate is a CoordSet itself
         for coord, name in zip(self._coords, names):
             coord.name = name
 
-    # ..........................................................................
     def _set_parent_dim(self, name):
         # utility function to set the paretn name for sub coordset
         for coord in self._coords:
@@ -757,12 +727,10 @@ class CoordSet(HasTraits):
     # special methods
     # ------------------------------------------------------------------------
 
-    # ..........................................................................
     # @staticmethod
-    def __dir__(self):
+    def _attributes(self):
         return ["coords", "references", "is_same_dim", "name"]
 
-    # ..........................................................................
     def __call__(self, *args, **kwargs):
         # allow the following syntax: coords(), coords(0,2) or
         coords = []
@@ -782,12 +750,10 @@ class CoordSet(HasTraits):
         else:
             return CoordSet(*coords)
 
-    # ..........................................................................
     def __hash__(self):
         # all instance of this class has same hash, so they can be compared
         return hash(tuple(self._coords))
 
-    # ..........................................................................
     def __len__(self):
         return len(self._coords)
 
@@ -801,7 +767,6 @@ class CoordSet(HasTraits):
             except (IndexError, KeyError):
                 raise AttributeError
 
-    # ..........................................................................
     def __getattr__(self, item):
         # when the attribute was not found
         if "_validate" in item or "_changed" in item:
@@ -812,7 +777,6 @@ class CoordSet(HasTraits):
         except (IndexError, KeyError):
             raise AttributeError
 
-    # ..........................................................................
     def __getitem__(self, index):
 
         if isinstance(index, str):
@@ -876,7 +840,6 @@ class CoordSet(HasTraits):
         else:
             return res
 
-    # ..........................................................................
     def __setattr__(self, key, value):
         keyb = key[1:] if key.startswith("_") else key
         if keyb in [
@@ -903,7 +866,6 @@ class CoordSet(HasTraits):
         except Exception:
             super().__setattr__(key, value)
 
-    # ..........................................................................
     def __setitem__(self, index, coord):
         try:
             coord = coord.copy(keepname=True)  # to avoid modifying the original
@@ -981,7 +943,6 @@ class CoordSet(HasTraits):
 
         self._coords[index] = coord
 
-    # ..........................................................................
     def __delitem__(self, index):
 
         if isinstance(index, str):
@@ -1015,12 +976,10 @@ class CoordSet(HasTraits):
 
             raise KeyError(f"Could not find `{index}` in coordinates names or titles")
 
-    # ..........................................................................
     # def __iter__(self):
     #    for item in self._coords:
     #        yield item
 
-    # ..........................................................................
     def __repr__(self):
         out = "CoordSet: [" + ", ".join(["{}"] * len(self._coords)) + "]"
         s = []
@@ -1032,11 +991,9 @@ class CoordSet(HasTraits):
         out = out.format(*s)
         return out
 
-    # ..........................................................................
     def __str__(self):
         return repr(self)
 
-    # ..........................................................................
     def _cstr(self, header="  coordinates: ... \n", print_size=True):
 
         txt = ""
@@ -1083,11 +1040,9 @@ class CoordSet(HasTraits):
         else:
             return txt.rstrip()
 
-    # ..........................................................................
     def _repr_html_(self):
         return convert_to_html(self)
 
-    # ..........................................................................
     def __deepcopy__(self, memo):
         coords = self.__class__(
             tuple(cpy.deepcopy(ax, memo=memo) for ax in self), keepnames=True
@@ -1097,7 +1052,6 @@ class CoordSet(HasTraits):
         coords._default = self._default
         return coords
 
-    # ..........................................................................
     def __copy__(self):
         coords = self.__class__(tuple(cpy.copy(ax) for ax in self), keepnames=True)
         # name must be changed
@@ -1107,8 +1061,6 @@ class CoordSet(HasTraits):
         coords._default = self._default
         return coords
 
-        # ..........................................................................
-
     def __eq__(self, other):
         if other is None:
             return False
@@ -1117,19 +1069,17 @@ class CoordSet(HasTraits):
         except Exception:
             return False
 
-    # ..........................................................................
     def __ne__(self, other):
         return not self.__eq__(other)
 
     # ------------------------------------------------------------------------
     # Events
     # ------------------------------------------------------------------------
-    # ..........................................................................
+
     def _coords_update(self, change):
         # when notified that a coord name have been updated
         self._updated = True
 
-    # ..........................................................................
     @observe(All)
     def _anytrait_changed(self, change):
         # ex: change {

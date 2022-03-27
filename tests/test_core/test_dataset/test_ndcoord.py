@@ -11,7 +11,7 @@ from spectrochempy.core.dataset.coord import Coord, LinearCoord
 from spectrochempy.core.units import ur, Quantity
 from spectrochempy.utils.testing import (
     assert_array_equal,
-    assert_equal_units,
+    assert_units_equal,
     assert_approx_equal,
 )
 from spectrochempy.core import debug_
@@ -28,11 +28,10 @@ def test_coord():
     a = Coord([1, 2, 3], name="x")
     assert a.id is not None
     assert not a.is_empty
-    assert not a.is_masked
     assert_array_equal(a.data, np.array([1, 2, 3]))
     assert not a.is_labeled
     assert a.units is None
-    assert a.unitless
+    assert a.is_unitless
     debug_(a.meta)
     assert not a.meta
     assert a.name == "x"
@@ -106,7 +105,7 @@ def test_coord():
     )
     assert coord0.units is None
     assert coord0.data[0] == 4000.0
-    assert repr(coord0) == "Coord: [float64] unitless (size: 10)"
+    assert repr(coord0) == "Coord (wavelength): [float64] unitless (size: 10)"
 
     # dimensionless coordinates
 
@@ -118,9 +117,11 @@ def test_coord():
         title="wavelength",
     )
     assert coord0.units.dimensionless
+    assert not coord0.is_unitless
+    assert coord0.is_dimensionless
     assert coord0.units.scaling == 1.0
     assert coord0.data[0] == 4000.0
-    assert repr(coord0) == "Coord: [float64] dimensionless (size: 10)"
+    assert repr(coord0) == "Coord (wavelength): [float64] dimensionless (size: 10)"
 
     # scaled dimensionless coordinates
 
@@ -135,7 +136,10 @@ def test_coord():
     assert (
         coord0.data[0] == 4000.0
     )  # <- displayed data to be multiplied by the scale factor
-    assert repr(coord0) == "Coord: [float64] scaled-dimensionless (0.001) (size: 10)"
+    assert (
+        repr(coord0)
+        == "Coord (wavelength): [float64] scaled-dimensionless (0.001) (size: 10)"
+    )
 
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
@@ -149,7 +153,10 @@ def test_coord():
     assert (
         coord0.data[0] == 4000.0
     )  # <- displayed data to be multiplied by the scale factor
-    assert repr(coord0) == "Coord: [float64] scaled-dimensionless (0.001) (size: 10)"
+    assert (
+        repr(coord0)
+        == "Coord (wavelength): [float64] scaled-dimensionless (0.001) (size: 10)"
+    )
 
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
@@ -161,7 +168,7 @@ def test_coord():
     assert not coord0.units.dimensionless
     assert coord0.units.scaling == 1.0
     assert coord0.data[0] == 4000.0
-    assert repr(coord0) == "Coord: [float64] m².s⁻¹ (size: 10)"
+    assert repr(coord0) == "Coord (wavelength): [float64] m².s⁻¹ (size: 10)"
 
     # comparison
 
@@ -264,11 +271,6 @@ def test_coord():
     )
     assert coord0.reversed
 
-    assert not coord0.is_complex
-    assert not coord0.is_empty
-    assert coord0.T == coord0
-    assert_array_equal(coord0.masked_data, coord0.data)
-
 
 def test_coord_slicing():
     # slicing by index
@@ -311,125 +313,6 @@ def test_coord_slicing():
     assert_array_equal(a.values, a.labels)
 
 
-# Math
-# ------------------------------------------------------------------
-
-# first operand has units km, second is a scalar with units m
-@pytest.mark.parametrize(
-    ("operation", "result_units"),
-    [
-        ("__add__", ur.km),
-        ("__sub__", ur.km),
-        ("__mul__", ur.km * ur.m),
-        ("__truediv__", ur.km / ur.m),
-    ],
-)
-def test_coord_unit_conversion_operators_a(operation, result_units):
-    print(operation, result_units)
-    in_km = Coord(
-        data=np.linspace(4000, 1000, 10), units="km", mask=None, title="something"
-    )
-
-    scalar_in_m = 2.0 * ur.m
-
-    operator_km = in_km.__getattribute__(operation)
-
-    combined = operator_km(scalar_in_m)
-
-    assert_equal_units(combined.units, result_units)
-
-
-UNARY_MATH = [
-    "fabs",
-    "ceil",
-    "floor",
-    "negative",
-    "reciprocal",
-    "rint",
-    "sqrt",
-    "square",
-]
-
-
-@pytest.mark.parametrize("name", UNARY_MATH)
-def test_coord_unary_ufuncs_simple_data(name):
-    coord0 = Coord(
-        data=np.linspace(4000, 1000, 10), units="km", mask=None, title="something"
-    )
-
-    f = getattr(np, name)
-    r = f(coord0)
-    assert isinstance(r, Coord)
-
-
-# first operand has units km, second is a scalar unitless
-@pytest.mark.parametrize(
-    ("operation", "result_units"), [("__mul__", ur.km), ("__truediv__", ur.km)]
-)
-def test_coord_unit_conversion_operators(operation, result_units):
-    in_km = Coord(
-        data=np.linspace(4000, 1000, 10), units="km", mask=None, title="something"
-    )
-
-    scalar = 2.0
-
-    operator_km = in_km.__getattribute__(operation)
-
-    combined = operator_km(scalar)
-    debug_(f"{operation}, {combined}")
-    assert_equal_units(combined.units, result_units)
-
-
-NOTIMPL = [
-    "average",
-    "clip",
-    "mean",
-    "pipe",
-    "remove_masks",
-    "std",
-    "cumsum",
-    "sum",
-    "swapdims",
-    "swapaxes",
-    "squeeze",
-    "random",
-    "empty",
-    "empty_like",
-    "var",
-    "ones",
-    "ones_like",
-    "full",
-    "diag",
-    "diagonal",
-    "full_like",
-    "identity",
-    "eye",
-    "zeros",
-    "zeros_like",
-    "coordmin",
-    "coordmax",
-    "conjugate",
-    "conj",
-    "abs",
-    "absolute",
-    "all",
-    "any",
-    "argmax",
-    "argmin",
-    "asfortranarray",
-    "origin",
-]
-
-
-@pytest.mark.parametrize("name", NOTIMPL)
-def test_coord_not_implemented(name):
-    coord0 = Coord(
-        data=np.linspace(4000, 1000, 10), units="cm^-1", mask=None, title="wavelength"
-    )
-    with pytest.raises(NotImplementedError):
-        getattr(coord0, name)()
-
-
 def test_linearcoord():
     coord1 = Coord([1, 2.5, 4, 5])
 
@@ -441,51 +324,52 @@ def test_linearcoord():
     coord4 = Coord(np.arange(10))
     assert coord4 == coord3
 
-    coord5 = coord4.copy()
-    coord5 += 1
-    assert np.all(coord5.data == coord4.data + 1)
 
-    assert coord5 is not None
-    coord5.linear = True
-
-    coord6 = Coord(linear=True, offset=2.0, increment=2.0, size=10)
-    assert np.all(coord6.data == (coord4.data + 1.0) * 2.0)
-
-    LinearCoord(offset=2.0, increment=2.0, size=10)
-
-    coord0 = LinearCoord.linspace(
-        200.0,
-        300.0,
-        3,
-        labels=["cold", "normal", "hot"],
-        units="K",
-        title="temperature",
-    )
-    coord1 = LinearCoord.linspace(
-        0.0, 60.0, 100, labels=None, units="minutes", title="time-on-stream"
-    )
-    coord2 = LinearCoord.linspace(
-        4000.0, 1000.0, 100, labels=None, units="cm^-1", title="wavenumber"
-    )
-
-    assert coord0.size == 3
-    assert coord1.size == 100
-    assert coord2.size == 100
-
-    coordc = coord0.copy()
-    assert coord0 == coordc
-
-    coordc = coord1.copy()
-    assert coord1 == coordc
-
-    assert_approx_equal(coord1.spacing.m, 0.606060606)
-
-    assert coord1.author is None
-    assert not coord1.history
-
-    assert not coord1.descendant
-    assert coord2.descendant
-
-    assert coord1.is_1d
-
-    assert coord0.transpose() == coord0
+# TODO: Arithmetics
+#     coord5 = coord4.copy()
+#     coord5 += 1
+#     assert np.all(coord5.data == coord4.data + 1)
+#     assert coord5 is not None
+#     coord5.linear = True
+#
+#     coord6 = Coord(linear=True, offset=2.0, increment=2.0, size=10)
+#     assert np.all(coord6.data == (coord4.data + 1.0) * 2.0)
+#
+#     LinearCoord(offset=2.0, increment=2.0, size=10)
+#
+#     coord0 = LinearCoord.linspace(
+#         200.0,
+#         300.0,
+#         3,
+#         labels=["cold", "normal", "hot"],
+#         units="K",
+#         title="temperature",
+#     )
+#     coord1 = LinearCoord.linspace(
+#         0.0, 60.0, 100, labels=None, units="minutes", title="time-on-stream"
+#     )
+#     coord2 = LinearCoord.linspace(
+#         4000.0, 1000.0, 100, labels=None, units="cm^-1", title="wavenumber"
+#     )
+#
+#     assert coord0.size == 3
+#     assert coord1.size == 100
+#     assert coord2.size == 100
+#
+#     coordc = coord0.copy()
+#     assert coord0 == coordc
+#
+#     coordc = coord1.copy()
+#     assert coord1 == coordc
+#
+#     assert_approx_equal(coord1.spacing.m, 0.606060606)
+#
+#     assert coord1.author is None
+#     assert not coord1.history
+#
+#     assert not coord1.descendant
+#     assert coord2.descendant
+#
+#     assert coord1.is_1d
+#
+#     assert coord0.transpose() == coord0

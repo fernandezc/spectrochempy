@@ -9,45 +9,65 @@ This module implements the NDMath class.
 """
 # TODO: test binary ufunc and put them in docs
 
-__all__ = [
-    "NDMath",
-]
+__all__ = ["NDMath", "NDManipulation"]
 __dataset_methods__ = []
 
 import copy as cpy
 import functools
 import inspect
-import sys
-import re
 import operator
+import re
+import sys
 from warnings import catch_warnings
 
 import numpy as np
+from numpy.random import rand
 from quaternion import as_float_array
 
-from spectrochempy.utils.orderedset import OrderedSet
-from spectrochempy.core.units.units import ur, Quantity, DimensionalityError
-from spectrochempy.core.dataset.ndarray import NDArray
-from spectrochempy.utils import (
-    NOMASK,
-    TYPE_COMPLEX,
-    quat_as_complex_array,
+from spectrochempy.core import error_, warning_, exception_, debug_
+from spectrochempy.core.common.compare import is_sequence
+from spectrochempy.core.common.complex import (
+    as_quat_array,
     as_quaternion,
+    quat_as_complex_array,
 )
-from spectrochempy.core import warning_, error_
+from spectrochempy.core.common.constants import NOMASK, TYPE_COMPLEX
+from spectrochempy.core.common.docstrings import DocstringProcessor
+from spectrochempy.core.common.exceptions import (
+    CoordinateMismatchError,
+    IncompatibleShapeError,
+)
+from spectrochempy.core.dataset.ndarray import NDArray
+from spectrochempy.core.units.units import DimensionalityError, Quantity, ur
+from spectrochempy.utils.orderedset import OrderedSet
 from spectrochempy.utils.testing import assert_coord_almost_equal
-from spectrochempy.utils.exceptions import CoordinateMismatchError
+
+# docstring substitution (docrep)
+# --------------------------------------------------------------------------------------
+_docstring = DocstringProcessor()
 
 
-# ======================================================================================================================
+# ======================================================================================
 # utilities
-# ======================================================================================================================
+# ======================================================================================
+
+
+def _transpose_hypercomplex(data):
+    # when transposing hypercomplex array
+    # we interchange the imaginary component
+    w, x, y, z = as_float_array(data).T
+    q = as_quat_array(
+        list(zip(w.T.flatten(), y.T.flatten(), x.T.flatten(), z.T.flatten()))
+    )
+    data = q.reshape(data.shape)
+    return data
 
 
 def _reduce_method(method):
     # Decorator
     # ---------
-    # set the flag reduce to true for the _from numpy decorator. Must be placed above this decorator.
+    # set the flag reduce to true for the _from numpy decorator.
+    # Must be placed above this decorator.
     # e.g.,
     #    @_reduce_method
     #    @_from_numpy_method
@@ -61,8 +81,8 @@ class _from_numpy_method:
     # Decorator
     # ---------
     # This decorator assumes that the signature starts always by : (cls, ...)
-    # the second positional only argument can be `dataset` - in this case this mean that the function apply on a
-    # dataset
+    # the second positional only argument can be `dataset` -
+    # in this case this mean that the function apply on a dataset
 
     reduce = False
 
@@ -74,8 +94,8 @@ class _from_numpy_method:
         def func(*args, **kwargs):
 
             # Delayed import to avoid circular reference
-            from spectrochempy.core.dataset.nddataset import NDDataset
             from spectrochempy.core.dataset.coord import Coord
+            from spectrochempy.core.dataset.nddataset import NDDataset
 
             method = self.method.__name__
             pars = inspect.signature(self.method).parameters
@@ -147,7 +167,7 @@ class _from_numpy_method:
                 kwargs["kw"] = kw
                 # now call the np function and make the object
                 new = self.method(klass, *argpos, **kwargs)
-                if new.implements("NDDataset"):
+                if new._implements("NDDataset"):
                     new.history = f"Created using method : {method}"  # (args:{argpos}, kwargs:{kwargs})'
                 return new
 
@@ -170,17 +190,15 @@ class _from_numpy_method:
                 argpos[0] = argpos[0].masked_data
 
             # case of creation like method
-            # ............................
 
             if not self.reduce:  # _like' in method:
 
                 new = self.method(new, *argpos)
-                if new.implements("NDDataset"):
+                if new._implements("NDDataset"):
                     new.history = f"Created using method : {method}"  # (args:{argpos}, kwargs:{kw})'
                 return new
 
             # reduce methods
-            # ...............
 
             # apply the numpy operator on the masked data
             new = self.method(new, *argpos)
@@ -365,6 +383,248 @@ def _logical_binary_ufuncs():
     return _extract_ufuncs(LOGICAL_BINARY_STR)
 
 
+# Expected Operand Order
+ORDER = {"Panel": 1, "NDDataset": 2, "Coord": 3, "LinearCoord": 4}
+
+
+class NDManipulation(object):
+    """
+    This class provides manipulation routines for the NDDataset object.
+
+    """
+
+    def expand_dims(self, dim=None):
+        """
+        Expand the shape of an array.
+
+        Insert a new axis that will appear at the `axis` position in the expanded array shape.
+
+        Parameters
+        ----------
+        dim : int or str
+            Position in the expanded axes where the new axis (or axes) is placed.
+
+        Returns
+        -------
+        |NDDataset|
+            View of `a` with the number of dimensions increased.
+
+        See Also
+        --------
+        squeeze : The inverse operation, removing singleton dimensions.
+        """
+        # TODO
+
+    def atleast_1d(self):
+        """ """
+
+    def atleast_2d(self):
+        """ """
+
+    @_docstring.dedent
+    def squeeze(self, *dims, keepdims=(), inplace=False, **kwargs):
+        """
+        Remove single-dimensional entries from the shape of an array.
+
+        To select only some dimension to squeeze, use the `dims` parameter.
+        To keep some dimensions with size 1 untouched, use the keepdims parameters.
+
+        Parameters
+        ----------
+        *dims : None, int, str, or tuple of ints or str, optional
+            Selects a subset of the single-dimensional entries in the
+            shape. If a dimension (dim) is selected with shape entry greater than
+            one, an error is raised.
+        keepdims : None, int, str, or tuple of ints or str, optional
+            Selects a subset of the single-dimensional entries in the
+            shape which remains preserved even if hey are of size 1.
+            Used only if the `dims` are None. *(Added in version 0.4)*.
+        %(inplace)s
+        %(kwargs)s
+
+        Returns
+        -------
+        %(out)s
+        returned_index
+            Only if return_index is True.
+
+        Other Parameters
+        ----------------
+        dim or axis : None, int or str
+            Equivalent of `dims` when only one dimension is concerned.
+        return_index : bool, optional
+            If True the previous index of the removed dimensions are returned.
+            This mainly for internal use in SpectroChemPy, but probably not
+            useful for the end-user.
+
+        Raises
+        ------
+        ValueError
+            If `dims` is not `None`, and the dimension being squeezed is not
+            of length 1.
+        """
+
+        # make a copy of the original dims
+        old = self.dims[:]
+
+        new = self if inplace else self.copy()
+        if dims and is_sequence(dims[0]):
+            dims = dims[0]
+        if dims:
+            kwargs["dims"] = dims
+        dims = self._get_dims_from_args(**kwargs)
+        axes = self._get_dims_index(dims)
+        axes = axes if axes is not None else ()
+        axes = axes if is_sequence(axes) and axes is not None else axes
+        keepaxes = self._get_dims_index(keepdims)
+        keepaxes = keepaxes if keepaxes is not None else ()
+        keepaxes = (
+            keepaxes if is_sequence(keepaxes) and keepaxes is not None else [keepaxes]
+        )
+        if not axes and keepaxes:
+            axes = np.arange(new.ndim)
+            is_axis_to_remove = (np.array(new.shape) == 1) & (axes != keepaxes)
+            axes = axes[is_axis_to_remove].tolist()
+        elif not axes:
+            arr = np.array(new.shape)
+            axes = np.argwhere(arr == 1).squeeze().tolist()
+            axes = [axes] if isinstance(axes, int) else axes
+            is_axis_to_remove = arr == 1
+
+        else:
+            is_axis_to_remove = np.array([axis in axes for axis in np.arange(new.ndim)])
+        # try to remove None from axes tuple or transform to () if axes is None
+        axes = list(axes) if axes is not None else []
+        axes.remove(None) if None in axes else axes
+        axes = tuple(axes)
+        if not axes:
+            # nothing to squeeze
+            if kwargs.get("return_index", False):
+                return new, axes
+            return new
+        # recompute new dims by taking the dims not removed
+        new._dims = np.array(new.dims)[~is_axis_to_remove].tolist()
+        # performs all required squeezing
+        new._data = new.data.squeeze(axis=axes)
+
+        if axes is not None and new._coordset is not None:
+            # if there are coordinates they have to be squeezed as well (remove
+            # coordinate for the squeezed axis)
+
+            for axis in axes:
+                dim = old[axis]
+                del new._coordset[dim]
+
+        if kwargs.get("return_index", False):
+            # in case we need to know which axis has been squeezed
+            return new, axes
+        return new
+
+    @_docstring.dedent
+    def swapdims(self, dim1, dim2, inplace=False):
+        """
+        Interchange two dims of a |NDDataset|.
+
+        This method is quite similar to transpose.
+
+        Parameters
+        ----------
+        dim1 : int or str
+            First dimension index.
+        dim2 : int
+            Second dimension index.
+        %(inplace)s
+
+        Returns
+        -------
+        %(out)s
+        """
+        if self.ndim < 2:
+            return self
+
+        new = self if inplace else self.copy()
+        i0_, i1_ = axis = self._get_dims_index([dim1, dim2])
+        new._data = np.swapaxes(new.data, *axis)
+        new._dims[i1_], new._dims[i0_] = self.dims[i0_], self.dims[i1_]
+
+        # all other arrays have also to be swapped to reflect
+        # changes of data ordering.
+        new._meta = new._meta.swap(*axis, inplace=False)
+
+        # we need also to swap the quaternion
+        # WARNING: this work only for 2D
+        # when swapdims is equivalent to a 2D transpose
+        if self.is_hypercomplex:
+            new._data = _transpose_hypercomplex(new.data)
+
+        if self.is_masked:
+            axis = self._get_dims_index([dim1, dim2])
+            new._mask = np.swapaxes(new._mask, *axis)
+
+        new.history = f"Data swapped between dims {dim1} and {dim2}"
+        return new
+
+    swapaxes = swapdims
+    swapaxes.__doc__ = swapdims.__doc__
+
+    @property
+    def T(self):
+        """
+        Return a transposed array.
+
+        See Also
+        --------
+        transpose : Permute the dimensions of an array.
+        """
+        return self.transpose()
+
+    @_docstring.dedent
+    def transpose(self, *dims, inplace=False):
+        """
+        Permute the dimensions of a NDDataset.
+
+        If the `dims` are not specified, the order of the dimension is reversed.
+
+        Parameters
+        ----------
+        *dims : list int or str
+            Sequence of dimension indexes or names, optional.
+            By default, reverse the dimensions, otherwise permute the dimensions
+            according to the values given. If specified the list of dimension
+            index or names must match the number of dimensions.
+        %(inplace)s
+
+        Returns
+        -------
+        %(out)s
+
+        """
+        new = self if inplace else self.copy()
+        if self.ndim < 2:  # cannot transpose 1D data
+            return new
+        if not dims or list(set(dims)) == [None]:
+            dims = self.dims[::-1]
+        axis = self._get_dims_index(dims)
+        new._data = np.transpose(new.data, axis)
+        new._meta = new._meta.permute(*axis, inplace=False)
+        new._dims = list(np.take(self.dims, axis))
+
+        if new.is_hypercomplex:
+            new._data = _transpose_hypercomplex(new.data)
+
+        if new.is_masked:
+            if self.ndim < 2:  # cannot transpose 1D data
+                return new
+            if not dims or list(set(dims)) == [None]:
+                dims = self.dims[::-1]
+            axis = self._get_dims_index(dims)
+            new._mask = np.transpose(new._mask, axis)
+
+        new.history = f"Data transposed between dims: {dims}" if dims else ""
+
+        return new
+
+
 class NDMath(object):
     """
     This class provides the math and some other array manipulation functionalities to |NDArray| or |Coord| .
@@ -405,9 +665,9 @@ class NDMath(object):
            [  -1.983,   -1.984, ...,   -1.698,   -1.704]])
     """
 
-    __radian = "radian"
-    __degree = "degree"
-    __require_units = {
+    _radian = "radian"
+    _degree = "degree"
+    _require_units = {
         "cumprod": DIMENSIONLESS,
         "arccos": DIMENSIONLESS,
         "arcsin": DIMENSIONLESS,
@@ -422,20 +682,20 @@ class NDMath(object):
         "log10": DIMENSIONLESS,
         "log1p": DIMENSIONLESS,
         "log2": DIMENSIONLESS,
-        "sin": __radian,
-        "cos": __radian,
-        "tan": __radian,
-        "sinh": __radian,
-        "cosh": __radian,
-        "tanh": __radian,
-        "radians": __degree,
-        "degrees": __radian,
-        "deg2rad": __degree,
-        "rad2deg": __radian,
+        "sin": _radian,
+        "cos": _radian,
+        "tan": _radian,
+        "sinh": _radian,
+        "cosh": _radian,
+        "tanh": _radian,
+        "radians": _degree,
+        "degrees": _radian,
+        "deg2rad": _degree,
+        "rad2deg": _radian,
         "logaddexp": DIMENSIONLESS,
         "logaddexp2": DIMENSIONLESS,
     }
-    __compatible_units = [
+    _compatible_units = [
         "add",
         "sub",
         "iadd",
@@ -449,8 +709,8 @@ class NDMath(object):
         "ge",
         "gt",
     ]
-    __complex_funcs = ["real", "imag", "absolute", "abs"]
-    __keep_title = [
+    _complex_funcs = ["real", "imag", "absolute", "abs"]
+    _keep_title = [
         "negative",
         "absolute",
         "abs",
@@ -462,7 +722,7 @@ class NDMath(object):
         "add",
         "subtract",
     ]
-    __remove_title = [
+    _remove_title = [
         "multiply",
         "divide",
         "true_divide",
@@ -473,7 +733,7 @@ class NDMath(object):
         "logaddexp",
         "logaddexp2",
     ]
-    __remove_units = [
+    _remove_units = [
         "logical_not",
         "isfinite",
         "isinf",
@@ -485,7 +745,7 @@ class NDMath(object):
         "signbit",
         "sign",
     ]
-    __quaternion_aware = [
+    _quaternion_aware = [
         "add",
         "iadd",
         "sub",
@@ -510,24 +770,30 @@ class NDMath(object):
         "absolute",
         "abs",
     ]
+    _require_same_shape = list(_binary_ufuncs().keys()) + [
+        "iadd",
+        "isub",
+        "imul",
+        "idiv",
+    ]
 
     # the following methods are to give NDArray based class
     # a behavior similar to np.ndarray regarding the ufuncs
 
-    # ..........................................................................
+    def __array_function__(self, *args, **kwargs):
+        # should be defined in subclass
+        return NotImplemented
+
     @property
     def __array_struct__(self):
-        if hasattr(self.umasked_data, "mask"):
-            self._mask = self.umasked_data.mask
         return self.data.__array_struct__
 
-    # ..........................................................................
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
 
         fname = ufunc.__name__
 
         #        # case of complex or hypercomplex data
-        #        if self.implements(NDComplexArray) and self.has_complex_dims:
+        #        if self._implements(NDComplexArray) and self.has_complex_dims:
         #
         #            if fname in self.__complex_funcs:
         #                return getattr(inputs[0], fname)()
@@ -563,8 +829,6 @@ class NDMath(object):
     # ------------------------------------------------------------------------
     # public methods
     # ------------------------------------------------------------------------
-
-    # ..........................................................................
 
     @_from_numpy_method
     def absolute(cls, dataset, dtype=None):
@@ -615,7 +879,6 @@ class NDMath(object):
         "Calculate the absolute value element-wise.\n\nEquivalent to absolute."
     )
 
-    # ..........................................................................
     @_from_numpy_method
     def conjugate(cls, dataset, dim="x"):
         """
@@ -656,7 +919,6 @@ class NDMath(object):
     conj = conjugate
     conj.__doc__ = "Conjugate of the NDDataset in the specified dimension.\n\nEquivalent to conjugate."
 
-    # ..........................................................................
     @_from_numpy_method
     def around(cls, dataset, decimals=0):
         """
@@ -704,7 +966,6 @@ class NDMath(object):
         "Evenly round to the given number of decimals.\n\nEquivalent to around."
     )
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def all(cls, dataset, dim=None, keepdims=False):
@@ -749,7 +1010,6 @@ class NDMath(object):
         data = np.all(dataset, axis, keepdims=keepdims)
         return data
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def amax(cls, dataset, dim=None, keepdims=False, **kwargs):
@@ -853,7 +1113,6 @@ class NDMath(object):
 
     max = amax
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def amin(cls, dataset, dim=None, keepdims=False, **kwargs):
@@ -952,7 +1211,6 @@ class NDMath(object):
 
     min = amin
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def any(cls, dataset, dim=None, keepdims=False):
@@ -994,7 +1252,6 @@ class NDMath(object):
         data = np.any(dataset, axis, keepdims=keepdims)
         return data
 
-    # ..........................................................................
     @_from_numpy_method
     def arange(cls, start=0, stop=None, step=None, dtype=None, **kwargs):
         """
@@ -1037,7 +1294,6 @@ class NDMath(object):
 
         return cls(np.arange(start, stop, step, dtype), **kwargs)
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def argmax(cls, dataset, dim=None):
@@ -1051,7 +1307,6 @@ class NDMath(object):
             idx = np.unravel_index(idx, cls.shape)
         return idx
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def argmin(cls, dataset, dim=None):
@@ -1143,7 +1398,6 @@ class NDMath(object):
 
         return cls
 
-    # ..........................................................................
     @_from_numpy_method
     def clip(cls, dataset, a_min=None, a_max=None, **kwargs):
         """
@@ -1199,7 +1453,6 @@ class NDMath(object):
             cls._data = m
         return cls
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def coordmax(cls, dataset, dim=None):
@@ -1208,8 +1461,10 @@ class NDMath(object):
         """
 
         if not cls.implements("NDDataset") or cls.coordset is None:
-            raise Exception(
-                "Method `coordmax` apply only on NDDataset and if it has defined coordinates"
+            exception_(
+                Exception(
+                    "Method `coordmax` apply only on NDDataset and if it has defined coordinates"
+                )
             )
 
         axis, dim = cls.get_axis(dim, allows_none=True)
@@ -1233,7 +1488,6 @@ class NDMath(object):
 
         return coord
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def coordmin(cls, dataset, dim=None):
@@ -1242,8 +1496,10 @@ class NDMath(object):
         """
 
         if not cls.implements("NDDataset") or cls.coordset is None:
-            raise Exception(
-                "Method `coordmin` apply only on NDDataset and if it has defined coordinates"
+            exception_(
+                Exception(
+                    "Method `coordmin` apply only on NDDataset and if it has defined coordinates"
+                )
             )
 
         axis, dim = cls.get_axis(dim, allows_none=True)
@@ -1267,7 +1523,6 @@ class NDMath(object):
 
         return coord
 
-    # ..........................................................................
     @_from_numpy_method
     def cumsum(cls, dataset, dim=None, dtype=None):
         """
@@ -1317,7 +1572,6 @@ class NDMath(object):
         cls._data = data
         return cls
 
-    # ..........................................................................
     @_from_numpy_method
     def diag(cls, dataset, offset=0, **kwargs):
         """
@@ -1378,9 +1632,8 @@ class NDMath(object):
             # ------------------
             return new.diagonal(offset=offset, **kwargs)
 
-        raise ValueError("Input must be 1- or 2-d.")
+        exception_(ValueError("Input must be 1- or 2-d."))
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def diagonal(cls, dataset, offset=0, dim="x", dtype=None, **kwargs):
@@ -2008,7 +2261,6 @@ class NDMath(object):
 
         return cls(np.logspace(start, stop, num, endpoint, base, dtype), **kwargs)
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def mean(cls, dataset, dim=None, dtype=None, keepdims=False):
@@ -2237,7 +2489,6 @@ class NDMath(object):
 
         return func(self, *args, **kwargs)
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def ptp(cls, dataset, dim=None, keepdims=False):
@@ -2307,7 +2558,6 @@ class NDMath(object):
 
         return cls(rng.random(size, dtype), **kwargs)
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def std(cls, dataset, dim=None, dtype=None, ddof=0, keepdims=False):
@@ -2400,7 +2650,6 @@ class NDMath(object):
 
         return cls
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def sum(cls, dataset, dim=None, dtype=None, keepdims=False):
@@ -2462,7 +2711,6 @@ class NDMath(object):
 
         return cls
 
-    # ..........................................................................
     @_reduce_method
     @_from_numpy_method
     def var(cls, dataset, dim=None, dtype=None, ddof=0, keepdims=False):
@@ -2676,321 +2924,277 @@ class NDMath(object):
     # private methods
     # ------------------------------------------------------------------------
 
-    def _preprocess_op_inputs(self, fname, inputs):
+    def _check_require_units(self, fname, units):
 
-        inputs = list(inputs)  # work with a list of objs not tuples
-        # print(fname)
+        if fname in self._require_units.keys():
+            requnits = self._require_units[fname]
+            if (
+                requnits in (DIMENSIONLESS, "radian", "degree")
+                or units is None
+                or units.dimensionless
+            ):
+                # this is compatible:
+                units = DIMENSIONLESS
+            else:
+                if requnits == DIMENSIONLESS:
+                    s = "DIMENSIONLESS input"
+                else:
+                    s = f"`{requnits}` units"
+                exception_(
+                    DimensionalityError(
+                        units, requnits, extra_msg=f"\nFunction `{fname}` requires {s}"
+                    )
+                )
+        return units
 
-        # By default the type of the result is set regarding the first obj in inputs
-        # (except for some ufuncs that can return numpy arrays or masked numpy arrays
-        # but sometimes we have something such as 2 * nd where nd is a NDDataset: In this case we expect a dataset.
+    @staticmethod
+    def _get_operand_and_return_types(fname, objs):
 
-        # For binary function, we also determine if the function needs object with compatible units.
-        # If the object are not compatible then we raise an error
-
-        # Take the objects out of the input list and get their types and units. Additionally determine if we need to
-        # use operation on masked arrays and/or on quaternion
-
-        is_masked = False
+        debug_("Determine Return type from operand types ... ")
         objtypes = []
-        objunits = OrderedSet()
-        returntype = None
-
-        is_quaternion = False
-        compatible_units = fname in self.__compatible_units
-
-        for i, obj in enumerate(inputs):
-
-            # type
-            objtype = type(obj).__name__
+        for obj in objs:
+            type_ = type(obj).__name__
+            objtype = type_ if type_ in ORDER.keys() else None
             objtypes.append(objtype)
+        if fname not in ["iadd", "isub", "imul", "idiv"]:
+            returntype = sorted(objtypes, key=lambda x: ORDER.get(x, 5))[0]
+        else:
+            returntype = objtypes[0]
 
-            # units
+        debug_(f"... Return type is {returntype}")
+
+        return objtypes, returntype
+
+    def _check_compatible_operand_dimensionalities(self, fname, objs):
+
+        debug_("Check if operand have compatible units dimensionality ...")
+
+        compatible_units = fname in self._compatible_units
+
+        objdimensionality = OrderedSet()
+        for obj in objs:
+
+            # Dimensionalities
+
             if hasattr(obj, "units"):
-                objunits.add(ur.get_dimensionality(obj.units))
-                if len(objunits) > 1 and compatible_units:
-                    objunits = list(objunits)
-                    raise DimensionalityError(
-                        *objunits[::-1],
+                objdimensionality.add(ur.get_dimensionality(obj.units))
+                if len(objdimensionality) > 1 and compatible_units:
+                    objdimensionality = list(objdimensionality)
+                    error = DimensionalityError(
+                        *objdimensionality[::-1],
                         extra_msg=f", Units must be compatible for the `{fname}` operator",
                     )
+                    exception_(error)  # raise and log error
 
-            # returntype
-            if objtype == "NDDataset":
-                returntype = "NDDataset"
-            elif objtype == "Coord" and returntype != "NDDataset":
-                returntype = "Coord"
-            elif objtype == "LinearCoord" and returntype != "NDDataset":
-                returntype = "LinearCoord"
-            else:
-                # only the three above type have math capabilities in spectrochempy.
-                pass
+        debug_("... Dimensionality of the units are compatible")
 
-            # Do we have to deal with mask?
-            if hasattr(obj, "mask") and np.any(obj.mask):
-                is_masked = True
+    def _check_compatible_operand_shapes(self, fname, objs):
 
-            # If one of the input is hypercomplex, this will demand a special treatment
-            is_quaternion = (
-                is_quaternion or False
-                if not hasattr(obj, "is_quaternion")
-                else obj.is_quaternion
+        debug_("Checking compatibility of shape of operands ...")
+
+        require_same_shape = fname in self._require_same_shape
+        objshapes = OrderedSet()
+        # If an object has no shape or size 1 - broadcasting will be applied.
+        for obj in objs:
+            if hasattr(obj, "shape") and len(np.squeeze(obj).shape) > 0:
+                objshapes.add(np.squeeze(obj).shape)
+            if len(objshapes) > 1 and require_same_shape:
+                # because of the OrderetSet, the case where the two shapes are identical cannot happen here
+                # so we need to compare only the last operand with the first dimension. To be broadcastable the
+                # second operand must have a size of 1 or a size corresponding to the last dimension of the
+                # first operand
+                objshapes = list(objshapes)
+                last_dim_size = objshapes[0][-1]
+                checksize = objshapes[1][0]
+                if (
+                    len(objshapes[1]) > 1
+                ):  # Cannot be broadcasted to the shape of the first operand
+                    exception_(IncompatibleShapeError(*objshapes[::-1]))
+                elif checksize != last_dim_size and checksize > 1:  # Same problem
+                    exception_(IncompatibleShapeError(*objshapes[::-1]))
+
+        debug_("... Shapes are compatibles")
+
+    @staticmethod
+    def _check_compatible_operand_coordinates(objs):
+
+        debug_("If needed check that coordinates are compatible ...")
+
+        coordsets = []
+        dimss = []
+        shapes = OrderedSet()
+
+        # Three solutions for broadcasting:
+        # 1. The two array have the same shape and then the coordinates must be compatible in all dimensions.
+        # 2. One of the array can be reduced to a scalar.
+        # 3. The second array have a shape (1,X) where X is the size of the x coordiantes of the first dataset.
+        #    For multidimensional nddatset all the coordinate but the last must be of size 1.
+
+        for obj in objs:
+
+            # We need coord for the last dimension. The last ones in dims.
+            # Bt default yhe first in coorset except if data have been transposed.
+            coordset = (
+                obj._coordset
+                if (
+                    hasattr(obj, "coordset")
+                    and obj.implements() in ["NDDataset"]
+                    and obj.size > 1
+                )
+                else None
             )
+            if coordset is not None:
+                coordsets.append(coordset)
+                shapes.add(obj.shape)
+                dimss.append(obj.dims)
 
-        # it may be necessary to change the object order regarding the types
-        if (
-            returntype in ["NDDataset", "Coord", "LinearCoord"]
-            and objtypes[0] != returntype
-        ):
+            if len(coordsets) > 1 and coordset is None:
+                # Probably second operand is a scalar -> Solution 3
+                break
+            elif len(coordsets) > 1:
+                shapeslist = list(shapes)
+                if len(shapeslist) == 1:
+                    # Solution 1. Same shape
+                    try:
+                        zipcoordsets = zip(coordsets[0].coords, coordsets[1].coords)
+                        for coord0, coord1 in zipcoordsets:
+                            assert_coord_almost_equal(
+                                coord0, coord1, quantity_only=True, decimals=4
+                            )
+                    except AssertionError as e:
+                        exception_(
+                            CoordinateMismatchError(coord0, coord1, extra_msg=e.args[0])
+                        )
+                elif shapes[1][-1] == shapes[0][-1]:
+                    # Solution 2. coord1 is one dimensional shape (size,) or (1, size)
+                    # and size match the last dimension size.
+                    if len(shapes[1]) > 1 and shapes[1][0] > 1:
+                        # but the second obj is not unidimensional
+                        exception_(
+                            IncompatibleShapeError(
+                                *objs,
+                                extra_msg=" If arrays shapes are differents, the second must be 1D",
+                            )
+                        )
+                    coord1 = coordsets[1][dimss[1][-1]]
+                    coord0 = coordsets[0][dimss[0][-1]]
+                    try:
+                        assert_coord_almost_equal(
+                            coord0, coord1, quantity_only=True, decimals=4
+                        )
+                    except AssertionError as e:
+                        exception_(
+                            CoordinateMismatchError(coord0, coord1, extra_msg=e.args[0])
+                        )
+                else:
+                    print()
 
-            inputs.reverse()
-            objtypes.reverse()
+        debug_(
+            "... Coords are compatibles"
+            if coordsets != {None, None}
+            else "... No coordinates to check"
+        )
 
-            if fname in ["mul", "multiply", "add", "iadd"]:
-                pass
-            elif fname in ["truediv", "divide", "true_divide"]:
-                fname = "multiply"
-                inputs[0] = np.reciprocal(inputs[0])
-            elif fname in ["isub", "sub", "subtract"]:
-                fname = "add"
-                inputs[0] = np.negative(inputs[0])
+    @staticmethod
+    def _is_quaternion_operands(*objs):
+
+        for obj in objs:
+            if hasattr(obj, "is_quaternion") and obj.is_quaternion:
+                return True
+        return False
+
+    def _check_units_and_transform_data(self, fname, inputs):
+
+        debug_("Checking units ...")
+        objmagnitudes = []
+        objunits = []
+        remove_units = fname in self._remove_units
+        compatible_units = fname in self._compatible_units
+
+        for obj in inputs:
+
+            if hasattr(obj, "units"):
+                required_units = self._check_require_units(fname, obj.units)
+
+                # rescale object to have common units
+                if objunits and objunits[0] is not None:
+                    if compatible_units:
+                        debug_(
+                            "Second operand data rescaling to have the same units of the first operand "
+                        )
+                        obj = obj.to(objunits[0])
+
+                # check validity of units
+                units = required_units
+                obj = obj.to(required_units) if units != required_units else obj
+
+                # some functions return object without units
+                units = None if remove_units else obj.units
+
+                objunits.append(units)
+                objmagnitudes.append(obj.magnitude)
+
             else:
-                raise NotImplementedError()
+                objunits.append(None)
+                if hasattr(obj, "data"):
+                    objmagnitudes.append(obj.data)
+                else:
+                    objmagnitudes.append(obj)
 
-        return fname, inputs, objtypes, returntype, is_masked, is_quaternion
+        if len(set(objunits)) == 1:
+            # then all operands have the same units or there is only one operand
+            # all check have already been done. So nothing to do here
+            pass
+        elif None in objunits and compatible_units:
+            # as this object is either of size 1 or have the same shape as the other one
+            # We affect it with the same units if the function require two operand with same units
+            i = objunits.index(None)
+            j = 0 if i == 1 else 1
+            objunits[i] == objunits[j]
 
-    # ..........................................................................
-    def _op(self, f, inputs, isufunc=False):
-        # Achieve an operation f on the objs
+        return objmagnitudes, objunits
+
+    @staticmethod
+    def _check_masks_and_transform_data(inputs, objtypes, magnitudes):
+
+        debug_("Checking masks ...")
+        objtypes = list(objtypes)
+        for i, obj in enumerate(inputs):
+            mask = obj.mask if hasattr(obj, "mask") and np.any(obj.mask) else NOMASK
+            is_masked = np.any(mask != NOMASK)
+            try:
+                if is_masked and objtypes[i] == "NDDataset":
+                    # Apply mask
+                    magnitudes[i] = obj._umasked(magnitudes[i], mask)
+                elif is_masked:
+                    magnitudes[i] = np.ma.masked_array(magnitudes[i], mask=mask)
+
+            except ValueError as e:
+                exception_(e)
+            except IndexError as e:
+                exception_(e)
+
+        if is_masked:
+            debug_(
+                "... Some of the data are masked. So magnitudes are transformed accordingly for the op "
+                "calculations."
+            )
+        else:
+            debug_("... No mask found")
+
+        return magnitudes, is_masked
+
+    def _perform_magnitude_op(self, f, this, other=None, isufunc=False):
+
+        # perform operation on magnitudes
+        debug_("Perform operation on magnitude only ...")
 
         fname = f.__name__
 
-        compatible_units = fname in self.__compatible_units
-        remove_units = fname in self.__remove_units
-        quaternion_aware = fname in self.__quaternion_aware
+        # If one of the input is hypercomplex, this will demand a special treatment
+        is_quaternion = self._is_quaternion_operands(this, other)
+        quaternion_aware = fname in self._quaternion_aware
 
-        (
-            fname,
-            inputs,
-            objtypes,
-            returntype,
-            is_masked,
-            is_quaternion,
-        ) = self._preprocess_op_inputs(fname, inputs)
-
-        # Now we can proceed
-
-        obj = cpy.copy(inputs.pop(0))
-        objtype = objtypes.pop(0)
-
-        other = None
-        if inputs:
-            other = cpy.copy(inputs.pop(0))
-            othertype = objtypes.pop(0)
-
-        # Is our first object a NDdataset
-        # ------------------------------------------------------------------------------
-        is_dataset = objtype == "NDDataset"
-
-        # Get the underlying data: If one of the input is masked, we will work with masked array
-        if is_masked and is_dataset:
-            d = obj._umasked(obj.data, obj.mask)
-        else:
-            d = obj.data
-
-        # Do we have units?
-        # We create a quantity q that will be used for unit calculations (without dealing with the whole object)
-        def reduce_(magnitude):
-            if hasattr(magnitude, "dtype"):
-                if magnitude.dtype in TYPE_COMPLEX:
-                    magnitude = magnitude.real
-                elif magnitude.dtype == np.quaternion:
-                    magnitude = as_float_array(magnitude)[..., 0]
-                magnitude = magnitude.max()
-            return magnitude
-
-        q = reduce_(d)
-        if hasattr(obj, "units") and obj.units is not None:
-            q = Quantity(q, obj.units)
-            q = q.values if hasattr(q, "values") else q  # case of nddataset, coord,
-
-        # Now we analyse the other operands
-        # ---------------------------------------------------------------------------
-        args = []
-        otherqs = []
-
-        # If other is None, then it is a unary operation we can pass the following
-
-        if other is not None:
-
-            # First the units may require to be compatible, and if thet are sometimes they may need to be rescales
-            if othertype in ["NDDataset", "Coord", "LinearCoord", "Quantity"]:
-
-                # rescale according to units
-                if not other.unitless:
-                    if hasattr(obj, "units"):
-                        # obj is a Quantity
-                        if compatible_units:
-                            # adapt the other units to that of object
-                            other.ito(obj.units)
-
-            # If all inputs are datasets BUT coordset mismatch.
-            if (
-                is_dataset
-                and (othertype == "NDDataset")
-                and (other._coordset != obj._coordset)
-            ):
-
-                obc = obj.coordset
-                otc = other.coordset
-
-                # here we can have several situations:
-                # -----------------------------------
-                # One acceptable situation could be that we have a single value
-                if other._squeeze_ndim == 0 or (
-                    (obc is None or obc.is_empty) and (otc is None or otc.is_empty)
-                ):
-                    pass
-
-                # Another acceptable situation is that the other NDDataset is 1D, with compatible
-                # coordinates in the x dimension
-                elif other._squeeze_ndim >= 1:
-                    try:
-                        assert_coord_almost_equal(
-                            obc[obj.dims[-1]],
-                            otc[other.dims[-1]],
-                            decimal=3,
-                            data_only=True,
-                        )  # we compare only data for this operation
-                    except AssertionError as e:
-                        raise CoordinateMismatchError(str(e))
-
-                # if other is multidimensional and as we are talking about element wise operation, we assume
-                # that all coordinates must match
-                elif other._squeeze_ndim > 1:
-                    for idx in range(obj.ndim):
-                        try:
-                            assert_coord_almost_equal(
-                                obc[obj.dims[idx]],
-                                otc[other.dims[idx]],
-                                decimal=3,
-                                data_only=True,
-                            )  # we compare only data for this operation
-                        except AssertionError as e:
-                            raise CoordinateMismatchError(str(e))
-
-            if othertype in ["NDDataset", "Coord", "LinearCoord"]:
-
-                # mask?
-                if is_masked:
-                    arg = other._umasked(other.data, other.mask)
-                else:
-                    arg = other.data
-
-            else:
-                # Not a NDArray.
-
-                # if it is a quantity than separate units and magnitude
-                if isinstance(other, Quantity):
-                    arg = other.m
-                else:
-                    # no units
-                    arg = other
-
-            args.append(arg)
-
-            otherq = reduce_(arg)
-
-            if hasattr(other, "units") and other.units is not None:
-                otherq = Quantity(otherq, other.units)
-                otherq = (
-                    otherq.values if hasattr(otherq, "values") else otherq
-                )  # case of nddataset, coord,
-            otherqs.append(otherq)
-
-        # Calculate the resulting units (and their compatibility for such operation)
-        # --------------------------------------------------------------------------------------------------------------
-        # Do the calculation with the units to find the final one
-
-        def check_require_units(fname, _units):
-            if fname in self.__require_units:
-                requnits = self.__require_units[fname]
-                if (
-                    requnits in (DIMENSIONLESS, "radian", "degree")
-                    and _units.dimensionless
-                ):
-                    # this is compatible:
-                    _units = DIMENSIONLESS
-                else:
-                    if requnits == DIMENSIONLESS:
-                        s = "DIMENSIONLESS input"
-                    else:
-                        s = f"`{requnits}` units"
-                    raise DimensionalityError(
-                        _units, requnits, extra_msg=f"\nFunction `{fname}` requires {s}"
-                    )
-
-            return _units
-
-        # define an arbitrary quantity `q` on which to perform the units calculation
-
-        units = UNITLESS
-
-        if not remove_units:
-
-            if hasattr(q, "units"):
-                # q = q.m * check_require_units(fname, q.units)
-                q = q.to(check_require_units(fname, q.units))
-
-            for i, otherq in enumerate(otherqs[:]):
-                if hasattr(otherq, "units"):
-                    if np.ma.isMaskedArray(otherq):
-                        otherqm = otherq.m.data
-                    else:
-                        otherqm = otherq.m
-                    otherqs[i] = otherqm * check_require_units(fname, otherq.units)
-                else:
-
-                    # here we want to change the behavior a pint regarding the addition of scalar to quantity
-                    #         # in principle it is only possible with dimensionless quantity, else a dimensionerror is
-                    #         raised.
-                    if (
-                        fname
-                        in [
-                            "add",
-                            "sub",
-                            "iadd",
-                            "isub",
-                            "and",
-                            "xor",
-                            "or",
-                        ]
-                        and hasattr(q, "units")
-                    ):
-                        otherqs[i] = otherq * q.units  # take the unit of the first obj
-
-            # some functions are not handled by pint regardings units, try to solve this here
-            f_u = f
-            if compatible_units:
-                f_u = np.add  # take a similar function handled by pint
-
-            try:
-                res = f_u(q, *otherqs)
-
-            except Exception as e:
-                if not otherqs:
-                    # in this case easy we take the units of the single argument except for some function where units
-                    # can be dropped
-                    res = q
-                else:
-
-                    raise e
-
-            if hasattr(res, "units"):
-                units = res.units
-
-        # perform operation on magnitudes
-        # --------------------------------------------------------------------------------------------------------------
         if isufunc:
 
             with catch_warnings(record=True) as ws:
@@ -2998,20 +3202,20 @@ class NDMath(object):
                 # try to apply the ufunc
                 if fname == "log1p":
                     fname = "log"
-                    d = d + 1.0
+                    this = this + 1.0
                 if fname in ["arccos", "arcsin", "arctanh"]:
-                    if np.any(np.abs(d) > 1):
-                        d = d.astype(np.complex128)
+                    if np.any(np.abs(this) > 1):
+                        this = this.astype(np.complex128)
                 elif fname in ["sqrt"]:
-                    if np.any(d < 0):
-                        d = d.astype(np.complex128)
+                    if np.any(this < 0):
+                        this = this.astype(np.complex128)
 
                 if fname == "sqrt":  # do not work with masked array
-                    data = d ** (1.0 / 2.0)
+                    data = this ** (1.0 / 2.0)
                 elif fname == "cbrt":
-                    data = np.sign(d) * np.abs(d) ** (1.0 / 3.0)
+                    data = np.sign(this) * np.abs(this) ** (1.0 / 3.0)
                 else:
-                    data = getattr(np, fname)(d, *args)
+                    data = getattr(np, fname)(this, other)
 
                 # if a warning occurs, let handle it with complex numbers or return an exception:
                 if ws and "invalid value encountered in " in ws[-1].message.args[0]:
@@ -3019,14 +3223,14 @@ class NDMath(object):
                     # this can happen with some function that do not work on some real values such as log(-1)
                     # then try to use complex
                     data = getattr(np, fname)(
-                        d.astype(np.complex128), *args
+                        this.astype(np.complex128), other
                     )  # data = getattr(np.emath, fname)(d, *args)
                     if ws:
-                        raise ValueError(ws[-1].message.args[0])
+                        exception_(ValueError(ws[-1].message.args[0]))
                 elif ws and "overflow encountered" in ws[-1].message.args[0]:
                     warning_(ws[-1].message.args[0])
                 elif ws:
-                    raise ValueError(ws[-1].message.args[0])
+                    exception_(ValueError(ws[-1].message.args[0]))
 
             # TODO: check the complex nature of the result to return it
 
@@ -3034,32 +3238,159 @@ class NDMath(object):
             # make a simple operation
             try:
                 if not is_quaternion:
-                    data = f(d, *args)
+                    data = f(this, other) if other is not None else f(this)
                 elif quaternion_aware and all(
-                    (arg.dtype not in TYPE_COMPLEX for arg in args)
+                    (m.dtype not in TYPE_COMPLEX for m in [this, other])
                 ):
-                    data = f(d, *args)
+                    data = f(this, other) if other is not None else f(this)
                 else:
                     # in this case we will work on both complex separately
-                    dr, di = quat_as_complex_array(d)
-                    datar = f(dr, *args)
-                    datai = f(di, *args)
+                    dr, di = quat_as_complex_array(this)
+                    datar = f(dr, other) if other is not None else f(dr)
+                    datai = f(di, other) if other is not None else f(di)
                     data = as_quaternion(datar, datai)
 
-            except Exception as e:
-                raise ArithmeticError(e.args[0])
+            except TypeError as e:
+                if (
+                    hasattr(this, "dtype")
+                    and str(this.dtype).startswith("datetime64")
+                    and f.__name__ == "isub"
+                ):
+                    data = (
+                        operator.sub(this, other)
+                        if other is not None
+                        else operator.sub(this)
+                    )
+                else:
+                    exception_(ArithmeticError(e.args[0]))
 
-        # get possible mask
-        if isinstance(data, np.ma.MaskedArray):
-            mask = data._mask
-            data = data._data
-        else:
-            mask = NOMASK  # np.zeros_like(data, dtype=bool)
+        return data
+
+    def _perform_units_op(self, f, objunits, objtypes):
+
+        debug_("Performs calculations on the units ...")
+
+        compatible_units = f.__name__ in self._compatible_units
+
+        if set(objunits) == {None}:
+            return None
+
+        unit0 = objunits[0]
+        unit1 = objunits[1] if len(objunits) > 1 else None
+
+        if (
+            unit1 is None
+            and f.__name__ in ["add", "iadd", "isub", "sub", "subtract"]
+            and len(objtypes) > 1
+            and objtypes[1] is None
+        ):  # probably other is a scalar - for add and sub we admit it is the same units!
+            unit1 = unit0
+
+        # Create two random quantities which will be used for calculation on the units. We do calculation on
+        # Quantities in order to avoid calculation with the whole data arrays.
+        try:
+            q0 = (rand() + 0.1) * unit0 if unit0 is not None else ur("")
+            if len(objunits) > 1:
+                q1 = (rand() + 0.1) * unit1 if unit1 is not None else ur("")
+            else:
+                q1 = None
+        except Exception as e:
+            exception_(e)
+
+        # Some functions are not handled by pint regarding units, try to solve this here
+        f_u = f
+
+        if compatible_units:
+            f_u = operator.sub  # take a similar binary function handled by pint
+
+        try:
+            res = f_u(q0, q1) if q1 is not None else f_u(q0)
+
+        except Exception as e:
+            exception_(e)
+
+        units = res.units if hasattr(res, "units") else None
+
+        debug_(f"Returned units is {str(units)}")
+
+        return units
+
+    def _op(self, f, inputs, isufunc=False):
+
+        fname = f.__name__
+        debug_(f"Apply a function {fname} of operands: {inputs}")
+
+        # Achieve an operation f on the objs
+        inputs = list(inputs)  # Work with a list of objs not tuples
+
+        # By default the type of the returned result is set regarding the first obj
+        # in inputs.except for some ufuncs that can return numpy arrays or masked
+        # numpy arrays. But sometimes we have something such as 2 * nd where nd is a
+        # NDDataset: In this case we expect a dataset.
+        # For binary function, we must also determine if the function needs object with
+        # compatible units. If the object are not compatible then we raise an error.
+        # The following  methods Take the objects out of the input list and get their
+        # types, dimensionality, magnitude and units. Additionally determine if we need
+        # to use operation on masked arrays and/or on quaternion.
+
+        # is_dt64 = lambda o: o.is_dt64 if hasattr(o, "is_dt64") else False
+
+        # Dimensionality needs often to be the same
+        self._check_compatible_operand_dimensionalities(fname, inputs)
+
+        # Shapes must be compatible for most of the operations
+        self._check_compatible_operand_shapes(fname, inputs)
+
+        # Dimension coordinates must be compatibles
+        self._check_compatible_operand_coordinates(inputs)
+
+        # Get the input and return types
+        objtypes, returntype = self._get_operand_and_return_types(fname, inputs)
+
+        # Checks units compatibility and eventually rescale data to have same units
+        # then returns thes magnitudes and the units suitable for further operation
+        magnitudes, units = self._check_units_and_transform_data(fname, inputs)
+
+        # Mask
+        magnitudes, is_masked = self._check_masks_and_transform_data(
+            inputs, objtypes, magnitudes
+        )
+
+        # Final calculations
+        data = self._perform_magnitude_op(f, *magnitudes, isufunc=isufunc)
+
+        units = self._perform_units_op(f, units, objtypes)
+
+        data, mask = (
+            (data._data, data._mask)
+            if isinstance(data, np.ma.MaskedArray)
+            else (data, NOMASK)
+        )
+
+        # if self._check_if_is_td64(data):
+        #     data, units = self._data_and_units_from_td64(data)
+        #     dtype = np.dtype("float")
+        # else:
+        #     dtype = None
+
+        # if returntype in order.keys() and objtypes[0] != returntype:
+        #     # TODO: TEST, I AM NOT SURE THIS IS A POSSIBLE CASE IN SPECTROCHEMPY
+        #     datas.reverse()
+        #
+        #     if fname in ["truediv", "divide", "true_divide"]:
+        #         fname = "multiply"
+        #         datas[0][0] = np.reciprocal(datas[0][0])
+        #     elif fname in ["sub", "subtract"]:
+        #         fname = "add"
+        #         datas[0][0] = np.negative(datas[0][0])
+        #     else:  # fname in ["mul", "multiply", "add"]
+        #         pass  # Other cases ?  # raise NotImplementedError()  # or let it unchanged
+
+        # --- returns -----
 
         # return calculated data, units and mask
         return data, units, mask, returntype
 
-    # ..........................................................................
     @staticmethod
     def _unary_op(f):
         @functools.wraps(f)
@@ -3075,7 +3406,6 @@ class NDMath(object):
 
         return func
 
-    # ..........................................................................
     @staticmethod
     def _check_order(fname, inputs):
         objtypes = []
@@ -3116,7 +3446,7 @@ class NDMath(object):
                 inputs[0] *= np.log(inputs[1])
                 inputs = inputs[:1]
             else:
-                raise NotImplementedError()
+                exception_(NotImplementedError())
 
         if fname in ["exp"]:
             f = getattr(np, fname)
@@ -3124,7 +3454,6 @@ class NDMath(object):
             f = getattr(operator, fname)
         return f, inputs
 
-    # ..........................................................................
     @staticmethod
     def _binary_op(f, reflexive=False):
         @functools.wraps(f)
@@ -3134,7 +3463,9 @@ class NDMath(object):
                 objs = [self, other]
             else:
                 objs = [other, self]
-            fm, objs = self._check_order(fname, objs)
+            fm, objs = self._check_order(
+                fname, objs
+            )  # TODO: seems that this done in _ops ???
 
             if hasattr(self, "history"):
                 history = f"Binary operation {fm.__name__} with `{_get_name(objs[-1])}` has been performed"
@@ -3147,84 +3478,72 @@ class NDMath(object):
 
         return func
 
-    # ..........................................................................
     @staticmethod
     def _inplace_binary_op(f):
         @functools.wraps(f)
         def func(self, other):
             fname = f.__name__
+
             if hasattr(self, "history"):
-                self.history = f"Inplace binary op: {fname}  with `{_get_name(other)}` "
-            # else:
-            #    history = None
+                history = f"Inplace binary op: {fname}  with `{_get_name(other)}` "
+            else:
+                history = None
+
             objs = [self, other]
             fm, objs = self._check_order(fname, objs)
 
-            data, units, mask, returntype = self._op(fm, objs)
-            if returntype != "LinearCoord":
-                self._data = data
+            dt64 = self.dtype.kind == "M"
+            if dt64 == "M":
+                # inplace binary does not work yet for datetime64 object type.
+                # take the regular binary op instead
+                fm = _get_op(fname[1:])  # remove the i in the operator name
             else:
-                from spectrochempy.core.dataset.coord import LinearCoord
+                fm = f
 
-                self = LinearCoord(data)
-            self._units = units
-            self._mask = mask
-
+            data, units, mask, returntype = self._op(fm, objs)
+            self = self._op_result(
+                data, units, mask, history, returntype, inplace=not dt64
+            )
             return self
 
         return func
 
-    # ..........................................................................
-    def _op_result(self, data, units=None, mask=None, history=None, returntype=None):
+    def _op_result(
+        self, data, units=None, mask=None, history=None, returntype=None, inplace=False
+    ):
         # make a new NDArray resulting of some operation
 
-        new = self.copy()
-        if returntype == "NDDataset" and not new.implements("NDDataset"):
+        new = self.copy() if not inplace else self
+
+        if returntype == "NDDataset":  # and not new.implements("NDDataset"):
             from spectrochempy.core.dataset.nddataset import NDDataset
 
             new = NDDataset(new)
 
-        if returntype != "LinearCoord":
-            new._data = cpy.deepcopy(data)
-        else:
-            from spectrochempy.core.dataset.coord import LinearCoord
+        if returntype in ["LinearCoord", "Coord"]:
+            from spectrochempy.core.dataset.coord import Coord
 
-            new = LinearCoord(cpy.deepcopy(data))
+            new = Coord(new)
 
-        # update the attributes
-        new._units = cpy.copy(units)
+        # set the new units
+        new._units = units
+
+        # set the data
+        new.data = cpy.deepcopy(data)
+        if returntype == "LinearCoord":
+            new.linear = True
+
+        # update the other attributes
         if mask is not None and np.any(mask != NOMASK):
             new._mask = cpy.copy(mask)
         if history is not None and hasattr(new, "history"):
-            new._history.append(history.strip())
+            new.history = history.strip()
 
         # case when we want to return a simple masked ndarray
         if returntype == "masked_array":
             return new.masked_data
 
         return new
-
-
-# ------------------------------------------------------------------
-# ARITHMETIC ON NDArray
-# ------------------------------------------------------------------
-
-# unary operators
-UNARY_OPS = ["neg", "pos", "abs"]
-
-# binary operators
-CMP_BINARY_OPS = ["lt", "le", "ge", "gt"]
-NUM_BINARY_OPS = ["add", "sub", "and", "xor", "or", "mul", "truediv", "floordiv", "pow"]
-
-
-# ..........................................................................
-def _op_str(name):
-    return f"__{name}__"
-
-
-# ..........................................................................
-def _get_op(name):
-    return getattr(operator, _op_str(name))
 
 
 class _ufunc:
@@ -3285,24 +3604,6 @@ def _set_ufuncs(cls):
         thismodule.__all__ += [func]
 
 
-# ..........................................................................
-def _set_operators(cls, priority=50):
-    cls.__array_priority__ = priority
-
-    # unary ops
-    for name in UNARY_OPS:
-        setattr(cls, _op_str(name), cls._unary_op(_get_op(name)))
-
-    for name in CMP_BINARY_OPS + NUM_BINARY_OPS:
-        setattr(cls, _op_str(name), cls._binary_op(_get_op(name)))
-
-    for name in NUM_BINARY_OPS:
-        # only numeric operations have in-place and reflexive variants
-        setattr(cls, _op_str("r" + name), cls._binary_op(_get_op(name), reflexive=True))
-
-        setattr(cls, _op_str("i" + name), cls._inplace_binary_op(_get_op("i" + name)))
-
-
 # ------------------------------------------------------------------
 # module functions
 # ------------------------------------------------------------------
@@ -3358,6 +3659,152 @@ api_funcs = [  # creation functions
 for funcname in api_funcs:
     setattr(thismodule, funcname, getattr(NDMath, funcname))
     thismodule.__all__.append(funcname)
+
+api_manipulation_funcs = [  # manipulation routines
+    "squeeze",
+    "expand_dims",
+    "swapdims",
+    "swapaxes",
+    "transpose",
+    "atleast_1d",
+    "atleast_2d",
+]
+
+for funcname in api_manipulation_funcs:
+    setattr(thismodule, funcname, getattr(NDManipulation, funcname))
+    thismodule.__all__.append(funcname)
+
+# ------------------------------------------------------------------
+# ARITHMETIC ON NDArray
+# ------------------------------------------------------------------
+
+# unary operators
+UNARY_OPS = ["neg", "pos", "abs"]
+
+# binary operators
+CMP_BINARY_OPS = ["lt", "le", "ge", "gt"]
+NUM_BINARY_OPS = ["add", "sub", "and", "xor", "or", "mul", "truediv", "floordiv", "pow"]
+
+
+def _op_str(name):
+    return f"__{name}__"
+
+
+def _get_op(name):
+    return getattr(operator, _op_str(name))
+
+
+def _set_operators(cls, priority=50):
+    cls.__array_priority__ = priority
+
+    # unary ops
+    for name in UNARY_OPS:
+        setattr(cls, _op_str(name), cls._unary_op(_get_op(name)))
+
+    for name in CMP_BINARY_OPS + NUM_BINARY_OPS:
+        setattr(cls, _op_str(name), cls._binary_op(_get_op(name)))
+
+    for name in NUM_BINARY_OPS:
+        # only numeric operations have in-place and reflexive variants
+        setattr(cls, _op_str("r" + name), cls._binary_op(_get_op(name), reflexive=True))
+
+        setattr(cls, _op_str("i" + name), cls._inplace_binary_op(_get_op("i" + name)))
+
+
+def dot(a, b, strict=True, out=None):
+    """
+    Return the dot product of two NDDatasets.
+
+    This function is the equivalent of `numpy.dot` that takes NDDataset as
+    input
+
+    .. note::
+      Works only with 2-D arrays at the moment.
+
+    Parameters
+    ----------
+    a, b : masked_array_like
+        Inputs arrays.
+    strict : bool, optional
+        Whether masked data are propagated (True) or set to 0 (False) for
+        the computation. Default is False.  Propagating the mask means that
+        if a masked value appears in a row or column, the whole row or
+        column is considered masked.
+    out : masked_array, optional
+        Output argument. This must have the exact kind that would be returned
+        if it was not used. In particular, it must have the right type, must be
+        C-contiguous, and its dtype must be the dtype that would be returned
+        for `dot(a,b)`. This is a performance feature. Therefore, if these
+        conditions are not met, an exception is raised, instead of attempting
+        to be flexible.
+
+    See Also
+    --------
+    numpy.dot : Equivalent function for ndarrays.
+    numpy.ma.dot : Equivalent function for masked ndarrays.
+    """
+    # if not a.implements('NDDataset'):
+    #     raise TypeError('A dataset of type NDDataset is  '
+    #                     'expected as a source of data, but an object'
+    #                     ' of type {} has been provided'.format(
+    #         type(a).__name__))
+    #
+    # if not b.implements('NDDataset'):
+    #     raise TypeError('A dataset of type NDDataset is  '
+    #                     'expected as a source of data, but an object'
+    #                     ' of type {} has been provided'.format(
+    #         type(b).__name__))
+
+    # TODO: may be we can be less strict, and allow dot products with
+    #      different kind of objects, as far they are numpy-like arrays
+
+    # Delayed import to avoid circular imports
+    from spectrochempy.core.dataset.nddataset import NDDataset
+
+    if not isinstance(a, NDDataset) and not isinstance(a, NDDataset):
+        # must be between numpy object or something non valid. Let numpy
+        # deal with this
+        return np.dot(a, b)
+
+    if not isinstance(a, NDDataset):
+        # try to cast to NDDataset
+        a = NDDataset(a)
+
+    if not isinstance(b, NDDataset):
+        # try to cast to NDDataset
+        b = NDDataset(b)
+
+    data = np.ma.dot(a.masked_data, b.masked_data)
+    mask = data.mask
+    data = data.data
+
+    if a.coordset is not None:
+        coordy = getattr(a, a.dims[0])
+    else:
+        coordy = None
+    if b.coordset is not None:
+        coordx = getattr(b, b.dims[1])
+    else:
+        coordx = None
+
+    history = "Dot product between %s and %s" % (a.name, b.name)
+
+    # make the output
+    # ------------------------------------------------------------------------
+    new = type(a)()
+    new._data = data
+    new._mask = mask
+    new.set_coordset(y=coordy, x=coordx)
+    new.history = history
+    if a.unitless:
+        new.units = b.units
+    elif b.unitless:
+        new.units = a.units
+    else:
+        new.units = a.units * b.units
+
+    return new
+
 
 # ======================================================================================================================
 if __name__ == "__main__":

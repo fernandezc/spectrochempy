@@ -248,7 +248,7 @@ class Project(AbstractProject, NDIO):
 
         return _listproj(s, self, 0)
 
-    def __dir__(self):
+    def _attributes(self):
         return [
             "name",
             "meta",
@@ -261,7 +261,7 @@ class Project(AbstractProject, NDIO):
     def __copy__(self):
         new = Project()
         # new.name = self.name + '*'
-        for item in self.__dir__():
+        for item in self._attributes():
             # if item == 'name':
             #     continue
             item = "_" + item

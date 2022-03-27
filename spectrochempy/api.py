@@ -19,7 +19,7 @@ import matplotlib as mpl
 from IPython.core.interactiveshell import InteractiveShell
 from IPython import get_ipython
 
-from pathlib import Path
+from spectrochempy.utils.pathlib import pathclean
 
 # ------------------------------------------------------------------
 # Check the environment for plotting
@@ -38,7 +38,10 @@ NO_DISPLAY = False
 NO_DIALOG = False
 
 # Are we buildings the docs ?
-if Path(sys.argv[0]).name in ["make.py", "validate_docstrings.py"]:  # pragma: no cover
+if pathclean(sys.argv[0]).name in [
+    "make.py",
+    "validate_docstrings.py",
+]:  # pragma: no cover
     # if we are building the documentation, in principle it should be done
     # using the make.py located at the root of the spectrochempy package.
     NO_DISPLAY = True
@@ -110,15 +113,13 @@ if IN_IPYTHON and KERNEL and not NO_DISPLAY:  # pragma: no cover
         else:
             if RUNNING_IN_COLAB:  # pragma: no cover
                 # allow using matplotlib widget
-                from google.colab import output
-
-                output.enable_custom_widget_manager()
+                colab = import_optional_dependency("google.colab", errors="ignore")
+                if colab is not None:
+                    output = colab.output
+                    output.enable_custom_widget_manager()
             IP.magic("matplotlib widget")  # widget
     except Exception:
         IP.magic("matplotlib qt")
-
-# a useful utilities for dealing with path
-from .utils import pathclean
 
 DATADIR = pathclean(preferences.datadir)
 

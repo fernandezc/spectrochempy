@@ -14,7 +14,9 @@ from os import environ
 import sys
 import warnings
 
-from ..optional import import_optional_dependency
+from ..utils.optional import import_optional_dependency
+from .common.exceptions import SpectroChemPyWarning
+from ..utils.pathlib import pathclean
 
 warnings.filterwarnings("ignore")
 
@@ -24,36 +26,45 @@ warnings.filterwarnings("ignore")
 
 __all__ = []
 
-# ======================================================================================================================
+#
+# ======================================================================================
 # logging functions
-# ======================================================================================================================
+# ======================================================================================
 
-from ..utils import pstr  # noqa: E402
+from .common.print import pstr  # noqa: E402
 import logging
 import inspect
+
+
+def _get_class_function(stack):
+    function = stack.function
+    filename = stack.filename.split("/")[-1]
+
+    return filename + function
 
 
 def _format_args(*args, **kwargs):
 
     stg = ""
     formatter = logging.Formatter(
-        f"[ %(asctime)s - {args[0]}{inspect.stack()[2][3]} ] - %(message)s"
+        f"[%(asctime)s - {_get_class_function(inspect.stack()[2])}] %(message)s"
     )
     app.logs.handlers[1].setFormatter(formatter)
     if app.logs.handlers[0].level == DEBUG:
         app.logs.handlers[0].setFormatter(formatter)
     else:
         app.logs.handlers[0].setFormatter(logging.Formatter("%(message)s"))
+
     for arg in args[1:]:
         stg += pstr(arg, **kwargs) + " "
-    return stg.replace("\0", "").replace("\n", " ").strip()
+    return stg.replace("\0", "").strip()
 
 
 def print_(*args, **kwargs):
     """
     Formatted printing.
     """
-    stg = _format_args(*args, **kwargs)
+    stg = _format_args("", *args, **kwargs)
     print(stg)
 
 
@@ -75,8 +86,20 @@ def debug_(*args, **kwargs):
     try:
         app.logs.debug(stg)
     except NameError:  # pragma: no cover
-        # works only if app if already loaded
+        # works only if app is already loaded
         pass
+
+
+def exception_(*args, **kwargs):
+    """
+    log exception
+    """
+    name = args[0].__class__.__name__ + " | "
+    msg = args[0].message if hasattr(args[0], "message") else args[0]
+    stg = _format_args("", name, msg, *args[1:], **kwargs)
+    app.logs.error(stg)
+
+    raise args[0]
 
 
 # ------------------------------------------------------------------
@@ -84,10 +107,9 @@ def error_(*args, **kwargs):
     """
     Formatted error message.
     """
-    stg = ""
-    if not isinstance(args[0], str):
-        stg += type(args[0]).__name__ + ": "
-    stg += _format_args("", "ERROR: ", *args, **kwargs)
+    name = "ERROR" + " | "
+
+    stg = _format_args("", name, *args, **kwargs)
     app.logs.error(stg)
 
 
@@ -96,9 +118,12 @@ def warning_(*args, **kwargs):
     """
     Formatted warning message.
     """
-    stg = _format_args("", "WARNING: ", *args, **kwargs)
-    warnings.warn(stg)
+    if len(args) > 1:
+        kwargs["category"] = args[1]  # priority to arg
+    category = kwargs.pop("category", SpectroChemPyWarning)
+    warnings.warn(args[0], category=category, stacklevel=2)
     # also write warning in log
+    stg = _format_args("", f"{category.__name__}: ", args[0], **kwargs)
     app.logs.warning(stg)
 
 
@@ -219,9 +244,11 @@ __all__ += [
 
 _pbar_update()
 
-# constants
+# constants and utilities
 # ------------------------------------------------------------------
-from ..utils import show, MASKED, NOMASK, EPSILON, INPLACE, show_versions  # noqa: E402
+from .common.constants import MASKED, NOMASK, EPSILON, INPLACE  # noqa: E402
+from .common.plots import show  # noqa: E402
+from ..utils.print_versions import show_versions  # noqa: E402
 
 __all__ += ["show", "MASKED", "NOMASK", "EPSILON", "INPLACE", "show_versions"]
 
@@ -558,8 +585,6 @@ class _TKFileDialogs:  # pragma: no cover
         filters=None,
     ):
 
-        from ..utils import pathclean
-
         dftext = ""
         directory = "."
         if filename:
@@ -617,8 +642,6 @@ def save_dialog(
             filename=filename, caption=caption, filters=filters
         )
 
-    from ..utils import pathclean
-
     return pathclean(f)
 
 
@@ -651,8 +674,6 @@ def open_dialog(
         f = klass._open_filename(parent=parent, filters=filters)
     else:
         f = klass._open_multiple_filenames(parent=parent, filters=filters)
-
-    from ..utils import pathclean
 
     return pathclean(f)
 

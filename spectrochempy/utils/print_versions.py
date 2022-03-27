@@ -7,8 +7,8 @@ import subprocess
 import sys
 from os import environ
 
-from spectrochempy import optional
-from spectrochempy.utils import pathclean
+from . import optional
+from .pathlib import pathclean
 
 
 __all__ = ["show_versions"]

@@ -15,6 +15,9 @@ __all__ = [
     "set_nmr_context",
     "DimensionalityError",
     "remove_args_units",
+    "get_units",
+    "remove_units",
+    "encode_quantity",
 ]
 
 from warnings import warn
@@ -198,7 +201,7 @@ def format_compact(unit, registry, **options):
 def _repr_html_(cls):
     p = cls.__format__("~H")
     # attempt to solve a display problem in notebook (recent version of pint
-    # have a strange way to handle HTML. For me it doesn't work
+    # have a strange way to handle HTML. For me, it doesn't work)
     p = p.replace(r"\[", "").replace(r"\]", "").replace(r"\ ", " ")
     return p
 
@@ -320,7 +323,7 @@ def set_nmr_context(larmor):
     >>>
     >>> set_nmr_context(104.3 * ur.MHz)
 
-    then, we can use the context as follow
+    then, we can use the context as follows
 
     >>> fhz = 10000 * ur.Hz
     >>> with ur.context('nmr'):
@@ -375,12 +378,40 @@ def set_nmr_context(larmor):
 
 
 # set alias for units and uncertainties
-# ------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 ur = U_
 Quantity = Q_
 
 
 # utilities
+# --------------------------------------------------------------------------------------
+def remove_units(items, return_units=True):
+    # recursive function
+    # assume homogeneous units for list, tuple or slices
+    units = None
+    if isinstance(
+        items,
+        (
+            list,
+            tuple,
+        ),
+    ):
+        _, units = remove_units(items[0])
+        items = type(items)(remove_units(item, return_units=False) for item in items)
+    elif isinstance(items, slice):
+        start, units = remove_units(items.start, return_units=False)
+        end = remove_units(items.stop, return_units=False)
+        step = remove_units(items.step, return_units=False)
+        items = slice(start, end, step)
+    elif isinstance(items, Quantity):
+        units = items.u
+        items = float(items.m)
+    else:
+        units = None
+
+    if return_units:
+        return items, units
+    return items
 
 
 def remove_args_units(func):
@@ -388,22 +419,38 @@ def remove_args_units(func):
     Decorator which remove units of arguments of a function
     """
 
-    def _remove_units(val):
-
-        if isinstance(val, Quantity):
-            val = val.m
-        elif isinstance(val, (list, tuple)):
-            val = type(val)([_remove_units(v) for v in val])
-        return val
-
     @wraps(func)
     def new_func(*args, **kwargs):
 
-        args = tuple([_remove_units(arg) for arg in args])
-        kwargs = {key: _remove_units(val) for key, val in kwargs.items()}
+        args = tuple([remove_units(arg, return_units=False) for arg in args])
+        kwargs = {
+            key: remove_units(val, return_units=False) for key, val in kwargs.items()
+        }
         return func(*args, **kwargs)
 
     return new_func
+
+
+def get_units(other):
+    if other is None:
+        return None
+    if isinstance(other, str):
+        units = ur.Unit(other)
+    elif hasattr(other, "units"):
+        units = other.units
+    else:
+        units = ur.Unit(other)
+    return units
+
+
+# utilities to encode quantity for export
+def encode_quantity(val):
+    # val is a dictionary containing quantity values
+    for k, v in val.copy().items():
+        if isinstance(v, Quantity):
+            val[f"{k}"] = v.m
+            val[f"pint_units_{k}"] = str(v.u)
+    return val
 
 
 # ======================================================================================================================

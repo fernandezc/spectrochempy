@@ -24,9 +24,9 @@ from traitlets import (
     Set,
 )
 
-from spectrochempy.utils import MetaConfigurable, get_pkg_path, pathclean
-
-# from spectrochempy.core import warning_
+from spectrochempy.utils.traits import MetaConfigurable
+from spectrochempy.utils.packages import get_pkg_path
+from spectrochempy.utils.pathlib import pathclean
 
 
 # ------------------------------------------------------------------

@@ -8,7 +8,7 @@ from spectrochempy.core.processors.concatenate import concatenate, stack
 from spectrochempy.core.units import ur
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.utils.testing import assert_dataset_almost_equal
-from spectrochempy.utils.exceptions import (
+from spectrochempy.core.common.exceptions import (
     DimensionsCompatibilityError,
     UnitsCompatibilityError,
 )

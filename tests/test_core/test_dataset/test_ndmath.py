@@ -20,14 +20,14 @@ from spectrochempy.core.dataset.ndmath import (
     _comp_ufuncs,
 )
 from spectrochempy.core.units.units import ur, Quantity, Unit
-from spectrochempy.utils import MASKED
+from spectrochempy.core.common.constants import MASKED
 from spectrochempy.utils.testing import (
     assert_array_equal,
-    assert_equal_units,
+    assert_units_equal,
     assert_dataset_equal,
     RandomSeedContext,
 )
-from spectrochempy.utils.exceptions import CoordinateMismatchError
+from spectrochempy.core.common.exceptions import CoordinateMismatchError
 import spectrochempy as scp
 
 typequaternion = np.dtype(np.quaternion)

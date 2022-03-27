@@ -21,9 +21,9 @@ from spectrochempy.core import debug_
 from spectrochempy.core.dataset.meta import Meta
 from spectrochempy.core.dataset.coord import LinearCoord
 from spectrochempy.core.units import ur
-from spectrochempy.utils.exceptions import deprecated
+from spectrochempy.core.common.exceptions import deprecated
 from spectrochempy.core.readers.importer import Importer, _importer_method
-from spectrochempy.utils.nmrglue import read_fid, read_pdata
+from spectrochempy.core.common.nmrglue import read_fid, read_pdata
 
 # ======================================================================================================================
 # Constants
@@ -1075,14 +1075,14 @@ def _read_topspin(*args, **kwargs):
                 nucleus = "^{" + mass + "}" + name
             else:
                 nucleus = ""
-            coord.title = fr"$\delta\ {nucleus}$"
+            coord.title = rf"$\delta\ {nucleus}$"
             coords.append(coord)
 
     dataset.data = data
 
     for axis, cplex in enumerate(meta.iscomplex[::-1]):
         if cplex and axis > 0:
-            dataset.set_quaternion(inplace=True)
+            dataset.set_hypercomplex(inplace=True)
 
     dataset.meta.update(meta)
     dataset.meta.readonly = True
@@ -1389,7 +1389,7 @@ def _read_topspin(*args, **kwargs):
 #
 #         for axis, cplex in enumerate(meta.iscomplex[::-1]):
 #             if cplex and axis > 0:
-#                 dataset.set_quaternion(inplace=True)
+#                 dataset.set_hypercomplex(inplace=True)
 #
 #         dataset.meta.update(list_meta[0])
 #         dataset.meta.readonly = True

@@ -20,21 +20,15 @@ from numpy.lib.npyio import zipfile_factory
 from traitlets import HasTraits, Instance, Union, Unicode
 
 from spectrochempy.core.dataset.coord import Coord, LinearCoord
-from spectrochempy.utils import (
-    SpectroChemPyException,
-    pathclean,
-    ScpFile,
-    check_filename_to_save,
-    json_serialiser,
-    TYPE_BOOL,
-)
+from spectrochempy.core.common.constants import TYPE_BOOL
+from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.zip import ScpFile
+from spectrochempy.core.common.file import check_filename_to_save
+from spectrochempy.core.common.json import json_serialiser
+from spectrochempy.core.common.exceptions import WrongFileFormatError
 
 SCPY_SUFFIX = {"NDDataset": ".scp", "Project": ".pscp"}
 
-
-# ------------------------------------------------------------------
-# Utilities
-# ------------------------------------------------------------------
 
 # ======================================================================================================================
 # Class NDIO to handle I/O of datasets
@@ -82,7 +76,7 @@ class NDIO(HasTraits):
         """
         Type of current file.
         """
-        klass = self.implements()
+        klass = self._implements()
         return [f"SpectroChemPy {klass} file (*{SCPY_SUFFIX[klass]})"]
 
     @property
@@ -97,14 +91,10 @@ class NDIO(HasTraits):
         if self._filename and self._filename.suffix:
             return self._filename.suffix
         else:
-            klass = self.implements()
+            klass = self._implements()
             return SCPY_SUFFIX[klass]
 
-    # ------------------------------------------------------------------------
-    # Special methods
-    # ------------------------------------------------------------------------
-
-    def __dir__(self):
+    def _attributes(self):
         return [
             "filename",
         ]
@@ -113,7 +103,6 @@ class NDIO(HasTraits):
     # Public methods
     # ------------------------------------------------------------------------
 
-    # ..........................................................................
     def save(self, **kwargs):
         """
         Save the current object in SpectroChemPy format.
@@ -162,12 +151,12 @@ class NDIO(HasTraits):
         else:
             filename = pathclean(self.directory) / self.name
 
-        default_suffix = SCPY_SUFFIX[self.implements()]
+        default_suffix = SCPY_SUFFIX[self._implements()]
         filename = filename.with_suffix(default_suffix)
 
         if not filename.exists() and kwargs.get("confirm", True):
             # never saved
-            kwargs["caption"] = f"Save the current {self.implements()} as ... "
+            kwargs["caption"] = f"Save the current {self._implements()} as ... "
             return self.save_as(filename, **kwargs)
 
         # was already saved previously with this name,
@@ -176,7 +165,6 @@ class NDIO(HasTraits):
         self.name = filename.stem
         return self.dump(filename, **kwargs)
 
-    # ..........................................................................
     def save_as(self, filename="", **kwargs):
         """
         Save the current |NDDataset| in SpectroChemPy format (*.scp).
@@ -232,12 +220,12 @@ class NDIO(HasTraits):
 
         # suffix must be specified which correspond to the type of the
         # object to save
-        default_suffix = SCPY_SUFFIX[self.implements()]
+        default_suffix = SCPY_SUFFIX[self._implements()]
         if filename is not None and not filename.is_dir():
             filename = filename.with_suffix(default_suffix)
 
         kwargs["filetypes"] = self.filetype
-        kwargs["caption"] = f"Save the current {self.implements()} as ... "
+        kwargs["caption"] = f"Save the current {self._implements()} as ... "
         filename = check_filename_to_save(
             self, filename, save_as=True, suffix=default_suffix, **kwargs
         )
@@ -246,7 +234,6 @@ class NDIO(HasTraits):
             self.filename = filename
             return self.dump(filename, **kwargs)
 
-    # ..........................................................................
     @classmethod
     def load(cls, filename, **kwargs):
         """
@@ -307,12 +294,14 @@ class NDIO(HasTraits):
         # get zip file
         try:
             obj = ScpFile(fid)
-        except FileNotFoundError:
-            raise SpectroChemPyException(f"File {filename} doesn't exist!")
-        except Exception as e:
-            if str(e) == "File is not a zip file":
-                raise SpectroChemPyException("File not in 'scp' or 'pscp' format!")
-            raise SpectroChemPyException("Undefined error!")
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"File {filename} doesn't exist!") from exc
+        except Exception as exc:
+            if str(exc) == "File is not a zip file":
+                raise WrongFileFormatError(
+                    "File not in 'scp' or 'pscp' format!"
+                ) from exc
+            raise exc
 
         js = obj[obj.files[0]]
         if kwargs.get("json", False):
@@ -341,7 +330,6 @@ class NDIO(HasTraits):
         from spectrochempy.core.dataset.nddataset import NDDataset
         from spectrochempy.core.scripts.script import Script
 
-        # .........................
         def item_to_attr(obj, dic):
 
             for key, val in dic.items():
@@ -414,7 +402,6 @@ class NDIO(HasTraits):
 
         return new
 
-    # ..........................................................................
     def dump(self, filename, **kwargs):
         """
         Save the current object into compressed native spectrochempy format.

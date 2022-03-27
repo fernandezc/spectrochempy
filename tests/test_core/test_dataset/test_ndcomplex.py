@@ -57,7 +57,7 @@ def test_ndcomplex_init_quaternion_witharray():
     assert_array_equal(d0.real.data, [[0, 4], [8, 12], [16, 20]])
 
     d1 = NDComplexArray(d)
-    d1 = d1.set_quaternion()
+    d1 = d1.set_hypercomplex()
     assert_array_equal(d1.real.data, [[0, 4], [8, 12], [16, 20]])
 
     d1 = d0.swapdims(1, 0)

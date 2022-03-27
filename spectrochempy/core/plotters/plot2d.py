@@ -27,7 +27,11 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 
-from spectrochempy.utils import make_label, add_docstring, plot_method
+from spectrochempy.core.common.plots import plot_method, make_label
+from spectrochempy.core.common.docstrings import (
+    add_docstring,
+)  # TODO: replace this by docrep if possible
+
 from spectrochempy.core.dataset.coord import LinearCoord
 
 _PLOT2D_DOC = """

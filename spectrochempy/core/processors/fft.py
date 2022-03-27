@@ -541,7 +541,7 @@ def fft(dataset, size=None, sizeff=None, inv=False, ppm=True, **kwargs):
             ppm = kwargs.get("ppm", True)
             if ppm:
                 newcoord.ito("ppm")
-                newcoord.title = fr"$\delta\ {nucleus}$"
+                newcoord.title = rf"$\delta\ {nucleus}$"
 
         new.coordset[dim] = newcoord
 

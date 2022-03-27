@@ -73,7 +73,7 @@ class Script(HasTraits):
     # special methods
     # ------------------------------------------------------------------------
 
-    def __dir__(self):
+    def _attributes(self):
         return ["name", "content", "parent"]
 
     def __call__(self, *args):

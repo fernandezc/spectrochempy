@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+# ======================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory
+# ======================================================================================
 """
 This module defines the `application` on which the API rely.
 
@@ -57,7 +58,10 @@ from IPython.utils.text import get_text_list
 from IPython.display import publish_display_data, clear_output
 from jinja2 import Template
 
-from spectrochempy.utils import MetaConfigurable, pathclean, get_pkg_path, Version
+from spectrochempy.utils.traits import MetaConfigurable
+from spectrochempy.utils.version import Version
+from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.packages import get_pkg_path
 from spectrochempy.plot_preferences import PlotPreferences
 
 # set the default style

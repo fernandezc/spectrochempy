@@ -7,9 +7,11 @@ Usage:
     Generate `requirements-dev.txt`
     $ python create_requirements.py --dev
 
+This script should be executed whenever a change in the master env_template.yml occurs.
+
+
 Adapted from https://github.com/pandas-dev/pandas/scripts
 /generate_pip_deps_from_conda.py (BSD 3-Clause License)
-
 """
 import argparse
 import re
@@ -170,7 +172,6 @@ if __name__ == "__main__":
         filename,
         [
             repo_path / "requirements.txt",
-            repo_path / "docs" / "_static" / "downloads" / "requirements.txt",
         ],
     )
 

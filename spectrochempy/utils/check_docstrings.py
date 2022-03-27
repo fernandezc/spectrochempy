@@ -10,7 +10,6 @@ import os
 import pathlib
 import subprocess
 import tempfile
-
 import traceback
 
 import matplotlib
@@ -26,7 +25,11 @@ matplotlib.use("template")
 
 
 PRIVATE_CLASSES = [
-    "HasTraits",
+    # "HasTraits",
+    "NDArray",
+    "NDComplexArray",
+    "NDLabeledArray",
+    "NDMaskedComplexArray",
 ]
 ERROR_MSGS = {
     "GL04": "Private classes ({mentioned_private_classes}) should not be "
@@ -106,7 +109,7 @@ class SpectroChemPyDocstring(Validator):
             return
 
         # F401 is needed to not generate flake8 errors in examples
-        # that do not use numpy or spectrochempy
+        # that do not user numpy or spectrochempy
         content = "".join(
             (
                 "import numpy as np  # noqa: F401\n",
@@ -124,7 +127,7 @@ class SpectroChemPyDocstring(Validator):
             stdout = response.stdout
             stdout = stdout.replace(file.name, "")
             messages = stdout.strip("\n")
-            if messages and messages != "0":
+            if messages:
                 error_messages.append(messages)
 
         for error_message in error_messages:
@@ -251,6 +254,8 @@ def check_docstrings(module, obj, exclude=[]):
     print(obj.__name__)
     for m in dir(obj):
         member = getattr(obj, m)
+        # if not m.startswith("_"):
+        #     print()
         if not m.startswith("_") and (
             (
                 member.__class__.__name__ == "property"
@@ -276,13 +281,12 @@ class DocstringError(Exception):
         message += f"{' '*10}{'-'*26}\n"
         for err_code, err_desc in result["errors"]:
             if err_code == "EX02":  # Failing examples are printed at the end
-                message += f"{' '*2}Examples do not pass tests\n"
+                message += "{' '*2}Examples do not pass tests\n"
                 continue
             message += f"{' '*10}* {err_code}: {err_desc}\n"
         if result["examples_errs"]:
             message += "\n\nDoctests:\n---------\n"
             message += result["examples_errs"]
-
         traceback_details = {
             "filename": result["file"],
             "lineno": result["file_line"],
@@ -290,9 +294,7 @@ class DocstringError(Exception):
             "type": "DocstringError",
             "message": message,
         }
-
-        traceback.format_exc()  # cannot be used with pytest in debug mode
-
+        traceback.format_exc()
         traceback_template = """
         Docstring format error:
           File "%(filename)s", line %(lineno)s,

@@ -18,9 +18,16 @@ from warnings import warn
 from datetime import datetime, timezone
 from traitlets import HasTraits, List, Dict, Type, Unicode
 
-from spectrochempy.utils import pathclean, check_filename_to_open
-from spectrochempy.utils import get_directory_name, get_filenames
-from spectrochempy.utils.exceptions import DimensionsCompatibilityError, ProtocolError
+from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.core.common.file import (
+    check_filename_to_open,
+    get_directory_name,
+    get_filenames,
+)
+from spectrochempy.core.common.exceptions import (
+    DimensionsCompatibilityError,
+    ProtocolError,
+)
 from spectrochempy.core import warning_
 
 FILETYPES = [

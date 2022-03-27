@@ -10,7 +10,7 @@ import json
 from collections.abc import Mapping
 from numpy.lib.format import read_array
 
-from spectrochempy.utils import json_decoder
+from spectrochempy.core.common.json import json_decoder
 
 __all__ = ["make_zipfile", "ScpFile"]
 

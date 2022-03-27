@@ -1,10 +1,31 @@
 #  -*- coding: utf-8 -*-
-
-#  =====================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory
-#  =====================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+from __future__ import annotations
 
+import functools
+import operator
+import os
+import re
+import warnings
+from contextlib import contextmanager
+from typing import Sequence, Type, cast
+
+import numpy as np
+
+# import matplotlib.pyplot as plt
+# from matplotlib.testing.compare import calculate_rms, ImageAssertionError
+from numpy.testing import (
+    assert_approx_equal,
+    assert_array_almost_equal,
+    assert_array_compare,
+    assert_array_equal,
+    assert_equal,
+    assert_raises,
+)
 
 __all__ = [
     "set_env",
@@ -21,32 +42,15 @@ __all__ = [
     "assert_project_almost_equal",
     "assert_approx_equal",
     "assert_raises",
-    "raises",
-    "catch_warnings",
+    "assert_units_equal",
+    "assert_array_compare",
+    "assert_script_equal",
     "RandomSeedContext",
+    "assert_produces_warning",
 ]
 
-import operator
-import functools
-import warnings
 
-import numpy as np
-
-# import matplotlib.pyplot as plt
-# from matplotlib.testing.compare import calculate_rms, ImageAssertionError
-from numpy.testing import (
-    assert_equal,
-    assert_array_equal,
-    assert_array_almost_equal,
-    assert_approx_equal,
-    assert_raises,
-    assert_array_compare,
-)
-import contextlib
-import os
-
-
-@contextlib.contextmanager
+@contextmanager
 def set_env(**environ):
     """
     Temporarily set the process environment variables.
@@ -78,12 +82,53 @@ def set_env(**environ):
         os.environ.update(old_environ)
 
 
-# ======================================================================================================================
+class raises(object):
+    """
+    A decorator to mark that a test should raise a given exception.
+    Use as follows::
+
+        @raises(ZeroDivisionError)
+        def test_foo():
+            x = 1/0
+
+    This can also be used a context manager, in which case it is just
+    an alias for the ``pytest.raises`` context manager (because the
+    two have the same name this help avoid confusion by being
+    flexible).
+
+    (Copied from Astropy, licence BSD-3)
+    """
+
+    # pep-8 naming exception -- this is a decorator class
+    def __init__(self, exc):
+        self._exc = exc
+        self._ctx = None
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def run_raises_test(*args, **kwargs):
+            import pytest
+
+            pytest.raises(self._exc, func, *args, **kwargs)
+
+        return run_raises_test
+
+    def __enter__(self):
+        import pytest
+
+        self._ctx = pytest.raises(self._exc)
+        return self._ctx.__enter__()
+
+    def __exit__(self, *exc_info):
+        return self._ctx.__exit__(*exc_info)
+
+
+# ======================================================================================
 # NDDataset comparison
-# ======================================================================================================================
+# ======================================================================================
 def gisinf(x):
     # copied from numpy.testing._private.utils
-    from numpy.core import isinf, errstate
+    from numpy.core import errstate, isinf
 
     with errstate(invalid="ignore"):
         st = isinf(x)
@@ -94,9 +139,9 @@ def gisinf(x):
 
 def _compare(x, y, decimal):
     # copied from numpy.testing._private.utils
-    from numpy.core import number, float_, result_type, array
-    from numpy.core.numerictypes import issubdtype
+    from numpy.core import array, float_, number, result_type
     from numpy.core.fromnumeric import any as npany
+    from numpy.core.numerictypes import issubdtype
 
     try:
         if npany(gisinf(x)) or npany(gisinf(y)):
@@ -114,11 +159,17 @@ def _compare(x, y, decimal):
 
     # make sure y is an inexact type to avoid abs(MIN_INT); will cause
     # casting of x later.
-    dtype = result_type(y, 1.0)
+    try:
+        dtype = result_type(y, 1.0)
+    except TypeError as e:
+        if issubdtype(np.dtype("datetime64"), y[0]):
+            dtype = y.dtype
+        else:
+            raise e
     y = array(y, dtype=dtype, copy=False, subok=True)
     z = abs(x - y)
 
-    if not issubdtype(z.dtype, number):
+    if not issubdtype(z.dtype, number) or issubdtype(z.dtype, np.dtype("timedelta64")):
         z = z.astype(float_)  # handle object arrays
 
     return z < 1.5 * 10.0 ** (-decimal)
@@ -135,7 +186,7 @@ def compare_ndarrays(this, other, approx=False, decimal=6, data_only=False):
         return _compare(x, y, decimal)
 
     eq = True
-    thistype = this.implements()
+    thistype = this._implements()
 
     if other.data is None and this.data is None and data_only:
         attrs = ["labels"]
@@ -226,7 +277,9 @@ def compare_ndarrays(this, other, approx=False, decimal=6, data_only=False):
     return True
 
 
-def compare_coords(this, other, approx=False, decimal=6, data_only=False):
+def compare_coords(
+    this, other, approx=False, decimal=6, data_only=False, quantity_only=False
+):
 
     from spectrochempy.core.units import ur
 
@@ -234,21 +287,48 @@ def compare_coords(this, other, approx=False, decimal=6, data_only=False):
         return _compare(x, y, decimal)
 
     eq = True
-    thistype = this.implements()
+    thistype = this._implements()
+    if thistype == "CoordSet":  # this may happen for multicoordinates
+        for coord0, coord1 in zip(this, other):
+            eq &= compare_coords(
+                coord0,
+                coord1,
+                approx=approx,
+                decimal=decimal,
+                data_only=data_only,
+                quantity_only=quantity_only,
+            )
+        return eq
+
+    if thistype not in ["Coord", "LinearCoord"]:
+        raise TypeError(
+            "This function compare `Coord` or `LinearCoord` objects, "
+            "not `{thistype}`"
+        )
+
+    if not data_only:
+        # we must rescale the two coordinates to the same base units for correct comparison
+        other = other.to(this.units)  # rescale data for common units if possible
+
+    if quantity_only:  # important to let it after the previous check
+        data_only = True
 
     if other.data is None and this.data is None and data_only:
         attrs = ["labels"]
+    elif quantity_only:  # important to have this before check on data_only
+        attrs = ["data", "units"]
     elif data_only:
         attrs = ["data"]
     else:
-        attrs = ["data", "labels", "units", "meta", "title"]
-        # if 'title' in attrs:  #    attrs.remove('title')  #TODO: should we use title for comparison?
+        attrs = ["data", "labels", "units", "meta", "label"]
+        # if 'label' in attrs:  #    attrs.remove('title')  #TODO: should we use long for comparison?
 
     if other.linear == this.linear:
         # To còmpare linear coordinates
         attrs += ["offset", "increment", "linear", "size"]
 
     for attr in attrs:
+
         if attr != "units":
             sattr = getattr(this, f"_{attr}")
             if this.linear and attr == "data":
@@ -292,7 +372,7 @@ def compare_coords(this, other, approx=False, decimal=6, data_only=False):
                             f"equal",
                         )
 
-                elif attr in ["offset", "increment"] and approx:
+                elif attr == "offset" and approx:
                     assert_approx_equal(
                         sattr,
                         oattr,
@@ -359,25 +439,25 @@ def compare_datasets(this, other, approx=False, decimal=6, data_only=False):
     #     elif this.has_units and otherunits:
     #         eq = np.all(this._data * this._units == otherdata * otherunits)
     #     else:
-    #         raise AssertionError(f"units of {this} and {other} objects does not match")
+    #         raise AssertionError(f\"units of {this} and {other} objects does not match\")
     #     return eq
 
-    thistype = this.implements()
+    thistype = this._implements()
 
     if other.data is None and this.data is None and data_only:
         attrs = ["labels"]
     elif data_only:
         attrs = ["data"]
     else:
-        attrs = this.__dir__()
+        attrs = this._attributes()
         exclude = (
             "filename",
             "preferences",
-            "description",
+            "comment",
             "history",
-            "date",
+            "created",
             "modified",
-            "origin",
+            "source",
             "roi",
             "size",
             "name",
@@ -394,8 +474,6 @@ def compare_datasets(this, other, approx=False, decimal=6, data_only=False):
             if attr in attrs:
                 if attr in attrs:
                     attrs.remove(attr)
-
-        # if 'title' in attrs:  #    attrs.remove('title')  #TODO: should we use title for comparison?
 
     for attr in attrs:
         if attr != "units":
@@ -517,7 +595,15 @@ def assert_coord_almost_equal(nd1, nd2, **kwargs):
     # if data_only is True, compare only based on data (not labels and so on)
     # except if coord is label only!.
     data_only = kwargs.get("data_only", False)
-    compare_coords(nd1, nd2, approx=approx, decimal=decimal, data_only=data_only)
+    quantity_only = kwargs.get("quantity_only", False)
+    compare_coords(
+        nd1,
+        nd2,
+        approx=approx,
+        decimal=decimal,
+        quantity_only=quantity_only,
+        data_only=data_only,
+    )
     return True
 
 
@@ -567,9 +653,9 @@ def assert_script_equal(sc1, sc2, **kwargs):
         raise AssertionError(f"Scripts are different: {sc1.content} != {sc2.content}")
 
 
-# ======================================================================================================================
+# ======================================================================================
 # RandomSeedContext
-# ======================================================================================================================
+# ======================================================================================
 
 # .............................................................................
 class RandomSeedContext(object):
@@ -611,127 +697,24 @@ class RandomSeedContext(object):
         random.set_state(self.startstate)
 
 
-# ======================================================================================================================
-# raises and assertions (mostly copied from astropy)
-# ======================================================================================================================
-
 # .............................................................................
-def assert_equal_units(unit1, unit2, strict=False):
-    """
-    Compare units.
+def assert_units_equal(unit1, unit2):
+    from pint.errors import DimensionalityError
 
-    Parameters
-    ----------
-    unit1 : units
-        Units to be compared.
-    unit2 : units
-        Other units to be compared
-    strict :  bool, optional, default: False
-        If True, units should be exactly the same: `km` != `mm`.
-    """
-    from pint import DimensionalityError
+    from spectrochempy.core.units import ur
+
+    if unit1 is None:
+        unit1 = ur(unit1)
+    if unit2 is None:
+        unit2 = ur(unit2)
 
     try:
-        x = (1.0 * unit1).to_base_units() / (1.0 * unit2).to_base_units()
+        x = (1.0 * unit1) / (1.0 * unit2)
     except DimensionalityError:
-        raise AssertionError
-
-    if x.dimensionless and (x == 1.0 or not strict):
-        _check_absorbance_related_units(unit1, unit2)
+        return False
+    if x.dimensionless:
         return True
-
-    raise AssertionError
-
-
-def _check_absorbance_related_units(unit1, unit2):
-    # particular case of absorbance, transmittance and absolute_transmitttance units
-    lunit = ["absorbance", "transmittance", "absolute_transmittance"]
-    if f"{unit1:P}" in lunit and f"{unit2:P}" in lunit:
-        if f"{unit1:P}" != f"{unit2:P}":
-            raise AssertionError
-    return True
-
-
-# .............................................................................
-class raises(object):
-    """
-    A decorator to mark that a test should raise a given exception.
-    Use as follows::
-
-        @raises(ZeroDivisionError)
-        def test_foo():
-            x = 1/0
-
-    This can also be used a context manager, in which case it is just
-    an alias for the ``pytest.raises`` context manager (because the
-    two have the same name this help avoid confusion by being
-    flexible).
-
-    (Copied from Astropy, licence BSD-3)
-    """
-
-    # pep-8 naming exception -- this is a decorator class
-    def __init__(self, exc):
-        self._exc = exc
-        self._ctx = None
-
-    def __call__(self, func):
-        @functools.wraps(func)
-        def run_raises_test(*args, **kwargs):
-            import pytest
-
-            pytest.raises(self._exc, func, *args, **kwargs)
-
-        return run_raises_test
-
-    def __enter__(self):
-        import pytest
-
-        self._ctx = pytest.raises(self._exc)
-        return self._ctx.__enter__()
-
-    def __exit__(self, *exc_info):
-        return self._ctx.__exit__(*exc_info)
-
-
-# .............................................................................
-class catch_warnings(warnings.catch_warnings):
-    """
-    A high-powered version of warnings.catch_warnings to use for testing
-    and to make sure that there is no dependence on the order in which
-    the tests are run.
-
-    This completely blitzes any memory of any warnings that have
-    appeared before so that all warnings will be caught and displayed.
-
-    ``*args`` is a set of warning classes to collect.  If no arguments are
-    provided, all warnings are collected.
-
-    Use as follows::
-
-        with catch_warnings(MyCustomWarning) as w :
-            do.something.bad()
-        assert len(w) > 0
-
-    (Copied from Astropy, licence BSD-3)
-    """
-
-    def __init__(self, *classes):
-        super(catch_warnings, self).__init__(record=True)
-        self.classes = classes
-
-    def __enter__(self):
-        warning_list = super(catch_warnings, self).__enter__()
-        if len(self.classes) == 0:
-            warnings.simplefilter("always")
-        else:
-            warnings.simplefilter("ignore")
-            for cls in self.classes:
-                warnings.simplefilter("always", cls)
-        return warning_list
-
-    def __exit__(self, type, value, traceback):
-        pass
+    return False
 
 
 # TODO: work on this
@@ -1014,6 +997,192 @@ class catch_warnings(warnings.catch_warnings):
 #         return wrapper
 #
 #     return make_image_comparison
+
+# from here it is copied from pandas._testing
+# See License in LICENSES
+
+
+@contextmanager
+def assert_produces_warning(
+    expected_warning: type[Warning] | bool | None = Warning,
+    filter_level="always",
+    check_stacklevel: bool = True,
+    raise_on_extra_warnings: bool = True,
+    match: str | None = None,
+):
+    """
+    Context manager for running code expected to either raise a specific
+    warning, or not raise any warnings. Verifies that the code raises the
+    expected warning, and that it does not raise any other unexpected
+    warnings. It is basically a wrapper around ``warnings.catch_warnings``.
+
+    Parameters
+    ----------
+    expected_warning : {Warning, False, None}, default Warning
+        The type of Exception raised. ``exception.Warning`` is the base
+        class for all warnings. To check that no warning is returned,
+        specify ``False`` or ``None``.
+    filter_level : str or None, default "always"
+        Specifies whether warnings are ignored, displayed, or turned
+        into errors.
+        Valid values are:
+
+        * "error" - turns matching warnings into exceptions
+        * "ignore" - discard the warning
+        * "always" - always emit a warning
+        * "default" - print the warning the first time it is generated
+          from each location
+        * "module" - print the warning the first time it is generated
+          from each module
+        * "once" - print the warning the first time it is generated
+
+    check_stacklevel : bool, default True
+        If True, displays the line that called the function containing
+        the warning to show were the function is called. Otherwise, the
+        line that _implements the function is displayed.
+    raise_on_extra_warnings : bool, default True
+        Whether extra warnings not of the type `expected_warning` should
+        cause the test to fail.
+    match : str, optional
+        Match warning message.
+
+    Examples
+    --------
+    >>> import warnings
+    >>> with assert_produces_warning():
+    ...     warnings.warn(UserWarning())
+    ...
+    >>> with assert_produces_warning(False):
+    ...     warnings.warn(RuntimeWarning())
+    ...
+    Traceback (most recent call last):
+        ...
+    AssertionError: Caused unexpected warning(s): ['RuntimeWarning'].
+    >>> with assert_produces_warning(UserWarning):
+    ...     warnings.warn(RuntimeWarning())
+    Traceback (most recent call last):
+        ...
+    AssertionError: Did not see expected warning of class 'UserWarning'.
+
+    ..warn:: This is *not* thread-safe.
+    """
+    __tracebackhide__ = True
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter(filter_level)
+        yield w
+
+        if expected_warning:
+            expected_warning = cast(Type[Warning], expected_warning)
+            _assert_caught_expected_warning(
+                caught_warnings=w,
+                expected_warning=expected_warning,
+                match=match,
+                check_stacklevel=check_stacklevel,
+            )
+
+        if raise_on_extra_warnings:
+            _assert_caught_no_extra_warnings(
+                caught_warnings=w,
+                expected_warning=expected_warning,
+            )
+
+
+def _assert_caught_expected_warning(
+    *,
+    caught_warnings: Sequence[warnings.WarningMessage],
+    expected_warning: type[Warning],
+    match: str | None,
+    check_stacklevel: bool,
+) -> None:
+    """Assert that there was the expected warning among the caught warnings."""
+    saw_warning = False
+    matched_message = False
+    unmatched_messages = []
+
+    for actual_warning in caught_warnings:
+        if issubclass(actual_warning.category, expected_warning):
+            saw_warning = True
+
+            if check_stacklevel and issubclass(
+                actual_warning.category, (FutureWarning, DeprecationWarning)
+            ):
+                _assert_raised_with_correct_stacklevel(actual_warning)
+
+            if match is not None:
+                if re.search(match, str(actual_warning.message)):
+                    matched_message = True
+                else:
+                    unmatched_messages.append(actual_warning.message)
+
+    if not saw_warning:
+        raise AssertionError(
+            f"Did not see expected warning of class "
+            f"{repr(expected_warning.__name__)}"
+        )
+
+    if match and not matched_message:
+        raise AssertionError(
+            f"Did not see warning {repr(expected_warning.__name__)} "
+            f"matching '{match}'. The emitted warning messages are "
+            f"{unmatched_messages}"
+        )
+
+
+def _assert_caught_no_extra_warnings(
+    *,
+    caught_warnings: Sequence[warnings.WarningMessage],
+    expected_warning: type[Warning] | bool | None,
+) -> None:
+    """Assert that no extra warnings apart from the expected ones are caught."""
+    extra_warnings = []
+
+    for actual_warning in caught_warnings:
+        if _is_unexpected_warning(actual_warning, expected_warning):
+            unclosed = "unclosed transport <asyncio.sslproto._SSLProtocolTransport"
+            if actual_warning.category == ResourceWarning and unclosed in str(
+                actual_warning.message
+            ):
+                # FIXME: kludge because pytest.filterwarnings does not
+                #  suppress these, xref GH#38630
+                continue
+
+            extra_warnings.append(
+                (
+                    actual_warning.category.__name__,
+                    actual_warning.message,
+                    actual_warning.filename,
+                    actual_warning.lineno,
+                )
+            )
+
+    if extra_warnings:
+        raise AssertionError(f"Caused unexpected warning(s): {repr(extra_warnings)}")
+
+
+def _is_unexpected_warning(
+    actual_warning: warnings.WarningMessage,
+    expected_warning: type[Warning] | bool | None,
+) -> bool:
+    """Check if the actual warning issued is unexpected."""
+    if actual_warning and not expected_warning:
+        return True
+    expected_warning = cast(Type[Warning], expected_warning)
+    return bool(not issubclass(actual_warning.category, expected_warning))
+
+
+def _assert_raised_with_correct_stacklevel(
+    actual_warning: warnings.WarningMessage,
+) -> None:
+    from inspect import getframeinfo, stack
+
+    caller = getframeinfo(stack()[4][0])
+    msg = (
+        "Warning not set with correct stacklevel. "
+        f"File where warning is raised: {actual_warning.filename} != "
+        f"{caller.filename}. Warning message: {actual_warning.message}"
+    )
+    assert actual_warning.filename == caller.filename, msg
 
 
 # ------------------------------------------------------------------
