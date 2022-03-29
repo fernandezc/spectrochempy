@@ -41,6 +41,10 @@ jobs:
           auto-activate-base: false
           auto-update-conda: true
 
+      - name: Install optional libraries needed for tests
+        run: |
+          mamba install xarray
+
       - name: Install spectrochempy
         run: |
           python -m pip install .
@@ -71,6 +75,20 @@ jobs:
 
           echo "$VERSION"
           echo "$DEVSTRING"
+
+      - name: Setup timezone
+        uses: zcong1993/setup-timezone@master
+        with:
+          timezone: Central European Time
+
+      - name: convert CHANGELOG.md to rst via pandoc
+        uses: docker://pandoc/core:2.9
+        with:
+          args: >-
+            -f  markdown
+            -t rst
+            -o docs/userguide/reference/changelog.rst
+            CHANGELOG.md
 
       - name: Build docs
         run: |

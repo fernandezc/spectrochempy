@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+#
 # ======================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
 #  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT.
@@ -30,8 +30,7 @@ from spectrochempy.core.common.exceptions import (
 )
 from spectrochempy.core.common.compare import is_datetime64
 from spectrochempy.core.common.print import colored_output
-from spectrochempy.core.dataset.coord import Coord, LinearCoord
-from spectrochempy.core.dataset.coordset import CoordSet
+from spectrochempy.core.dataset.coord import Coord, CoordSet
 from spectrochempy.core.dataset.meta import Meta
 from spectrochempy.core.dataset.ndarray import NDArray, NDMaskedComplexArray
 from spectrochempy.core.dataset.ndio import NDIO
@@ -51,9 +50,9 @@ from spectrochempy.core.units import Unit, encode_quantity
 # --------------------------------------------------------------------------------------
 _docstring = DocstringProcessor()
 
-# ======================================================================================================================
+# ======================================================================================
 # NDDataset class definition
-# ======================================================================================================================
+# ======================================================================================
 
 
 class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
@@ -159,7 +158,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
         computer note where this dataset is
         created.
     description : str, optional
-        An optional description of the nd-dataset. A shorter alias is `desc`.
+        An optional description of the nd-dataset.
     origin : str, optional
         Origin of the data: Name of organization, address, telephone number,
         name of individual contributor, etc., as appropriate.
@@ -176,7 +175,6 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
     See Also
     --------
     Coord : Explicit coordinates object.
-    LinearCoord : Implicit coordinates object.
     CoordSet : Set of coordinates.
 
     Notes
@@ -244,7 +242,6 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
     # ------------------------------------------------------------------------
     # initialisation
     # ------------------------------------------------------------------------
-
     def __init__(self, data=None, **kwargs):
 
         super().__init__(data, **kwargs)
@@ -280,10 +277,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
             _coordset = []
             for c, u, t in zip(coordset, coordunits, coordtitles):
                 if not isinstance(c, CoordSet):
-                    if isinstance(c, LinearCoord):
-                        coord = LinearCoord(c)
-                    else:
-                        coord = Coord(c)
+                    coord = Coord(c)
                     if u is not None:
                         coord.units = u
                     if t is not None:
@@ -427,7 +421,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
             # look also properties
             attribute = None
             index = 0
-            # print(item)
+
             if len(item) > 2 and item[1] == "_":
                 attribute = item[1:]
                 item = item[0]
@@ -451,9 +445,11 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
                 except Exception as err:
                     if item in self.dims:
                         return None
+
                     if item in self.meta.keys():  # try to find a metadata
                         return self.meta[item]
                     raise err
+
             elif attribute is not None:
                 if attribute == "size":
                     # we want the size but there is no coords, get it from the data shape
@@ -497,7 +493,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
                     _coordset[idx] = list(value.to_dict().values())[0]
                     _coordset[idx].name = key
                     _coordset[idx]._is_same_dim = True
-                elif isinstance(value, (Coord, LinearCoord)):
+                elif isinstance(value, Coord):
                     value.name = key
                     _coordset[idx] = value
                 else:
@@ -510,7 +506,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
             super().__setattr__(key, value)
 
     # ----------------------------------------------------------------------------------
-    # private methods and proerties
+    # private methods and properties
     # ----------------------------------------------------------------------------------
     @tr.observe(tr.All)
     def _anytrait_changed(self, change):
@@ -551,8 +547,10 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
             "history",
             "created",
             "modified",
+            "acquisition_date",
             "origin",
             "roi",
+            "ranges",
             "modeldata",
             "referencedata",
             "state",
@@ -737,7 +735,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
 
             # For coord to be acceptable, we require at least a NDArray,
             # a NDArray subclass or a CoordSet
-            if not isinstance(coord, (LinearCoord, Coord, CoordSet)):
+            if not isinstance(coord, (Coord, CoordSet)):
                 if isinstance(coord, NDArray):
                     coord = coordset[k] = Coord(coord)
                 else:
@@ -871,6 +869,25 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
             acq = pytz.utc.localize(acq)
             return acq.astimezone(self.timezone).isoformat(sep=" ", timespec="seconds")
 
+    @property
+    def acquisition_date(self):
+        """
+        Acquisition date (Datetime).
+
+        If there is one datetime axis in the dataset coordinate, this method return
+        the fisrt datetimme, which is then considered as the acquisition date. Tjhis
+        assume that there is only one datetime axis in the dataset coordinates.
+        """
+
+        def get_acq(cs):
+            for c in cs:
+                if isinstance(c, Coord) and is_datetime64(c):
+                    return c.acquisition_date
+                if isinstance(c, CoordSet):
+                    return get_acq(c)
+
+        return get_acq(self.coordset)
+
     def add_coordset(self, *coords, dims=None, **kwargs):
         """
         Add one or a set of coordinates from a dataset.
@@ -979,9 +996,9 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
     @property
     def coordtitles(self):
         """
-        tr.List of the |Coord| titles.
+        List of the |Coord| titles.
 
-        Read only property. Use set_coordtitle to eventually set titles.
+        Read only property.
         """
         if self._coordset is not None:
             return self._coordset.titles
@@ -989,7 +1006,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
     @property
     def coordunits(self):
         """
-        tr.List of the |Coord| units.
+        List of the |Coord| units.
 
         Read only property. Use set_coordunits to eventually set units.
         """
@@ -1060,7 +1077,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
                 new.data = obj.data
             else:
                 if klass == Coord:
-                    new = LinearCoord()
+                    new = Coord()
                 else:
                     new = klass()
 
@@ -1186,9 +1203,9 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
 
     def set_coordtitles(self, *args, **kwargs):
         """
-        Set titles of the one or more coordinates.
+        DEPRECATED. Use set_coordtitle
         """
-        self._coordset.set_titles(*args, **kwargs)
+        self.set_coordtitles(*args, **kwargs)
 
     def set_coordunits(self, *args, **kwargs):
         """
@@ -1241,9 +1258,9 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
 
         # determine which axis is sorted (dims or axis can be passed in kwargs)
         # it will return a tuple with axis and dim
-        axis, dim = self.get_axis(**kwargs)
+        axis, dim = self._get_axis(**kwargs)
         if axis is None:
-            axis, dim = self.get_axis(axis=0)
+            axis, dim = self._get_axis(axis=0)
 
         # get the corresponding coordinates (remember the their order
         # can be different form the order
@@ -1293,7 +1310,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
         return self._origin
 
     @origin.setter
-    def origine(self, value):
+    def origin(self, value):
         self._origin = value
 
     def take(self, indices, **kwargs):
@@ -1396,7 +1413,6 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
         """
 
         xr = import_optional_dependency("xarray")
-
         coords = {}
         for index, name in enumerate(self.dims):
             coord = self.coordset[name]
@@ -1421,7 +1437,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
         da.attrs["pint_units"] = str(self.units)
         # we cannot use units as it is
         # reserved by xarray
-        da.attrs["long_name"] = self.title
+        da.attrs["title"] = self.title
         da.attrs["author"] = self.author
         da.attrs["description"] = self.description
         da.attrs["history"] = "\n".join(self.history)
@@ -1476,9 +1492,9 @@ for funcname in api_funcs:
 load = NDDataset.load
 __all__ += ["load"]
 
-# ======================================================================================================================
+# ======================================================================================
 # Set the operators
-# ======================================================================================================================
+# ======================================================================================
 
 _set_operators(NDDataset, priority=100000)
 _set_ufuncs(NDDataset)

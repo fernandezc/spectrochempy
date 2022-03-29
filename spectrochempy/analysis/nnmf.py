@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module implement the NNMF (Non Negative Matrix Factorization) class.
 """
@@ -95,9 +96,9 @@ class NNMF(HasTraits):
         )
 
         self.C.name = "Optimmized concentration profile"
-        self.C.history = "nnmf optimiaation"
+        self.C.history = "nnmf optimization."
         self.St.name = "Optimized spectral profile"
-        self.St.history = "nnmf optimiaation"
+        self.St.history = "nnmf optimization."
 
     def nmf(self, V, Winit, Hinit, tol, maxtime, maxiter):
         """

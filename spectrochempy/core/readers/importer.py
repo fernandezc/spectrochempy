@@ -1,9 +1,12 @@
 #  -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 #
-#  =====================================================================================================================
-#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.                                  =
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory                         =
-#  =====================================================================================================================
 #
 """
 This module define a generic class to import directories, files and contents.
@@ -15,10 +18,9 @@ import requests
 import yaml
 
 from warnings import warn
-from datetime import datetime, timezone
 from traitlets import HasTraits, List, Dict, Type, Unicode
 
-from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.paths import pathclean
 from spectrochempy.core.common.file import (
     check_filename_to_open,
     get_directory_name,
@@ -47,7 +49,8 @@ FILETYPES = [
     ("zip", "Compressed folder of data files (*.zip)"),
     ("quadera", "Quadera ascii files (*.asc)"),
     ("carroucell", "Carroucell files (*spa)"),
-    ("galactic", "GRAMS/Thermo Galactic files (*.spc)")
+    ("galactic", "GRAMS/Thermo Galactic files (*.spc)"),
+    ("netcdf", "Xarray / NetCDF - Network Common Data Form (*.nc)"),
     #  ('all', 'All files (*.*)')
 ]
 ALIAS = [
@@ -61,6 +64,7 @@ ALIAS = [
     ("dx", "jcamp"),
     ("xls", "excel"),
     ("asc", "quadera"),
+    ("nc", "netcdf"),
 ]
 
 
@@ -90,7 +94,6 @@ class Importer(HasTraits):
 
         self.alias = dict(ALIAS)
 
-    # ..........................................................................
     def __call__(self, *args, **kwargs):
 
         self.datasets = []
@@ -163,13 +166,13 @@ class Importer(HasTraits):
                     nd.name = name
             elif names and len(names) != len(nds):
                 warn(
-                    "length of the `names` list and of the list of datasets mismatch - names not applied"
+                    "length of the `names` list and of the list of datasets mismatch"
+                    " - names not applied"
                 )
             return sorted(
                 nds, key=str
             )  # return a sorted list (sorted according to their string representation)
 
-    # ..........................................................................
     def _setup_objtype(self, *args, **kwargs):
         # check if the first argument is an instance of NDDataset or Project
 
@@ -191,7 +194,6 @@ class Importer(HasTraits):
 
         return args, kwargs
 
-    # ..........................................................................
     def _switch_protocol(self, key, files, **kwargs):
 
         protocol = kwargs.get("protocol", None)
@@ -269,9 +271,7 @@ class Importer(HasTraits):
                 dataset = self.objtype.concatenate(datasets, axis=0)
                 if dataset.coordset is not None and kwargs.pop("sortbydate", True):
                     dataset.sort(dim="y", inplace=True)
-                    dataset.history = (
-                        str(datetime.now(timezone.utc)) + ":sorted by date"
-                    )
+                    dataset.history = "Sorted by date."
                 datasets = [dataset]
 
             except DimensionsCompatibilityError as e:
@@ -280,7 +280,6 @@ class Importer(HasTraits):
         return datasets
 
 
-# ..............................................................................
 def _importer_method(func):
     # Decorator to define a given read function as belonging to Importer
     setattr(Importer, func.__name__, staticmethod(func))
@@ -332,7 +331,7 @@ def read(*paths, **kwargs):
         dimension) is returned (default=False).
     sortbydate : bool, optional
         Sort multiple spectra by acquisition date (default=True).
-    description : str, optional
+    comment : str, optional
         A Custom description.
     origin : {'omnic', 'tga'}, optional
         In order to properly interpret CSV file it can be necessary to set the origin of the spectra.
@@ -657,9 +656,9 @@ def _read_remote(*args, **kwargs):
         return read_method(dataset, dst, **kwargs)
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Private functions
-# ======================================================================================================================
+# ======================================================================================
 
 
 @_importer_method
@@ -673,20 +672,19 @@ def _read_dir(*args, **kwargs):
         if key:
             importer = Importer()
             nd = importer(files[key], **kwargs)
-            if not isinstance(nd, list):
-                nd = [nd]
-            datasets.extend(nd)
+            if nd is not None:
+                if not isinstance(nd, list):
+                    nd = [nd]
+                datasets.extend(nd)
     return datasets
 
 
-# ..............................................................................
 @_importer_method
 def _read_scp(*args, **kwargs):
     dataset, filename = args
     return dataset.load(filename, **kwargs)
 
 
-# ..............................................................................
 @_importer_method
 def _read_(*args, **kwargs):
     dataset, filename = args

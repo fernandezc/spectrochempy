@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 __all__ = ["read_zip"]
 __dataset_methods__ = __all__
@@ -13,9 +14,9 @@ import io
 from spectrochempy.core.readers.importer import Importer, _importer_method
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Public functions
-# ======================================================================================================================
+# ======================================================================================
 def read_zip(*paths, **kwargs):
     """
     Open a zipped list of data files.
@@ -44,9 +45,6 @@ def read_zip(*paths, **kwargs):
 
     Other Parameters
     ----------------
-    protocol : {'scp', 'omnic', 'opus', 'topspin', 'matlab', 'jcamp', 'csv', 'excel'}, optional
-        Protocol used for reading. If not provided, the correct protocol
-        is inferred (whnever it is possible) from the file name extension.
     directory : str, optional
         From where to read the specified `filename`. If not specified, read in the default ``datadir`` specified in
         SpectroChemPy Preferences.
@@ -56,8 +54,8 @@ def read_zip(*paths, **kwargs):
         dimension) is returned (default=False).
     sortbydate : bool, optional
         Sort multiple spectra by acquisition date (default=True).
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     origin : {'omnic', 'tga'}, optional
         in order to properly interpret CSV file it can be necessary to set the origin of the spectra.
         Up to now only 'omnic' and 'tga' have been implemented.
@@ -102,9 +100,9 @@ def read_zip(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Private functions
-# ======================================================================================================================
+# ======================================================================================
 
 
 @_importer_method

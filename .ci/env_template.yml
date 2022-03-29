@@ -48,7 +48,7 @@ dependencies:
     - numpy=1.21.5
     - pint>=0.18
     - requests
-    - scipy=1.7.3
+    - scipy
     - tqdm
     - traitlets
     - traittypes
@@ -74,14 +74,14 @@ dependencies:
     # They should not be necessary for the user of  spectrochempy.
 
     # just for testing
-    - pytest
+    - pytest=6.2.5
     - pytest-doctestplus
-    - pytest-flake8
     - pytest-mock
     - pyfakefs
     - scikit-image
     - coverage
     - black
+    - flake8
     - pre-commit
     - cffconvert
 
@@ -118,6 +118,7 @@ dependencies:
     - plotly
     {%- endif %}
     {%- if DEV %}
+    - pip
     - pip:
         - autodoc_traits
         {%- endif %}

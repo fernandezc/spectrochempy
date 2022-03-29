@@ -1,3 +1,9 @@
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 import numpy as np
 import spectrochempy as scp
 
@@ -18,7 +24,10 @@ def _make_spectra_matrix(modelname, ampl, pos, width, ratio=None, asym=None):
 
     st = np.vstack(s)
     st = scp.NDDataset(
-        data=st, units="absorbance", title="absorbance", coordset=[range(len(st)), x]
+        data=st,
+        units="absorbance",
+        title="absorbance",
+        coordset=[range(len(st)), x],
     )
 
     return st
@@ -49,8 +58,8 @@ def generate_fake():
     """
 
     # define properties of the spectra and concentration profiles
-    # ----------------------------------------------------------------------------------------------------------------------
-    from spectrochempy.core.dataset.npy import dot
+    # ----------------------------------------------------------------------------------
+    from spectrochempy.core.dataset.ndmath import dot
 
     # data for four peaks (one very broad)
     POS = (6000.0, 4000.0, 2000.0, 2500.0)

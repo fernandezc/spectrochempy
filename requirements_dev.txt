@@ -20,7 +20,7 @@ numba==0.55.0
 numpy==1.21.5
 pint>=0.18
 requests
-scipy==1.7.3
+scipy
 tqdm
 traitlets
 traittypes
@@ -33,14 +33,14 @@ setuptools_scm
 gitpython
 jupyterlab>=2.2.10
 nodejs
-pytest
+pytest==6.2.5
 pytest-doctestplus
-pytest-flake8
 pytest-mock
 pyfakefs
 scikit-image
 coverage
 black
+flake8
 pre-commit
 cffconvert
 mamba

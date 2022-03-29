@@ -1,9 +1,12 @@
 #  -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 #
-#  =====================================================================================================================
-#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.                                  =
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory                         =
-#  =====================================================================================================================
 #
 """
 This module define a generic class to import files and contents.
@@ -22,8 +25,9 @@ class Exporter(HasTraits):
 
     object = Any
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
 
+        super().__init__(*args, **kwargs)
         FILETYPES = [
             ("scp", "SpectroChemPy files (*.scp)"),
             ("labspec", "LABSPEC exported files (*.txt)"),
@@ -32,6 +36,7 @@ class Exporter(HasTraits):
             ("jcamp", "JCAMP-DX files (*.jdx *dx)"),
             ("csv", "CSV files (*.csv)"),
             ("excel", "Microsoft Excel files (*.xls)"),
+            ("netcdf", "NetCDF - Network Common Data Form (*.nc)"),
         ]
 
         self.filetypes = dict(FILETYPES)
@@ -40,7 +45,6 @@ class Exporter(HasTraits):
             for s in patterns(filter, allcase=False):
                 self.protocols[s[1:]] = protocol
 
-    # ..........................................................................
     def __call__(self, *args, **kwargs):
 
         args = self._setup_object(*args)
@@ -64,7 +68,6 @@ class Exporter(HasTraits):
         except Exception as e:
             raise e
 
-    # ..........................................................................
     def _setup_object(self, *args):
 
         # check if the first argument is an instance of NDDataset or Project
@@ -86,7 +89,6 @@ class Exporter(HasTraits):
         return args
 
 
-# ..............................................................................
 def exportermethod(func):
     # Decorator
     setattr(Exporter, func.__name__, staticmethod(func))
@@ -94,11 +96,11 @@ def exportermethod(func):
 
 
 # ------------------------------------------------------------------
-# Generic Read function
+# Generic write function
 # ------------------------------------------------------------------
 def write(dataset, filename=None, **kwargs):
     """
-    Write  the current dataset.
+    Write the current dataset.
 
     Parameters
     ----------
@@ -121,8 +123,8 @@ def write(dataset, filename=None, **kwargs):
         is inferred (whnever it is possible) from the file name extension.
     directory : str, optional
         Where to write the specified `filename`. If not specified, write in the current directory.
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     csv_delimiter : str, optional
         Set the column delimiter in CSV file.
         By default it is the one set in SpectroChemPy `Preferences`.
@@ -144,7 +146,6 @@ def write(dataset, filename=None, **kwargs):
     return exporter(dataset, filename, **kwargs)
 
 
-# ..............................................................................
 @exportermethod
 def _write_scp(*args, **kwargs):
     dataset, filename = args

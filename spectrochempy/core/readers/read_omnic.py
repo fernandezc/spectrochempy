@@ -1,9 +1,10 @@
 #  -*- coding: utf-8 -*-
 #
-#  =====================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory
-#  =====================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 #
 """
 This module extend NDDataset with the import method for OMNIC generated data
@@ -12,9 +13,9 @@ files.
 __all__ = ["read_omnic", "read_spg", "read_spa", "read_srs"]
 __dataset_methods__ = __all__
 
-from datetime import datetime, timezone, timedelta
 import io
 import struct
+from datetime import datetime, timezone, timedelta
 
 import numpy as np
 
@@ -49,12 +50,11 @@ def read_omnic(*paths, **kwargs):
     spa is read)
 
     An error is generated if attempt is made to inconsistent datasets: units
-    of spectra and
-    xaxis, limits and number of points of the xaxis.
+    of spectra and xaxis, limits and number of points of the xaxis.
 
     Parameters
     -----------
-    *paths : str, pathlib.Path object, list of str, or list of pathlib.Path objects, optional
+    *paths : str, pathlib.Path object, list of str, or list of pathlib.Path objects
         The data source(s) can be specified by the name or a list of name
         for the file(s) to be loaded:
 
@@ -81,30 +81,25 @@ def read_omnic(*paths, **kwargs):
     -----------------
     directory : str, optional
         From where to read the specified `filename`. If not specified,
-        read in the default ``datadir`` specified in
-        SpectroChemPy Preferences.
+        read in the default ``datadir`` specified in SpectroChemPy preferences.
     merge : bool, optional
         Default value is False. If True, and several filenames have been
-        provided as arguments,
-        then a single dataset with merged (stacked along the first
-        dimension) is returned (default=False).
+        provided as arguments, then a single dataset with merged (stacked along the
+        first dimension) is returned (default=False).
     sortbydate : bool, optional
         Sort multiple spectra by acquisition date (default=True).
     description : str, optional
         A Custom description.
     content : bytes object, optional
         Instead of passing a filename for further reading, a bytes content
-        can be directly provided as bytes objects.
-        The most convenient way is to use a dictionary. This feature is
-        particularly useful for a GUI Dash application
-        to handle drag and drop of files into a Browser.
-        For examples on how to use this feature, one can look in the
-        ``tests/tests_readers`` directory.
+        can be directly provided as bytes objects. The most convenient way is to use a
+        dictionary. This feature is particularly useful for a GUI Dash application
+        to handle drag and drop of files into a Browser. For examples on how to use
+        this feature, one can look in the ``tests/tests_readers`` directory.
     listdir : bool, optional
-        If True and filename is None, all files present in the provided
-        `directory` are returned (and merged if `merge`
-        is True. It is assumed that all the files correspond to current
-        reading protocol (default=True).
+        If True and filename is None, all files present in the provided `directory` are
+        returned (and merged if `merge` is True. It is assumed that all the files
+        correspond to current reading protocol (default=True).
     recursive : bool, optional
         Read also in subfolders. (default=False).
 
@@ -216,7 +211,6 @@ def read_omnic(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-# ..............................................................................
 def read_spg(*paths, **kwargs):
     """
     Open a Thermo Nicolet file or a list of files with extension ``.spg``.
@@ -226,7 +220,7 @@ def read_spg(*paths, **kwargs):
 
     Parameters
     -----------
-    *paths : str, pathlib.Path object, list of str, or list of pathlib.Path objects, optional
+    *paths : str, pathlib.Path object, list of str, or list of pathlib.Path objects
         The data source(s) can be specified by the name or a list of name
         for the file(s) to be loaded:
 
@@ -311,7 +305,6 @@ def read_spg(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-# ..............................................................................
 def read_spa(*paths, **kwargs):
     """
     Open a Thermo Nicolet file or a list of files with extension ``.spa``.
@@ -412,7 +405,6 @@ def read_spa(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-# ..............................................................................
 def read_srs(*paths, **kwargs):
     """
     Open a Thermo Nicolet file or a list of files with extension ``.srs``.
@@ -512,7 +504,7 @@ def read_srs(*paths, **kwargs):
 # Private functions
 # ======================================================================================
 
-# ......................................................................................
+
 @_importer_method
 def _read_spg(*args, **kwargs):
     # read spg file
@@ -637,7 +629,7 @@ def _read_spg(*args, **kwargs):
 
     # Now the intensity data
 
-    # Extracts positions of '03' keys
+    # Extract positions of '03' keys
     key_is_03 = keys == 3
     indices03 = np.nonzero(key_is_03)
     position03 = 304 * np.ones(len(indices03[0]), dtype="int") + 16 * indices03[0]
@@ -648,7 +640,7 @@ def _read_spg(*args, **kwargs):
 
     # Get spectra titles & acquisition dates:
     # container to hold values
-    spectitles, acquisitiondates, timestamps = [], [], []
+    spectitles, acquisitiondates = [], []
 
     # Extract positions of '6B' keys (spectra titles & acquisition dates)
     key_is_6B = keys == 107
@@ -668,17 +660,9 @@ def _read_spg(*args, **kwargs):
         # and the acquisition date
         fid.seek(spa_title_pos + 256)
         timestamp = _fromfile(fid, dtype="uint32", count=1)
-        # since 31/12/1899, 00:00
-        acqdate = datetime(1899, 12, 31, 0, 0, tzinfo=timezone.utc) + timedelta(
-            seconds=int(timestamp)
-        )
-        acquisitiondates.append(acqdate)
-        timestamp = acqdate.timestamp()
-        # Transform back to timestamp for storage in the Coord object
-        # use datetime.fromtimestamp(d, timezone.utc))
-        # to transform back to datetime object
+        acqdate = np.datetime64("1899-12-31") + np.timedelta64(int(timestamp), "s")
 
-        timestamps.append(timestamp)
+        acquisitiondates.append(acqdate)
 
         # Not used at present
         # -------------------
@@ -702,10 +686,9 @@ def _read_spg(*args, **kwargs):
     dataset.title = titles[0]
     dataset.name = filename.stem
     dataset.filename = filename
+    dataset.acquisition_date = min(acquisitiondates)
 
     # now add coordinates
-    # _x = Coord(np.around(np.linspace(firstx[0], lastx[0], nx[0]), 3),
-    #           title=xtitles[0], units=xunits[0])
     spacing = (lastx[0] - firstx[0]) / int(nx[0] - 1)
     _x = LinearCoord(
         offset=firstx[0],
@@ -716,35 +699,29 @@ def _read_spg(*args, **kwargs):
     )
 
     _y = Coord(
-        timestamps,
-        title="acquisition timestamp (GMT)",
-        units="s",
-        labels=(acquisitiondates, spectitles),
+        np.array(acquisitiondates),
+        title="acquisition date (UTC)",
+        units=None,
+        labels=spectitles,
     )
 
     dataset.set_coordset(y=_y, x=_x)
 
-    # Set description, date and history
-    # Omnic spg file don't have specific "origin" field stating the oirigin of the data
+    # Set comment/description
+    dataset.origin = "omnic"
+    default_description = f"Omnic title: {spg_title}\nOmnic filename: {filename}"
     dataset.description = kwargs.get(
-        "description", f"Omnic title: {spg_title}\nOmnic " f"filename: {filename}"
+        "description", kwargs.get("desc", default_description)
     )
 
-    dataset._date = datetime.now(timezone.utc)
-
-    dataset.history = str(dataset.date) + ":imported from spg file {} ; ".format(
-        filename
-    )
+    dataset.history = f"Imported from spg file {filename}"
     if sortbydate:
         dataset.sort(dim="y", inplace=True)
-        dataset.history = str(dataset.date) + ":sorted by date"
-
-    # debug_("end of reading")
+        dataset.history = "Sorted by date"
 
     return dataset
 
 
-# ..............................................................................
 @_importer_method
 def _read_spa(*args, **kwargs):
     dataset, filename = args
@@ -764,18 +741,13 @@ def _read_spa(*args, **kwargs):
     # renaming has been done in the OS.
     spa_name = _readbtext(fid, 30)
 
-    # The acquisition date (GMT) is at hex 128 = decimal 296.
+    # The acquisition date (UTC) is at hex 128 = decimal 296.
     # Second since 31/12/1899, 00:00
     fid.seek(296)
     timestamp = _fromfile(fid, dtype="uint32", count=1)
-    acqdate = datetime(1899, 12, 31, 0, 0, tzinfo=timezone.utc) + timedelta(
-        seconds=int(timestamp)
-    )
-    acquisitiondate = acqdate
+    acqdate = np.datetime64("1899-12-31") + np.timedelta64(int(timestamp), "s")
 
-    # Transform back to timestamp for storage in the Coord object
-    # use datetime.fromtimestamp(d, timezone.utc)) to transform back to datetime object
-    timestamp = acqdate.timestamp()
+    acquisitiondate = acqdate
 
     # From hex 120 = decimal 304, the spectrum is described
     # by a block of lines starting with "key values",
@@ -851,10 +823,10 @@ def _read_spa(*args, **kwargs):
         title = "acquisition timestamp (GMT)"  # no ambiguity here
 
     _y = Coord(
-        [timestamp],
+        [acquisitiondate],
         title=title,
         units="s",
-        labels=([acquisitiondate], [filename]),
+        labels=[filename],
     )
 
     # useful when a part of the spectrum/ifg has been blanked:
@@ -884,7 +856,10 @@ def _read_spa(*args, **kwargs):
                 f"Omnic name: {spa_name} : sample IFG\nOmnic filename: {filename.name}"
             )
         else:
-            default_description = f"Omnic name: {spa_name} : background IFG\nOmnic filename: {filename.name}"
+            default_description = (
+                f"Omnic name: {spa_name} : "
+                f"background IFG\nOmnic filename: {filename.name}"
+            )
         spa_name += ": Sample IFG"
         dataset.units = "V"
         dataset.title = "detector signal"
@@ -899,19 +874,19 @@ def _read_spa(*args, **kwargs):
     dataset.set_coordset(y=_y, x=_x)
     dataset.name = spa_name  # to be consistent with omnic behaviour
     dataset.filename = str(filename)
+    dataset.origin = "omnic"
+    dataset.acquisition_date = acquisitiondate
 
-    # Set origin, description, history, date
-    # Omnic spg file don't have specific "origin" field stating the oirigin of the data
+    dataset.description = kwargs.get(
+        "description", kwargs.get("desc", default_description)
+    )
 
-    dataset.description = kwargs.get("description", default_description)
     if "spa_history" in locals():
         dataset.history = (
             "Omnic 'DATA PROCESSING HISTORY' : \n----------------------------------\n"
             + spa_history
         )
-    dataset.history = str(datetime.now(timezone.utc)) + ":imported from spa file(s)"
-
-    dataset._date = datetime.now(timezone.utc)
+    dataset.history = "Imported from spa file(s)"
 
     if dataset.x.units is None and dataset.x.title == "data points":
         # interferogram
@@ -927,7 +902,6 @@ def _read_spa(*args, **kwargs):
     return dataset
 
 
-# ..............................................................................
 @_importer_method
 def _read_srs(*args, **kwargs):
     dataset, filename = args
@@ -983,6 +957,7 @@ def _read_srs(*args, **kwargs):
     index += [-152, -152, 60]
 
     # read series data, except if the user asks for the background
+    history = None
     if not return_bg:
         info = _read_header(fid, index[0])
         # container for names and data
@@ -1039,7 +1014,6 @@ def _read_srs(*args, **kwargs):
 
     dataset.units = info["units"]
     dataset.title = info["title"]
-    dataset.origin = "omnic"
 
     # now add coordinates
     spacing = (info["lastx"] - info["firstx"]) / (info["nx"] - 1)
@@ -1070,14 +1044,30 @@ def _read_srs(*args, **kwargs):
     dataset.origin = "omnic"
     dataset.description = kwargs.get("description", "Dataset from omnic srs file.")
 
-    if "history" in locals():
-        dataset.history.append(
+    if history is not None:
+        dataset.history = (
             "Omnic 'DATA PROCESSING HISTORY' :\n"
-            "--------------------------------\n" + history
+            f"--------------------------------\n{history}"
         )
-    dataset.history.append(
-        str(datetime.now(timezone.utc)) + ": imported from srs file " + str(filename)
-    )
+
+    dataset.history = f"Imported from srs file {filename}"
+
+    # =======
+    #     # Set attributes
+    #     dataset.name = info["name"]
+    #     dataset.units = info["units"]
+    #     dataset.title = info["title"]
+    #     dataset.source = "omnic"
+    #     dataset.name = info["name"]
+    #     dataset.units = info["units"]
+    #     dataset.title = info["title"]
+    #     dataset.source = "omnic"
+    #     default_comment = "Dataset from omnic srs file."
+    #     dataset.comment = kwargs.get(
+    #         "comment", kwargs.get("description", kwargs.get("desc", default_comment))
+    #     )
+    #     dataset.history = f"Imported from srs file {filename}"
+    # >>>>>>> release/0.4_initial_dev
 
     if dataset.x.units is None and dataset.x.title == "data points":
         # interferogram
@@ -1120,7 +1110,6 @@ def _read_srs(*args, **kwargs):
     return dataset
 
 
-# ..............................................................................
 def _fromfile(fid, dtype, count):
     # to replace np.fromfile in case of io.BytesIO object instead of byte
     # object
@@ -1146,7 +1135,6 @@ def _fromfile(fid, dtype, count):
     return np.array(out)
 
 
-# ..............................................................................
 def _readbtext(fid, pos):
     # Read some text in binary file, until b\0\ is encountered.
     # Returns utf-8 string
@@ -1166,13 +1154,11 @@ def _readbtext(fid, pos):
     return text
 
 
-# ..............................................................................
 def _nextline(pos):
     # reset current position to the beginning of next line (16 bytes length)
     return 16 * (1 + pos // 16)
 
 
-# ..............................................................................
 def _read_header(fid, pos):
     """
     read spectrum/ifg/series header
@@ -1343,7 +1329,6 @@ def _read_header(fid, pos):
     return out
 
 
-# ..............................................................................
 def _getintensities(fid, pos):
     # get intensities from the 03 (spectrum)
     # or 66 (sample ifg) or 67 (bg ifg) key,

@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module implements the NDMath class.
 """
 # TODO: test binary ufunc and put them in docs
 
 __all__ = ["NDMath", "NDManipulation"]
+
 __dataset_methods__ = []
 
 import copy as cpy
@@ -22,6 +24,7 @@ from warnings import catch_warnings
 
 import numpy as np
 from numpy.random import rand
+
 from quaternion import as_float_array
 
 from spectrochempy.core import error_, warning_, exception_, debug_
@@ -160,6 +163,9 @@ class _from_numpy_method:
                 # separate object keyword from other specific to the function
                 kw = {}
                 keys = dir(klass())
+                keys.extend(["description", "source", "title"])
+                # These one have an equivalent but for historical reason are often passed
+                # (we will have to set them as deprecated)
                 for k in list(kwargs.keys())[:]:
                     if k not in keys:
                         kw[k] = kwargs[k]
@@ -389,8 +395,7 @@ ORDER = {"Panel": 1, "NDDataset": 2, "Coord": 3, "LinearCoord": 4}
 
 class NDManipulation(object):
     """
-    This class provides manipulation routines for the NDDataset object.
-
+    This class provides manipulation routines for subclass of NDArray object.
     """
 
     def expand_dims(self, dim=None):
@@ -795,7 +800,7 @@ class NDMath(object):
         #        # case of complex or hypercomplex data
         #        if self._implements(NDComplexArray) and self.has_complex_dims:
         #
-        #            if fname in self.__complex_funcs:
+        #            if fname in self._complex_funcs:
         #                return getattr(inputs[0], fname)()
         #
         #            if fname in ["fabs", ]:
@@ -817,9 +822,9 @@ class NDMath(object):
         new = self._op_result(data, units, mask, history, returntype)
 
         # make a new title depending on the operation
-        if fname in self.__remove_title:
+        if fname in self._remove_title:
             new.title = f"<{fname}>"
-        elif fname not in self.__keep_title and isinstance(new, NDArray):
+        elif fname not in self._keep_title and isinstance(new, NDArray):
             if hasattr(new, "title") and new.title is not None:
                 new.title = f"{fname}({new.title})"
             else:
@@ -901,7 +906,7 @@ class NDMath(object):
         conj, real, imag, RR, RI, IR, II, part, set_complex, is_complex
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
 
         if cls.is_quaternion:
             # TODO:
@@ -917,7 +922,10 @@ class NDMath(object):
         return cls
 
     conj = conjugate
-    conj.__doc__ = "Conjugate of the NDDataset in the specified dimension.\n\nEquivalent to conjugate."
+    conj.__doc__ = (
+        "Conjugate of the NDDataset in the specified dimension."
+        "\n\nEquivalent to conjugate."
+    )
 
     @_from_numpy_method
     def around(cls, dataset, decimals=0):
@@ -1006,7 +1014,7 @@ class NDMath(object):
         Not a Number (NaN), positive infinity and negative infinity
         evaluate to `True` because these are not equal to zero.
         """
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         data = np.all(dataset, axis, keepdims=keepdims)
         return data
 
@@ -1051,10 +1059,10 @@ class NDMath(object):
         value with the maximum real part.
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         quaternion = False
         if dataset.dtype in [np.quaternion]:
-            from quaternion import as_float_array
+            # from quaternion import as_float_array
 
             quaternion = True
             data = dataset
@@ -1149,10 +1157,10 @@ class NDMath(object):
         argmin : Return the indices or coordinates of the minimum values.
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         quaternion = False
         if dataset.dtype in [np.quaternion]:
-            from quaternion import as_float_array
+            # from quaternion import as_float_array
 
             quaternion = True
             data = dataset
@@ -1248,7 +1256,7 @@ class NDMath(object):
         all : Test whether all array elements along a given axis evaluate to True.
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         data = np.any(dataset, axis, keepdims=keepdims)
         return data
 
@@ -1301,7 +1309,7 @@ class NDMath(object):
         Indexes of maximum of data along axis.
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         idx = np.ma.argmax(dataset, axis)
         if cls.ndim > 1 and axis is None:
             idx = np.unravel_index(idx, cls.shape)
@@ -1314,7 +1322,7 @@ class NDMath(object):
         Indexes of minimum of data along axis.
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         idx = np.ma.argmin(dataset, axis)
         if cls.ndim > 1 and axis is None:
             idx = np.unravel_index(idx, cls.shape)
@@ -1382,7 +1390,7 @@ class NDMath(object):
         array([   1.789,    1.789, ...,    1.222,     1.22])
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         m, sumweight = np.ma.average(dataset, axis=axis, weights=weights, returned=True)
 
         if np.isscalar(m):
@@ -1467,7 +1475,7 @@ class NDMath(object):
                 )
             )
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
 
         idx = np.ma.argmax(dataset, fill_value=-1e30)
         cmax = list(np.unravel_index(idx, dataset.shape))
@@ -1502,7 +1510,7 @@ class NDMath(object):
                 )
             )
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
 
         idx = np.ma.argmin(dataset, fill_value=-1e30)
         cmax = list(np.unravel_index(idx, cls.shape))
@@ -1567,7 +1575,7 @@ class NDMath(object):
         array([   100.7,    100.7, ...,       74,    73.98])
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         data = np.ma.cumsum(dataset, axis=axis, dtype=dtype)
         cls._data = data
         return cls
@@ -1676,7 +1684,7 @@ class NDMath(object):
         NDDataset: [float64] s (size: 2)
         """
 
-        axis, dim = cls.get_axis(dim)
+        axis, dim = cls._get_axis(dim)
         if hasattr(dataset, "mask"):
             data = np.ma.diagonal(dataset, offset=offset)
             cls._data = data
@@ -1899,7 +1907,7 @@ class NDMath(object):
         NDDataset: [float64] km (size: 6)
         """
 
-        from spectrochempy.core.dataset.coordset import CoordSet
+        from spectrochempy.core.dataset.coord import CoordSet
 
         if coordset is not None:
             if not isinstance(coordset, CoordSet):
@@ -2318,7 +2326,7 @@ class NDMath(object):
         LinearCoord: [float64] cm⁻¹ (size: 5549)
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         m = np.ma.mean(dataset, axis=axis, dtype=dtype, keepdims=keepdims)
 
         if np.isscalar(m):
@@ -2513,7 +2521,7 @@ class NDMath(object):
             A new dataset holding the result.
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         m = np.ma.ptp(dataset, axis=axis, keepdims=keepdims)
 
         if np.isscalar(m):
@@ -2637,7 +2645,7 @@ class NDMath(object):
         array([ 0.08521,  0.08543, ...,    0.251,   0.2537])
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         m = np.ma.std(dataset, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims)
 
         if np.isscalar(m):
@@ -2698,7 +2706,7 @@ class NDMath(object):
         array([   100.7,    100.7, ...,       74,    73.98])
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         m = np.ma.sum(dataset, axis=axis, dtype=dtype, keepdims=keepdims)
 
         if np.isscalar(m):
@@ -2788,7 +2796,7 @@ class NDMath(object):
         array([0.007262, 0.007299, ...,  0.06298,  0.06438])
         """
 
-        axis, dim = cls.get_axis(dim, allows_none=True)
+        axis, dim = cls._get_axis(dim, allows_none=True)
         m = np.ma.var(dataset, axis=axis, dtype=dtype, ddof=ddof, keepdims=keepdims)
 
         if np.isscalar(m):
@@ -2949,7 +2957,6 @@ class NDMath(object):
 
     @staticmethod
     def _get_operand_and_return_types(fname, objs):
-
         debug_("Determine Return type from operand types ... ")
         objtypes = []
         for obj in objs:
@@ -2966,16 +2973,11 @@ class NDMath(object):
         return objtypes, returntype
 
     def _check_compatible_operand_dimensionalities(self, fname, objs):
-
         debug_("Check if operand have compatible units dimensionality ...")
-
         compatible_units = fname in self._compatible_units
-
         objdimensionality = OrderedSet()
         for obj in objs:
-
             # Dimensionalities
-
             if hasattr(obj, "units"):
                 objdimensionality.add(ur.get_dimensionality(obj.units))
                 if len(objdimensionality) > 1 and compatible_units:
@@ -2985,7 +2987,6 @@ class NDMath(object):
                         extra_msg=f", Units must be compatible for the `{fname}` operator",
                     )
                     exception_(error)  # raise and log error
-
         debug_("... Dimensionality of the units are compatible")
 
     def _check_compatible_operand_shapes(self, fname, objs):
@@ -3433,12 +3434,12 @@ class NDMath(object):
             inputs.reverse()
             objtypes.reverse()
 
-            if fname in ["mul", "add", "iadd"]:
+            if fname in ["mul", "add"]:
                 pass
             elif fname in ["truediv", "divide", "true_divide"]:
                 fname = "mul"
                 inputs[0] = np.reciprocal(inputs[0])
-            elif fname in ["isub", "sub", "subtract"]:
+            elif fname in ["sub", "subtract"]:
                 fname = "add"
                 inputs[0] = np.negative(inputs[0])
             elif fname in ["pow"]:
@@ -3483,12 +3484,10 @@ class NDMath(object):
         @functools.wraps(f)
         def func(self, other):
             fname = f.__name__
-
             if hasattr(self, "history"):
                 history = f"Inplace binary op: {fname}  with `{_get_name(other)}` "
             else:
                 history = None
-
             objs = [self, other]
             fm, objs = self._check_order(fname, objs)
 
@@ -3499,7 +3498,6 @@ class NDMath(object):
                 fm = _get_op(fname[1:])  # remove the i in the operator name
             else:
                 fm = f
-
             data, units, mask, returntype = self._op(fm, objs)
             self = self._op_result(
                 data, units, mask, history, returntype, inplace=not dt64
@@ -3711,101 +3709,5 @@ def _set_operators(cls, priority=50):
         setattr(cls, _op_str("i" + name), cls._inplace_binary_op(_get_op("i" + name)))
 
 
-def dot(a, b, strict=True, out=None):
-    """
-    Return the dot product of two NDDatasets.
-
-    This function is the equivalent of `numpy.dot` that takes NDDataset as
-    input
-
-    .. note::
-      Works only with 2-D arrays at the moment.
-
-    Parameters
-    ----------
-    a, b : masked_array_like
-        Inputs arrays.
-    strict : bool, optional
-        Whether masked data are propagated (True) or set to 0 (False) for
-        the computation. Default is False.  Propagating the mask means that
-        if a masked value appears in a row or column, the whole row or
-        column is considered masked.
-    out : masked_array, optional
-        Output argument. This must have the exact kind that would be returned
-        if it was not used. In particular, it must have the right type, must be
-        C-contiguous, and its dtype must be the dtype that would be returned
-        for `dot(a,b)`. This is a performance feature. Therefore, if these
-        conditions are not met, an exception is raised, instead of attempting
-        to be flexible.
-
-    See Also
-    --------
-    numpy.dot : Equivalent function for ndarrays.
-    numpy.ma.dot : Equivalent function for masked ndarrays.
-    """
-    # if not a.implements('NDDataset'):
-    #     raise TypeError('A dataset of type NDDataset is  '
-    #                     'expected as a source of data, but an object'
-    #                     ' of type {} has been provided'.format(
-    #         type(a).__name__))
-    #
-    # if not b.implements('NDDataset'):
-    #     raise TypeError('A dataset of type NDDataset is  '
-    #                     'expected as a source of data, but an object'
-    #                     ' of type {} has been provided'.format(
-    #         type(b).__name__))
-
-    # TODO: may be we can be less strict, and allow dot products with
-    #      different kind of objects, as far they are numpy-like arrays
-
-    # Delayed import to avoid circular imports
-    from spectrochempy.core.dataset.nddataset import NDDataset
-
-    if not isinstance(a, NDDataset) and not isinstance(a, NDDataset):
-        # must be between numpy object or something non valid. Let numpy
-        # deal with this
-        return np.dot(a, b)
-
-    if not isinstance(a, NDDataset):
-        # try to cast to NDDataset
-        a = NDDataset(a)
-
-    if not isinstance(b, NDDataset):
-        # try to cast to NDDataset
-        b = NDDataset(b)
-
-    data = np.ma.dot(a.masked_data, b.masked_data)
-    mask = data.mask
-    data = data.data
-
-    if a.coordset is not None:
-        coordy = getattr(a, a.dims[0])
-    else:
-        coordy = None
-    if b.coordset is not None:
-        coordx = getattr(b, b.dims[1])
-    else:
-        coordx = None
-
-    history = "Dot product between %s and %s" % (a.name, b.name)
-
-    # make the output
-    # ------------------------------------------------------------------------
-    new = type(a)()
-    new._data = data
-    new._mask = mask
-    new.set_coordset(y=coordy, x=coordx)
-    new.history = history
-    if a.unitless:
-        new.units = b.units
-    elif b.unitless:
-        new.units = a.units
-    else:
-        new.units = a.units * b.units
-
-    return new
-
-
-# ======================================================================================================================
 if __name__ == "__main__":
     pass

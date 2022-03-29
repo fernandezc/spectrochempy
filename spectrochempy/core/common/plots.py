@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 import textwrap
 
 import matplotlib as mpl
@@ -275,6 +276,33 @@ class _Axes(maxes.Axes):
     def set_ylim(self, *args, **kwargs):
         return super().set_ylim(*args, **kwargs)
 
+    def _twinx(self):
+        self, ax2 = _make_twin_axes(self, sharex=self)
+        ax2.yaxis.tick_right()
+        ax2.yaxis.set_label_position("right")
+        ax2.yaxis.set_offset_position("right")
+        ax2.set_autoscalex_on(self.get_autoscalex_on())
+        ax2.set_xlim(self.get_xlim())
+        self.yaxis.tick_left()
+        ax2.xaxis.set_visible(False)
+        ax2.patch.set_visible(False)
+        return ax2
+
+
+def _make_twin_axes(tax, *args, **kwargs):
+    twin = tax.figure.add_subplot(tax.get_subplotspec(), *args, **kwargs)
+    tax.set_adjustable("datalim")
+    twin.set_adjustable("datalim")
+    tax._twinned_axes.join(tax, twin)
+    return tax, twin
+
+
+# twin = self.figure.add_subplot(self.get_subplotspec(), *args, **kwargs)
+# self.set_adjustable('datalim')
+# twin.set_adjustable('datalim')
+# self._twinned_axes.join(self, twin)
+# return twin
+
 
 class _Axes3D(maxes3D.Axes3D):
     def __init__(self, *args, **kwargs):
@@ -287,7 +315,7 @@ class _Axes3D(maxes3D.Axes3D):
 
 def plot_method(type, doc):
     """
-    Decorator to to select a plot method from the function name
+    Decorator to select a plot method from the function name
     """
 
     def decorator_plot_method(func):
@@ -346,7 +374,6 @@ multiplot
     return decorator_plot_method
 
 
-# ............................................................................
 # color conversion function
 def cmyk2rgb(C, M, Y, K):
     """
@@ -384,7 +411,6 @@ NBlue = cmyk2rgb(100, 30, 0, 0)
 NGreen = cmyk2rgb(85, 0, 60, 10)
 
 
-# .............................................................................
 def figure(preferences=Meta(), **kwargs):
     """
     Method to open a new figure.
@@ -399,7 +425,6 @@ def figure(preferences=Meta(), **kwargs):
     return get_figure(preferences=preferences, **kwargs)
 
 
-# .............................................................................
 def show():
     """
     Method to force the `matplotlib` figure display.
@@ -413,7 +438,6 @@ def show():
             plt.show(block=True)
 
 
-# .............................................................................
 def get_figure(**kwargs):
     """
     Get the figure where to plot.
@@ -454,41 +478,44 @@ def get_figure(**kwargs):
     if not n or clear:
         # create a figure
         prefs = kwargs.pop("preferences", None)
+        if prefs is None:
+            return
+        else:
+            figsize = kwargs.get("figsize", prefs.figure_figsize)
+            dpi = kwargs.get("dpi", prefs.figure_dpi)
+            facecolor = kwargs.get("facecolor", prefs.figure_facecolor)
+            edgecolor = kwargs.get("edgecolor", prefs.figure_edgecolor)
+            frameon = kwargs.get("frameon", prefs.figure_frameon)
+            tight_layout = kwargs.get("autolayout", prefs.figure_autolayout)
 
-        figsize = kwargs.get("figsize", prefs.figure_figsize)
-        dpi = kwargs.get("dpi", prefs.figure_dpi)
-        facecolor = kwargs.get("facecolor", prefs.figure_facecolor)
-        edgecolor = kwargs.get("edgecolor", prefs.figure_edgecolor)
-        frameon = kwargs.get("frameon", prefs.figure_frameon)
-        tight_layout = kwargs.get("autolayout", prefs.figure_autolayout)
+            # get the current figure (or the last used)
+            fig = plt.figure(figsize=figsize)
 
-        # get the current figure (or the last used)
-        fig = plt.figure(figsize=figsize)
-
-        fig.set_dpi(dpi)
-        fig.set_frameon(frameon)
-        try:
-            fig.set_edgecolor(edgecolor)
-        except ValueError:
-            fig.set_edgecolor(eval(edgecolor))
-        try:
-            fig.set_facecolor(facecolor)
-        except ValueError:
+            fig.set_dpi(dpi)
+            fig.set_frameon(frameon)
             try:
-                fig.set_facecolor(eval(facecolor))
+                fig.set_edgecolor(edgecolor)
             except ValueError:
-                fig.set_facecolor("#" + eval(facecolor))
-        fig.set_dpi(dpi)
-        fig.set_tight_layout(tight_layout)
+                fig.set_edgecolor(eval(edgecolor))
+            try:
+                fig.set_facecolor(facecolor)
+            except ValueError:
+                try:
+                    fig.set_facecolor(eval(facecolor))
+                except ValueError:
+                    fig.set_facecolor("#" + eval(facecolor))
+            fig.set_dpi(dpi)
+            fig.set_tight_layout(tight_layout)
 
-        return fig
+            return fig
 
     # a figure already exists - if several we take the last
     return plt.figure(n[-1])
 
 
 # FOR PLOTLY
-# .............................................................................
+
+
 def get_plotly_figure(clear=True, fig=None, **kwargs):
     """
     Get the figure where to plot.
@@ -539,7 +566,6 @@ class colorscale:
 colorscale = colorscale()
 
 
-# ............................................................................
 def make_label(ss, lab="<no_axe_label>", use_mpl=True):
     """
     Make a label from title and units.

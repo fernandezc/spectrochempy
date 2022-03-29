@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 Plugin module to extend NDDataset with a JCAMP-DX export method.
 """
@@ -17,8 +18,7 @@ __all__ = ["write_csv"]
 __dataset_methods__ = __all__
 
 
-# ...............................................................................
-def write_csv(*args, **kwargs):
+def write_csv(dataset, filename, **kwargs):
     """
     Write a dataset in CSV format.
 
@@ -27,15 +27,19 @@ def write_csv(*args, **kwargs):
 
     Parameters
     ----------
-    filename: str or pathlib object, optional
+    dataset : |NDDataset|
+        Dataset to write.
+    filename : str or pathlib object, optional
         If not provided, a dialog is opened to select a file for writing.
-    protocol : {'scp', 'matlab', 'jcamp', 'csv', 'excel'}, optional
-        Protocol used for writing. If not provided, the correct protocol
-        is inferred (whnever it is possible) from the file name extension.
+    **kwargs : dict
+        See other parameters.
+
+    Other Parameters
+    ----------------
     directory : str, optional
         Where to write the specified `filename`. If not specified, write in the current directory.
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     delimiter : str, optional
         Set the column delimiter in CSV file.
         By default it is ',' or the one set in SpectroChemPy `Preferences`.
@@ -57,7 +61,7 @@ def write_csv(*args, **kwargs):
     exporter = Exporter()
     kwargs["filetypes"] = ["CSV files (*.csv)"]
     kwargs["suffix"] = ".csv"
-    return exporter(*args, **kwargs)
+    return exporter(dataset, filename, **kwargs)
 
 
 @exportermethod
@@ -76,7 +80,8 @@ def _write_csv(*args, **kwargs):
     if dataset.ndim > 1:
         dataset = dataset.squeeze()
 
-    # Make csv file for 1D dataset: first and 2d column are the unique axis and data, respectively
+    # Make csv file for 1D dataset: first and 2d column are the unique axis and data,
+    # respectively
     with filename.open("w", newline="") as fid:
         writer = csv.writer(fid, delimiter=delimiter)
 

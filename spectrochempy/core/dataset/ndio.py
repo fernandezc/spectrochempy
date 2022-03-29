@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module define the class |NDIO| in which input/output standard
 methods for a |NDDataset| are defined.
@@ -21,7 +22,7 @@ from traitlets import HasTraits, Instance, Union, Unicode
 
 from spectrochempy.core.dataset.coord import Coord, LinearCoord
 from spectrochempy.core.common.constants import TYPE_BOOL
-from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.paths import pathclean
 from spectrochempy.utils.zip import ScpFile
 from spectrochempy.core.common.file import check_filename_to_save
 from spectrochempy.core.common.json import json_serialiser
@@ -30,9 +31,9 @@ from spectrochempy.core.common.exceptions import WrongFileFormatError
 SCPY_SUFFIX = {"NDDataset": ".scp", "Project": ".pscp"}
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Class NDIO to handle I/O of datasets
-# ======================================================================================================================
+# ======================================================================================
 
 
 class NDIO(HasTraits):
@@ -335,7 +336,10 @@ class NDIO(HasTraits):
             for key, val in dic.items():
 
                 try:
-                    if "readonly" in dic.keys() and key in ["readonly", "name"]:
+                    if "readonly" in dic.keys() and key in [
+                        "readonly",
+                        "name",
+                    ]:
                         # case of the meta and preferences
                         pass
 
@@ -389,11 +393,13 @@ class NDIO(HasTraits):
                         if isinstance(obj, NDDataset) and key == "_filename":
                             obj.filename = val  # This is a hack because for some reason fileame attribute is not
                             # found ????
+                        elif key in ["_history"]:
+                            setattr(obj, "history", val)
                         else:
                             setattr(obj, key, val)
 
                 except Exception as e:
-                    raise TypeError(f"for {key} {e}")
+                    raise TypeError(e)
 
             return obj
 
@@ -439,7 +445,7 @@ class NDIO(HasTraits):
         return filename
 
 
-# ======================================================================================================================
+# ======================================================================================
 if __name__ == "__main__":
     pass
 

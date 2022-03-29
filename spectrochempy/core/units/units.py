@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 The core interface to the Pint library.
 """
@@ -37,9 +38,10 @@ from pint.quantity import Quantity
 from pint.formatting import siunitx_format_unit
 from pint.converters import ScaleConverter
 
-# ======================================================================================================================
+
+# ======================================================================================
 # Modify the pint behaviour
-# ======================================================================================================================
+# ======================================================================================
 
 
 formats = {
@@ -278,7 +280,7 @@ if globals().get("U_", None) is None:
     U_.define(
         "__wrapped__ = 1"
     )  # <- hack to avoid an error with pytest (doctest activated)
-    U_.define("@alias point = count")
+    #  U_.define("@alias point = count")
     U_.define("transmittance = 1. / 100.")
     U_.define("absolute_transmittance = 1.")
     U_.define("absorbance = 1. = a.u.")
@@ -453,6 +455,5 @@ def encode_quantity(val):
     return val
 
 
-# ======================================================================================================================
 if __name__ == "__main__":
     pass

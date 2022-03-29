@@ -1,10 +1,14 @@
-import os
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
+import os
 import numpy as np
 
 from spectrochempy.utils import show
 from spectrochempy import read_omnic
-from spectrochempy.core.units import ur
 
 typequaternion = np.dtype(np.quaternion)
 
@@ -33,23 +37,13 @@ def test_fix_issue_20():
     assert X.__str__() == "NDDataset: [float64] a.u. (shape: (y:19, x:3112))"
 
     # slicing a NDDataset with an integer is OK for the coord:
-    assert X[:, 100].x.__str__() == "LinearCoord: [float64] cm⁻¹ (size: 1)"
+    assert X[:, 100].x.__str__() == "Coord: [float64] cm⁻¹ (size: 1)"
 
     # The explicit slicing of the coord is OK !
-    assert X.x[[100, 120]].__str__() == "LinearCoord: [float64] cm⁻¹ (size: 2)"
+    assert X.x[[100, 120]].__str__() == "Coord: [float64] cm⁻¹ (size: 2)"
 
     # slicing the NDDataset with an integer array is also OK (fixed #20)
     assert X[:, [100, 120]].x.__str__() == X.x[[100, 120]].__str__()
-
-
-def test_fix_issue_58():
-    X = read_omnic(os.path.join("irdata", "CO@Mo_Al2O3.SPG"))
-    X.y = X.y - X.y[0]  # subtract the acquisition timestamp of the first spectrum
-    X.y = X.y.to("minute")  # convert to minutes
-    assert X.y.units == ur.minute
-    X.y += 2  # add 2 minutes
-    assert X.y.units == ur.minute
-    assert X.y[0].data == [2]  # check that the addition is correctly done 2 min
 
 
 def test_fix_issue_186():

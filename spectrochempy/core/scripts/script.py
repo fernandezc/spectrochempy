@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 import re
 import ast
@@ -62,8 +63,17 @@ class Script(HasTraits):
     _priority = Float(min=0.0, max=100.0)
     _parent = Instance(AbstractProject, allow_none=True)
 
-    def __init__(self, name="unamed_script", content=None, parent=None, priority=50.0):
+    def __init__(
+        self,
+        name="unamed_script",
+        content=None,
+        parent=None,
+        priority=50.0,
+        *args,
+        **kwargs
+    ):
 
+        super().__init__(*args, **kwargs)
         self.name = name
         self.content = content
         self.parent = parent
@@ -148,8 +158,9 @@ class Script(HasTraits):
     # ------------------------------------------------------------------------
     # Public methods
     # ------------------------------------------------------------------------
-    # ..........................................................................
-    def implements(self, name=None):
+
+    @staticmethod
+    def implements(name=None):
         """
         Utility to check if the current object implement `Project`.
 

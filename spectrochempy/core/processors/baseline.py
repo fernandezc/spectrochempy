@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# =============================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory
-# =============================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module implements the `BaselineCorrection` class for baseline corrections.
 """
@@ -17,7 +18,7 @@ from traitlets import Int, Instance, HasTraits, Float, Unicode, Tuple, List
 from matplotlib.widgets import SpanSelector
 import matplotlib.pyplot as plt
 
-from spectrochempy.core.dataset.coordrange import trim_ranges
+from spectrochempy.core.dataset.coord import trim_ranges
 from spectrochempy.core.plotters.multiplot import multiplot
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.utils import TYPE_INTEGER, TYPE_FLOAT
@@ -53,17 +54,16 @@ class BaselineCorrection(HasTraits):
     .. plot::
         :include-source:
 
-        from spectrochempy import *
-        nd = NDDataset.read_omnic('irdata/nh4y-activation.spg'))
+        nd = scp.NDDataset.read_omnic('irdata/nh4y-activation.spg')
         ndp = nd[:, 1291.0:5999.0]
-        bc = BaselineCorrection(ndp)
+        bc = scp.BaselineCorrection(ndp)
         ranges=[[5996., 5998.], [1290., 1300.],
                 [2205., 2301.], [5380., 5979.],
                 [3736., 5125.]]
         span = bc.compute(*ranges,method='multivariate',
                           interpolation='pchip', npc=8)
         _ = bc.corrected.plot_stack()
-        show()
+        scp.show()
     """
 
     dataset = Instance(NDDataset)
@@ -78,8 +78,8 @@ class BaselineCorrection(HasTraits):
     figsize = Tuple((7, 5))
     sps = List()
 
-    # ..........................................................................
     def __init__(self, dataset, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.dataset = dataset
         self.corrected = self.dataset.copy()
         if args or kwargs:
@@ -89,7 +89,6 @@ class BaselineCorrection(HasTraits):
                 "Here they are ignored."
             )
 
-    # ..........................................................................
     def _extendranges(self, *ranges, **kwargs):
         if not ranges:
             # look in the kwargs
@@ -114,7 +113,6 @@ class BaselineCorrection(HasTraits):
                 item = [item, item]
             self.ranges.append(item)
 
-    # ..........................................................................
     def _setup(self, **kwargs):
 
         self.method = kwargs.get("method", self.method)
@@ -126,12 +124,10 @@ class BaselineCorrection(HasTraits):
         self.zoompreview = kwargs.get("zoompreview", self.zoompreview)
         self.figsize = kwargs.get("figsize", self.figsize)
 
-    # ..........................................................................
     def __call__(self, *ranges, **kwargs):
 
         return self.compute(*ranges, **kwargs)
 
-    # ..........................................................................
     def compute(self, *ranges, **kwargs):
         """
         Base function for dataset baseline correction.
@@ -174,7 +170,7 @@ class BaselineCorrection(HasTraits):
         # we assume that the last dimension
         # if always the dimension to which we want to subtract the baseline.
         # Swap the axes to be sure to be in this situation
-        axis, dim = new.get_axis(**kwargs, negative_axis=True)
+        axis, dim = new._get_axis(**kwargs, negative_axis=True)
 
         swapped = False
         if axis != -1:
@@ -268,16 +264,17 @@ class BaselineCorrection(HasTraits):
         if is_descendant:
             new.sort(axis=-1, inplace=True, descend=True)
 
-        new.history = str(new.modified) + ": " + "Baseline correction." + " Method: "
+        history = "Baseline correction Method:"
         if self.method == "Multivariate":
-            new.history = "Multivariate (" + str(self.npc) + " PCs)."
+            history = f"{history} Multivariate {self.npc} PCs)."
         else:
-            new.history = "Sequential."
+            history = f"{history} Sequential."
 
         if self.interpolation == "polynomial":
-            new.history = "Interpolation: Polynomial, order=" + str(self.order) + ".\n"
+            history = f"{history} Interpolation: Polynomial, order={self.order}"
         else:
-            new.history = "Interpolation: Pchip. \n"
+            history = f"{history} Interpolation: Pchip."
+        new.history = history
 
         if swapped:
             new = new.swapdims(axis, -1)
@@ -285,7 +282,6 @@ class BaselineCorrection(HasTraits):
         self.corrected = new
         return new
 
-    # ..........................................................................
     def show_regions(self, ax):
         if self.sps:
             for sp in self.sps:
@@ -297,7 +293,6 @@ class BaselineCorrection(HasTraits):
             sp = ax.axvspan(x[0], x[1], facecolor="#2ca02c", alpha=0.5)
             self.sps.append(sp)
 
-    # ..........................................................................
     def run(self, *ranges, **kwargs):
         """
         Interactive version of the baseline correction.
@@ -318,7 +313,7 @@ class BaselineCorrection(HasTraits):
 
         # we assume that the last dimension if always the dimension to which we want to subtract the baseline.
         # Swap the axes to be sure to be in this situation
-        axis, dim = new.get_axis(**kwargs, negative_axis=True)
+        axis, dim = new._get_axis(**kwargs, negative_axis=True)
 
         # swapped = False
         if axis != -1:
@@ -417,7 +412,6 @@ class BaselineCorrection(HasTraits):
         return
 
 
-# ..............................................................................
 def basc(dataset, *ranges, **kwargs):
     """
     Compute a baseline correction using the BaselineCorrection processor.
@@ -485,9 +479,9 @@ def basc(dataset, *ranges, **kwargs):
     return blc.compute(*ranges, **kwargs)
 
 
-# ======================================================================================================================
+# ======================================================================================
 # abc # TODO: some work to perform on this
-# ======================================================================================================================
+# ======================================================================================
 def abc(dataset, dim=-1, **kwargs):
     """
     Automatic baseline correction.
@@ -564,11 +558,15 @@ def abc(dataset, dim=-1, **kwargs):
     #                      choices=['linear', 'poly', 'svd'], help="mode of correction")
     # parser.add_argument('--dryrun', action='store_true', help='dry flag')
     #
-    # parser.add_argument('--window', '-wi', default=0.05, type=float, help='selected window for linear and svd bc')
+    # parser.add_argument('--window', '-wi', default=0.05, type=float, help='selected
+    # window for linear and svd bc')
     # parser.add_argument('--step', '-st', default=5, type=int, help='step for svd bc')
-    # parser.add_argument('--nbzone', '-nz', default=32, type=int, help='number of zone for poly')
-    # parser.add_argument('--mult', '-mt', default=4, type=int, help='multiplicator of zone for poly')
-    # parser.add_argument('--order', '-or', default=5, type=int, help='polynom order for poly')
+    # parser.add_argument('--nbzone', '-nz', default=32, type=int, help='number of zone
+    # for poly')
+    # parser.add_argument('--mult', '-mt', default=4, type=int, help='multiplicator of
+    # zone for poly')
+    # parser.add_argument('--order', '-or', default=5, type=int, help='polynom order
+    # for poly')
     #
     # parser.add_argument('--verbose', action='store_true', help='verbose flag')
     # args = parser.parse_args(options.split())
@@ -584,7 +582,7 @@ def abc(dataset, dim=-1, **kwargs):
     else:
         new = dataset
 
-    axis, dim = new.get_axis(dim, negative_axis=True)
+    axis, dim = new._get_axis(dim, negative_axis=True)
     swapped = False
     if axis != -1:
         new.swapdims(axis, -1, inplace=True)  # must be done in  place
@@ -605,7 +603,6 @@ def abc(dataset, dim=-1, **kwargs):
     return new
 
 
-# ..............................................................................
 def ab(dataset, dim=-1, **kwargs):
     """
     Alias of `abc`.
@@ -613,7 +610,6 @@ def ab(dataset, dim=-1, **kwargs):
     return abs(dataset, dim, **kwargs)
 
 
-# ..............................................................................
 @_units_agnostic_method
 def dc(dataset, **kwargs):
     """
@@ -644,9 +640,9 @@ def dc(dataset, **kwargs):
     return dataset
 
 
-# =======================================================================================================================
+# ======================================================================================
 # private functions
-# =======================================================================================================================
+# ======================================================================================
 def _basecor(data, **kwargs):
     mode = kwargs.pop("mode", "linear")
 
@@ -667,8 +663,10 @@ def _basecor(data, **kwargs):
 #
 def _linearbase(data, **kwargs):
     # Apply a linear baseline correction
-    # Very simple and naive procedure that compute a straight baseline from side to the other
-    # (averging on a window given by the window parameters : 5% of the total width on each side by default)
+    # Very simple and naive procedure that compute a straight baseline from side
+    # to the other
+    # (averging on a window given by the window parameters : 5% of the total width
+    # on each side by default)
 
     window = kwargs.pop("window", 0.05)
 

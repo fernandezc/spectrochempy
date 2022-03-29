@@ -26,7 +26,6 @@
     Coord.copy
     Coord.created
     Coord.data
-    Coord.date
     Coord.desc
     Coord.description
     Coord.dimensionless
@@ -124,7 +123,6 @@
     LinearCoord.copy
     LinearCoord.created
     LinearCoord.data
-    LinearCoord.date
     LinearCoord.desc
     LinearCoord.description
     LinearCoord.dimensionless
@@ -185,6 +183,7 @@
     LSTSQ.transform
     MCRALS.C
     MCRALS.Chard
+    MCRALS.fixedC
     MCRALS.extOutput
     MCRALS.logs
     MCRALS.params
@@ -235,11 +234,11 @@
     NDDataset.coordtitles
     NDDataset.coordunits
     NDDataset.copy
+	NDDataset.comment
     NDDataset.created
     NDDataset.cs
     NDDataset.cumsum
     NDDataset.data
-    NDDataset.date
     NDDataset.dc
     NDDataset.delete_coordset
     NDDataset.desc
@@ -272,7 +271,7 @@
     NDDataset.full_like
     NDDataset.general_hamming
     NDDataset.geomspace
-    NDDataset.get_axis
+    NDDataset._get_axis
     NDDataset.get_labels
     NDDataset.gm
     NDDataset.hamming
@@ -324,7 +323,7 @@
     NDDataset.ndim
     NDDataset.ones
     NDDataset.ones_like
-    NDDataset.origin
+    NDDataset.source
     NDDataset.parent
     NDDataset.pipe
     NDDataset.pk
@@ -543,7 +542,7 @@
     utils.system
     utils.system.is_kernel
     utils.testing
-    utils.testing.catch_warnings
+    utils.testing.assert_produces_warning
     utils.testing.RandomSeedContext
     utils.testing.set_env
     utils.traits

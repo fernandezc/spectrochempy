@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module implements the Singular Value Decomposition (SVD) class.
 """
@@ -170,8 +171,8 @@ class SVD(HasTraits):
         s = NDDataset(s)
         s.title = "singular values of " + X.name
         s.name = "sigma"
-        s.history = "Created by SVD \n"
-        s.description = (
+        s.history = "Created by SVD."
+        s.comment = (
             "Vector of singular values obtained  by SVD " "decomposition of " + X.name
         )
         self.s = s
@@ -211,8 +212,8 @@ class SVD(HasTraits):
                 x=Coord(labels=[f"#{i + 1}" for i in range(KU)], title="Components"),
                 y=X.y,
             )
-            U.description = "left singular vectors of " + X.name
-            U.history = "Created by SVD \n"
+            U.comment = "left singular vectors of " + X.name
+            U.history = "Created by SVD."
 
             # Returns the loadings (VT) as a NDDataset object
             # ------------------------------------------------
@@ -224,10 +225,10 @@ class SVD(HasTraits):
                 x=X.x,
                 y=Coord(labels=[f"#{i + 1}" for i in range(KV)], title="Components"),
             )
-            VT.description = (
+            VT.comment = (
                 "Loadings obtained by singular value decomposition of " + X.name
             )
-            VT.history = str(VT.modified) + ": Created by SVD \n"
+            VT.history = "Created by SVD."
             # loadings keep the units of the original data
             VT.units = units
 
@@ -260,7 +261,11 @@ class SVD(HasTraits):
         sv.name = "sv"
         sv.title = "singular values"
         sv.set_coordset(
-            Coord(None, labels=[f"#{(i + 1)}" for i in range(size)], title="Components")
+            Coord(
+                None,
+                labels=[f"#{(i + 1)}" for i in range(size)],
+                title="Components",
+            )
         )
         return sv
 
@@ -274,7 +279,11 @@ class SVD(HasTraits):
         ev.name = "ev"
         ev.title = "explained variance"
         ev.set_coordset(
-            Coord(None, labels=[f"#{(i + 1)}" for i in range(size)], title="Components")
+            Coord(
+                None,
+                labels=[f"#{(i + 1)}" for i in range(size)],
+                title="Components",
+            )
         )
         return ev
 
@@ -301,6 +310,6 @@ class SVD(HasTraits):
         return ratio
 
 
-# ======================================================================================================================
+# ======================================================================================
 if __name__ == "__main__":
     pass

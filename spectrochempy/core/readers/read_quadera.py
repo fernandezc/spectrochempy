@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 """
 Plugin module to extend NDDataset with the import methods method.
@@ -14,7 +15,7 @@ __dataset_methods__ = __all__
 
 import io
 from warnings import warn
-from datetime import datetime, timezone
+from datetime import datetime
 import re
 
 import numpy as np
@@ -23,9 +24,9 @@ from spectrochempy.core.dataset.nddataset import NDDataset, Coord
 from spectrochempy.core.readers.importer import Importer, _importer_method
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Public functions
-# ======================================================================================================================
+# ======================================================================================
 def read_quadera(*paths, **kwargs):
     """
     Read a Pfeiffer Vacuum's QUADERA® mass spectrometer software file with extension ``.asc``.
@@ -67,8 +68,8 @@ def read_quadera(*paths, **kwargs):
         Default value is False. If True, and several filenames have been provided as arguments,
         then a single dataset with merged (stacked along the first
         dimension) is returned (default=False)
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     content : bytes object, optional
         Instead of passing a filename for further reading, a bytes content can be directly provided as bytes objects.
         The most convenient way is to use a dictionary. This feature is particularly useful for a GUI Dash application
@@ -142,7 +143,8 @@ def _read_asc(*args, **kwargs):
     nchannels = len(channels)
 
     # the next line contains the columns titles, repeated for each channels
-    # this routine assumes that for each channel are  Time / Time relative [s] / Ion Current [A]
+    # this routine assumes that for each channel are
+    # Time / Time relative [s] / Ion Current [A]
     # check it:
     i += 1
     colnames = re.split(r"\t+", lines[i].rstrip("\t"))
@@ -199,11 +201,11 @@ def _read_asc(*args, **kwargs):
     dataset.set_coordset(y=_y, x=_x)
 
     # Set the NDDataset date
-    dataset._date = datetime.now(timezone.utc)
-    dataset._modified = dataset.date
+    dataset._created = datetime.utcnow()
+    dataset._modified = dataset._created
 
-    # Set origin, description and history
-    dataset.history = f"{dataset.date}:imported from Quadera asc file {filename}"
+    # Set origin, comment and history
+    dataset.history = f"Imported from Quadera asc file {filename}"
 
     return dataset
 

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 Plugin module to perform automatic subtraction of ref on a dataset.
 """
@@ -15,7 +16,7 @@ import numpy as np
 from scipy.optimize import minimize_scalar
 
 
-from spectrochempy.core.dataset.coordrange import trim_ranges
+from spectrochempy.core.dataset.coord import trim_ranges
 
 
 def autosub(
@@ -82,11 +83,12 @@ def autosub(
     else:
         new = dataset
 
-    # we assume that the last dimension ('x' for transposed array) is always the dimension to which we want
+    # we assume that the last dimension ('x' for transposed array) is always
+    # the dimension to which we want
     # to subtract.
 
     # Swap the axes to be sure to be in this situation
-    axis, dim = new.get_axis(dim)
+    axis, dim = new._get_axis(dim)
 
     if axis == new.ndim - 1:
         axis = -1
@@ -161,9 +163,7 @@ def autosub(
     if swapped:
         new = new.swapdims(axis, -1)
 
-    new.history = (
-        str(new.modified) + ": " + "Automatic subtraction of:" + ref.name + "\n"
-    )
+    new.history = f"Automatic subtraction of {ref.name}"
 
     if return_coefs:
         return new, x

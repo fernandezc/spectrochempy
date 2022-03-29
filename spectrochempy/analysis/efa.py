@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module implement the EFA (Evolving Factor Analysis) class.
 """
-from datetime import datetime, timezone
-
 import numpy as np
 from traitlets import HasTraits, Instance, Float
 
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.core.dataset.coordset import CoordSet
-from spectrochempy.core.dataset.coord import Coord
+from spectrochempy.core.dataset.coord import CoordSet, Coord
 from spectrochempy.utils import MASKED
 from .svd import SVD
 
@@ -85,11 +83,11 @@ class EFA(HasTraits):
             np.zeros((M, K)),
             coordset=[X.y, Coord(range(K))],
             title="EigenValues",
-            description="Forward EFA of " + X.name,
-            history=str(datetime.now(timezone.utc)) + ": created by spectrochempy ",
+            comment=f"Forward EFA of {X.name}",
+            history="Created by spectrochempy.",
         )
 
-        # in case some row are masked, take this into account, by masking
+        # in case some rows are masked, take this into account, by masking
         # the corresponding rows of f
         f[masked_rows] = MASKED
 
@@ -113,8 +111,8 @@ class EFA(HasTraits):
             np.zeros((M, K)),
             coordset=[X.y, Coord(range(K))],
             title="EigenValues",
-            name="Backward EFA of " + X.name,
-            history=str(datetime.now(timezone.utc)) + ": created by spectrochempy ",
+            name=f"Backward EFA of {X.name}",
+            history="Created by spectrochempy.",
         )
 
         b[masked_rows] = MASKED
@@ -195,8 +193,8 @@ class EFA(HasTraits):
             coordset=CoordSet(y=self._X.y, x=xcoord),
             name=f"C_EFA[{self._X.name}]",
             title="relative concentration",
-            description="Concentration profile from EFA",
-            history=f"{datetime.now(timezone.utc)}: created by spectrochempy",
+            comment="Concentration profile from EFA",
+            history="Created by spectrochempy.",
         )
         if self._X.is_masked:
             masked_rows = np.all(self._X.mask, axis=-1)
@@ -211,6 +209,6 @@ class EFA(HasTraits):
         return c
 
 
-# ======================================================================================================================
+# ======================================================================================
 if __name__ == "__main__":
     pass

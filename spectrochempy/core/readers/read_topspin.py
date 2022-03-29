@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 """
 Bruker file (single dimension FID or multidimensional SER) importers.
@@ -25,9 +26,9 @@ from spectrochempy.core.common.exceptions import deprecated
 from spectrochempy.core.readers.importer import Importer, _importer_method
 from spectrochempy.core.common.nmrglue import read_fid, read_pdata
 
-# ======================================================================================================================
+# ======================================================================================
 # Constants
-# ======================================================================================================================
+# ======================================================================================
 
 FnMODE = ["undefined", "QF", "QSEQ", "TPPI", "STATES", "STATES-TPPI", "ECHO-ANTIECHO"]
 AQ_mod = ["QF", "QSIM", "QSEQ", "DQD"]
@@ -491,9 +492,9 @@ nmr_valid_meta = [
     # ('ymin_p', ''),
 ]
 
-# ======================================================================================================================
+# ======================================================================================
 # Digital filter functions
-# ======================================================================================================================
+# ======================================================================================
 # Extracted from nmrglue.fileio.bruker.py (BSD License)
 
 # Table of points to frequency shift Bruker data to remove digital filter
@@ -603,19 +604,19 @@ def _remove_digital_filter(dic, data):
     Remove the digital filter from Bruker data.
     nmrglue modified Digital Filter Processing
     """
-    if "acqus" not in dic:
+    if "acqus" not in dic:  # pragma: no cover
         raise KeyError("dictionary does not contain acqus parameters")
 
-    if "DECIM" not in dic["acqus"]:
+    if "DECIM" not in dic["acqus"]:  # pragma: no cover
         raise KeyError("dictionary does not contain DECIM parameter")
-    decim = dic["acqus"]["DECIM"]
 
     if "DSPFVS" not in dic["acqus"]:
         raise KeyError("dictionary does not contain DSPFVS parameter")
-    dspfvs = dic["acqus"]["DSPFVS"]
 
+    decim = dic["acqus"]["DECIM"]
+    dspfvs = dic["acqus"]["DSPFVS"]
     if "GRPDLY" not in dic["acqus"]:
-        grpdly = 0
+        grpdly = 0  # pragma: no cover
     else:
         grpdly = dic["acqus"]["GRPDLY"]
 
@@ -625,24 +626,25 @@ def _remove_digital_filter(dic, data):
     # Determine the phase correction
     else:
         if dspfvs >= 14:  # DSPFVS greater than 14 give no phase correction.
-            phase = 0.0
+            phase = 0.0  # pragma: no cover
         else:
             if dspfvs < 11:
                 dspfvs = 11  # default for DQD  # loop up the phase in the table
-            if dspfvs not in bruker_dsp_table:
+            if dspfvs not in bruker_dsp_table:  # pragma: no cover
                 raise KeyError("dspfvs not in lookup table")
-            if decim not in bruker_dsp_table[dspfvs]:
+            if decim not in bruker_dsp_table[dspfvs]:  # pragma: no cover
                 raise KeyError("decim not in lookup table")
             phase = bruker_dsp_table[dspfvs][decim]
+
     # fft
     si = data.shape[-1]
     pdata = np.fft.fftshift(np.fft.fft(data, si, axis=-1), -1) / float(si / 2)
-    pdata = (pdata.T - pdata.T[0]).T  # TODO: this allow generally to
-    # TODO: remove Bruker smiles, not so sure actually
+    pdata = (pdata.T - pdata.T[0]).T
+    # TODO: this allow generally to remove Bruker smiles, not so sure actually
 
     # Phasing
-    si = float(pdata.shape[-1])
-    ph = 2.0j * np.pi * phase * np.arange(si) / si
+    si = pdata.shape[-1]
+    ph = 2.0j * np.pi * phase * np.arange(si) / float(si)
     pdata = pdata * np.exp(ph)
 
     # ifft
@@ -696,9 +698,9 @@ def _remove_digital_filter(dic, data):
 #         return scal()
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Bruker topspin import function
-# ======================================================================================================================
+# ======================================================================================
 def read_topspin(*paths, **kwargs):
     """
     Open Bruker TOPSPIN (NMR) dataset.
@@ -721,9 +723,6 @@ def read_topspin(*paths, **kwargs):
         experiment number.
     procno : int
         processing number.
-    protocol : {'scp', 'omnic', 'opus', 'topspin', 'matlab', 'jcamp', 'csv', 'excel'}, optional
-        Protocol used for reading. If not provided, the correct protocol
-        is inferred (whnever it is possible) from the file name extension.
     directory : str, optional
         From where to read the specified `filename`. If not specified, read in the default ``datadir`` specified in
         SpectroChemPy Preferences.
@@ -733,8 +732,8 @@ def read_topspin(*paths, **kwargs):
         dimension) is returned (default=False).
     sortbydate : bool, optional
         Sort multiple spectra by acquisition date (default=True).
-    description : str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     origin : {'omnic', 'tga'}, optional
         In order to properly interpret CSV file it can be necessary to set the origin of the spectra.
         Up to now only 'omnic' and 'tga' have been implemented.
@@ -775,15 +774,11 @@ def read_topspin(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-@deprecated(
-    "read_bruker_nmr reading method is deprecated and may be removed in next versions "
-    "- use read_topspin instead"
-)
+@deprecated(replace="read_topspin")
 def read_bruker_nmr(*args, **kwargs):
     return read_topspin(*args, **kwargs)
 
 
-# ..............................................................................
 def _get_files(path, typ="acqu"):
     files = []
     for i in ["", 2, 3]:
@@ -847,7 +842,7 @@ def _read_topspin(*args, **kwargs):
             td1 = dic["acqu2"]["TD"]
             try:
                 data = data.reshape(td1, -1)
-            except ValueError:
+            except ValueError:  # pragma: no cover
                 try:
                     td = dic["acqu"]["TD"] // 2
                     data = data.reshape(-1, td)
@@ -892,14 +887,14 @@ def _read_topspin(*args, **kwargs):
                 data, dataI = datalist
                 data = data + dataI * 1.0j
 
-            else:
+            else:  # pragma: no cover
                 return None
-        else:
+        else:  # pragma: no cover
             data = datalist
 
-    # ........................................................................................................
     # we now make some rearrangement of the dic to have something more user friendly
-    # we assume that all experiments have similar (important) parameters so that the experiments are compatibles
+    # we assume that all experiments have similar (important) parameters
+    # so that the experiments are compatibles
 
     meta = Meta()  # This is the parameter dictionary
     datatype = path.name.upper() if not processed else f"{data.ndim}D"
@@ -908,7 +903,7 @@ def _read_topspin(*args, **kwargs):
 
     # we need the ndim of the data
     parmode = int(dic["acqus"].get("PARMODE", data.ndim - 1))
-    if parmode + 1 != data.ndim:
+    if parmode + 1 != data.ndim:  # pragma: no cover
         raise KeyError(
             f"The NMR data were not read properly as the PARMODE+1 parameter ({parmode + 1}) doesn't fit"
             f" the actual number of dimensions ({data.ndim})"
@@ -944,7 +939,7 @@ def _read_topspin(*args, **kwargs):
 
                 try:
                     meta[key.lower()][dim] = value
-                except Exception:
+                except Exception:  # pragma: no cover
                     pass
 
         else:
@@ -970,7 +965,7 @@ def _read_topspin(*args, **kwargs):
             # For historical reasons,
             # MC2 is interpreted when the acquisition status
             # parameter FnMODE has the value undefined, i.e. 0
-            if meta.mc2 is not None:
+            if meta.mc2 is not None:  # pragma: no cover
                 meta.fnmode[-2] = meta.mc2[-2] + 1
 
         meta.encoding[-2] = FnMODE[meta.fnmode[-2]]
@@ -1089,7 +1084,7 @@ def _read_topspin(*args, **kwargs):
     dataset.set_coordset(*tuple(coords))
 
     dataset.title = "intensity"
-    dataset.origin = "topspin"
+    dataset.source = "topspin"
     dataset.name = f"{f_name.name} expno:{expno} procno:{procno} ({datatype})"
     dataset.filename = f_name
 
@@ -1395,7 +1390,7 @@ def _read_topspin(*args, **kwargs):
 #         dataset.meta.readonly = True
 #         dataset.set_coordset(*tuple(list_coords[0]))  # must be a tuple
 #         dataset.title = 'intensity'
-#         dataset.origin = 'bruker'
+#         dataset.source = 'bruker'
 #
 #     else:
 #
@@ -1503,6 +1498,6 @@ def _read_topspin(*args, **kwargs):
 #             # in principle... if not problem above or the experiments
 #             # are not compatibles
 #             dataset.coords = [axis] + list_coords[-1]
-#             dataset.origin = 'bruker'
+#             dataset.source = 'bruker'
 #
 #     return dataset

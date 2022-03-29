@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 # flake8: noqa
 
 
@@ -37,7 +44,8 @@ def test_IRIS():
 
     X.coordset.update(y=Coord(p, title="pressure", units="torr"))
     # Using the `update` method is mandatory because it will preserve the name.
-    # Indeed, setting using X.coordset[0] = Coord(...) fails unless name is specified: Coord(..., name='y')
+    # Indeed, setting using X.coordset[0] = Coord(...) fails
+    # unless name is specified: Coord(..., name='y')
 
     # take a small region to reduce test time
     X_ = X[:, 2105.0:1995.0]

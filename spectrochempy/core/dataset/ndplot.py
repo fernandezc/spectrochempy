@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module defines the |NDPlot| class in which generic |NDDataset| plot methods are defined.
 """
@@ -23,13 +24,12 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from traitlets import Dict, HasTraits, Instance, Union, default, TraitError
 
 from spectrochempy.core.common.plots import get_figure, _Axes, _Axes3D
-from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.paths import pathclean
 from spectrochempy.core.dataset.meta import Meta
-from spectrochempy.core import preferences, plot_preferences, error_
+from spectrochempy.core import preferences, plot_preferences, error_  # , warning_
 from spectrochempy.core.plotters.plot1d import plot_1D
 from spectrochempy.core.plotters.plot2d import plot_2D
 from spectrochempy.core.plotters.plot3d import plot_3D
-
 from spectrochempy.utils.optional import import_optional_dependency
 
 go = import_optional_dependency("plotly.graph_objects", errors="ignore")
@@ -37,9 +37,9 @@ HAS_PLOTLY = go is not None
 
 # from spectrochempy.utils import deprecated
 
-# ======================================================================================================================
+# ======================================================================================
 # Management of the preferences for datasets
-# ======================================================================================================================
+# ======================================================================================
 
 
 class PreferencesSet(Meta):
@@ -341,9 +341,9 @@ class PreferencesSet(Meta):
         return stylename
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Class NDPlot to handle plotting of datasets
-# ======================================================================================================================
+# ======================================================================================
 
 
 class NDPlot(HasTraits):
@@ -508,17 +508,16 @@ class NDPlot(HasTraits):
         if tax is not None:
             if issubclass(type(tax), mpl.axes.Axes):
                 clear = False
-                ax = tax.twinx()
-                # warning : this currently returns a normal Axes (so units-naive)
-                # TODO: try to solve this
+                ax = tax._twinx()
                 ax.name = "main"
                 tax.name = "twin"  # the previous main is renamed!
                 self.ndaxes["main"] = ax
                 self.ndaxes["twin"] = tax
+                self._fig = ax.figure
             else:
                 raise ValueError(f"{tax} is not recognized as a valid Axe")
-
-        self._fig = get_figure(preferences=prefs, **kwargs)
+        else:
+            self._fig = get_figure(preferences=prefs, **kwargs)
 
         if clear:
             self._ndaxes = {}  # reset ndaxes
@@ -591,16 +590,17 @@ class NDPlot(HasTraits):
         # and an optional colobar.
         # other plot class may take care of other needs
 
-        ax = self.ndaxes["main"]
-
         if ndim == 2:
             # TODO: also the case of 3D
 
-            # show projections (only useful for map or image)
-            # ------------------------------------------------
+            ax = self.ndaxes["main"]
 
+            # colorbar?
+            # do not display colorbar by default if it's not a surface plot
+            # except if we have asked to d so
             self.colorbar = colorbar = kwargs.get("colorbar", prefs.colorbar)
 
+            # show projections (only useful for map or image)
             proj = kwargs.get("proj", prefs.show_projections)
             # TODO: tell the axis by title.
 
@@ -651,8 +651,6 @@ class NDPlot(HasTraits):
                 # plt.setp(axec.get_xticklabels(), visible=False)
                 axec.name = "colorbar"
                 self.ndaxes["colorbar"] = axec
-
-        return method
 
     # ------------------------------------------------------------------------
     # resume a figure plot
@@ -832,6 +830,6 @@ class NDPlot(HasTraits):
 
 plot = NDPlot.plot  # make plot accessible directly from the scp API
 
-# ======================================================================================================================
+# ======================================================================================
 if __name__ == "__main__":
     pass

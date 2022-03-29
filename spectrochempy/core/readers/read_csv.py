@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 __all__ = ["read_csv"]
 __dataset_methods__ = __all__
@@ -15,7 +16,7 @@ __dataset_methods__ = __all__
 import warnings
 import locale
 import io
-from datetime import datetime, timezone
+from datetime import datetime
 
 import numpy as np
 
@@ -34,9 +35,9 @@ except Exception:  # pragma: no cover
         warnings.warn("Could not set locale: en_US or en_US.utf8")
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Public functions
-# ======================================================================================================================
+# ======================================================================================
 def read_csv(*paths, **kwargs):
     """
     Open a *.csv file or a list of *.csv files.
@@ -77,8 +78,8 @@ def read_csv(*paths, **kwargs):
         dimension) is returned (default=False).
     sortbydate : bool, optional
         Sort multiple spectra by acquisition date (default=True).
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment about the data.
     origin : {'omnic', 'tga'}, optional
         in order to properly interpret CSV file it can be necessary to set the origin of the spectra.
         Up to now only 'omnic' and 'tga' have been implemented.
@@ -133,9 +134,9 @@ def read_csv(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Private functions
-# ======================================================================================================================
+# ======================================================================================
 
 
 @_importer_method
@@ -206,10 +207,12 @@ def _read_csv(*args, **kwargs):
     dataset.name = kwargs.get("name", name)
     dataset.title = kwargs.get("title", None)
     dataset.units = kwargs.get("units", None)
-    dataset.description = kwargs.get("description", '"name" ' + "read from .csv file")
-    dataset.history = str(datetime.now(timezone.utc)) + ":read from .csv file \n"
-    dataset._date = datetime.now(timezone.utc)
-    dataset._modified = dataset.date
+    dataset.comment = kwargs.get(
+        "comment", kwargs.get("description", f"{name} read from .csv file")
+    )
+    dataset._created = datetime.utcnow()
+    dataset.history = "Read from .csv file."
+    dataset._modified = dataset._created
 
     # here we can check some particular format
     origin = kwargs.get("origin", "")
@@ -228,7 +231,6 @@ def _read_csv(*args, **kwargs):
     return dataset
 
 
-# .............................................................................
 def _add_omnic_info(dataset, **kwargs):
     # get the time and name
     name = desc = dataset.name
@@ -237,15 +239,13 @@ def _add_omnic_info(dataset, **kwargs):
     dataset.units = "absorbance"
     dataset.title = "absorbance"
     dataset.name = name
-    dataset.description = "Dataset from .csv file: {}\n".format(desc)
-    dataset.history = (
-        str(datetime.now(timezone.utc)) + ":read from omnic exported csv file \n"
-    )
-    dataset.origin = "omnic"
+    dataset.comment = "Dataset from .csv file: {}\n".format(desc)
+    dataset._created = datetime.utcnow()
+    dataset._modified = dataset._created
+    dataset.history = "Read from omnic exported csv file."
+    dataset.source = "omnic"
 
     # Set the NDDataset date
-    dataset._date = datetime.now(timezone.utc)
-    dataset._modified = dataset.date
 
     # x axis
     dataset.x.units = "cm^-1"
@@ -265,16 +265,10 @@ def _add_omnic_info(dataset, **kwargs):
         dat = dat.replace("Aout", "Aug")
 
         # get the dates
-        acqdate = datetime.strptime(dat, "%a %b %d %H-%M-%S %Y")
-
-        # Transform back to timestamp for storage in the Coord object
-        # use datetime.fromtimestamp(d, timezone.utc))
-        # to transform back to datetime obkct
-        timestamp = acqdate.timestamp()
-
-        dataset.y = Coord(np.array([timestamp]), name="y")
+        acqdate = np.datetime64(datetime.strptime(dat, "%a %b %d %H-%M-%S %Y"))
+        dataset.y = Coord(np.array([acqdate]), name="y")
         dataset.set_coordtitles(y="acquisition timestamp (GMT)", x="wavenumbers")
-        dataset.y.labels = np.array([[acqdate], [name]])
+        dataset.y.labels = [name]
         dataset.y.units = "s"
 
     return dataset
@@ -287,7 +281,7 @@ def _add_tga_info(dataset, **kwargs):
     dataset.units = "weight_percent"
     dataset.x.title = "time-on-stream"
     dataset.title = "mass change"
-    dataset.origin = "tga"
+    dataset.source = "tga"
 
     return dataset
 

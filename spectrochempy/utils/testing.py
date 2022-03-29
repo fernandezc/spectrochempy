@@ -320,8 +320,10 @@ def compare_coords(
     elif data_only:
         attrs = ["data"]
     else:
-        attrs = ["data", "labels", "units", "meta", "label"]
-        # if 'label' in attrs:  #    attrs.remove('title')  #TODO: should we use long for comparison?
+        attrs = ["data", "labels", "units", "meta", "title"]
+        # if 'title' in attrs:  #    attrs.remove('title')  #TODO: should we use long
+        #  for
+        #  comparison?
 
     if other.linear == this.linear:
         # To còmpare linear coordinates
@@ -563,14 +565,12 @@ def compare_datasets(this, other, approx=False, decimal=6, data_only=False):
     return True
 
 
-# ..............................................................................
 def assert_dataset_equal(nd1, nd2, **kwargs):
     kwargs["approx"] = False
     assert_dataset_almost_equal(nd1, nd2, **kwargs)
     return True
 
 
-# ..............................................................................
 def assert_dataset_almost_equal(nd1, nd2, **kwargs):
     decimal = kwargs.get("decimal", 6)
     approx = kwargs.get("approx", True)
@@ -581,14 +581,12 @@ def assert_dataset_almost_equal(nd1, nd2, **kwargs):
     return True
 
 
-# ..............................................................................
 def assert_coord_equal(nd1, nd2, **kwargs):
     kwargs["approx"] = False
     assert_coord_almost_equal(nd1, nd2, **kwargs)
     return True
 
 
-# ..............................................................................
 def assert_coord_almost_equal(nd1, nd2, **kwargs):
     decimal = kwargs.get("decimal", 6)
     approx = kwargs.get("approx", True)
@@ -607,14 +605,12 @@ def assert_coord_almost_equal(nd1, nd2, **kwargs):
     return True
 
 
-# ..............................................................................
 def assert_ndarray_equal(nd1, nd2, **kwargs):
     kwargs["approx"] = False
     assert_ndarray_almost_equal(nd1, nd2, **kwargs)
     return True
 
 
-# ..............................................................................
 def assert_ndarray_almost_equal(nd1, nd2, **kwargs):
     decimal = kwargs.get("decimal", 6)
     approx = kwargs.get("approx", True)
@@ -630,7 +626,6 @@ def assert_project_equal(proj1, proj2, **kwargs):
     return True
 
 
-# ..............................................................................
 def assert_project_almost_equal(proj1, proj2, **kwargs):
     assert len(proj1.datasets) == len(proj2.datasets)
     for nd1, nd2 in zip(proj1.datasets, proj2.datasets):
@@ -647,7 +642,6 @@ def assert_project_almost_equal(proj1, proj2, **kwargs):
     return True
 
 
-# ..............................................................................
 def assert_script_equal(sc1, sc2, **kwargs):
     if sc1 != sc2:
         raise AssertionError(f"Scripts are different: {sc1.content} != {sc2.content}")
@@ -657,7 +651,7 @@ def assert_script_equal(sc1, sc2, **kwargs):
 # RandomSeedContext
 # ======================================================================================
 
-# .............................................................................
+
 class RandomSeedContext(object):
     """
     A context manager (for use with the ``with`` statement) that will seed the
@@ -697,7 +691,6 @@ class RandomSeedContext(object):
         random.set_state(self.startstate)
 
 
-# .............................................................................
 def assert_units_equal(unit1, unit2):
     from pint.errors import DimensionalityError
 
@@ -730,13 +723,13 @@ def assert_units_equal(unit1, unit2):
 #
 #
 # #
-# .............................................................................
+
 # def _compute_rms(x, y):
 #     return calculate_rms(x, y)
 #
 #
 # #
-# .............................................................................
+
 # def _image_compare(imgpath1, imgpath2, REDO_ON_TYPEERROR):
 #     # compare two images saved in files imgpath1 and imgpath2
 #
@@ -777,7 +770,7 @@ def assert_units_equal(unit1, unit2):
 #
 #
 # #
-# .............................................................................
+
 # def compare_images(imgpath1, imgpath2,
 #                    max_rms=None,
 #                    min_similarity=None, ):
@@ -804,14 +797,14 @@ def assert_units_equal(unit1, unit2):
 #
 #
 # #
-# .............................................................................
+
 # def same_images(imgpath1, imgpath2):
 #     if compare_images(imgpath1, imgpath2).startswith('identical'):
 #         return True
 #
 #
 # #
-# .............................................................................
+
 # def image_comparison(reference=None,
 #                      extension=None,
 #                      max_rms=None,
@@ -1039,7 +1032,7 @@ def assert_produces_warning(
     check_stacklevel : bool, default True
         If True, displays the line that called the function containing
         the warning to show were the function is called. Otherwise, the
-        line that _implements the function is displayed.
+        line that implements the function is displayed.
     raise_on_extra_warnings : bool, default True
         Whether extra warnings not of the type `expected_warning` should
         cause the test to fail.
@@ -1174,6 +1167,7 @@ def _is_unexpected_warning(
 def _assert_raised_with_correct_stacklevel(
     actual_warning: warnings.WarningMessage,
 ) -> None:
+
     from inspect import getframeinfo, stack
 
     caller = getframeinfo(stack()[4][0])

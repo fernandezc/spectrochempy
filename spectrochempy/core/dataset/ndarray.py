@@ -85,7 +85,10 @@ from spectrochempy.core.common.exceptions import (
     DimensionalityError,
     LabelsError,
     ShapeError,
-    SpectroChemPyWarning,
+    #    InvalidDimensionNameError,
+    UnitWarning,
+    LabelWarning,
+    ValueWarning,
 )
 from spectrochempy.core.common.print import (
     convert_to_html,
@@ -101,6 +104,18 @@ from spectrochempy.core.units import (
     set_nmr_context,
     ur,
 )
+
+# =======
+# get_user_and_node,
+# pathclean,
+# # deprecated,
+# typequaternion,
+# as_quaternion,
+# get_component,
+# insert_masked_print,
+# is_datetime64,
+# from_dt64_units,
+# )
 
 # Printing settings
 # --------------------------------------------------------------------------------------
@@ -132,8 +147,6 @@ def _check_dtype():
 # ======================================================================================
 # The basic NDArray class
 # ======================================================================================
-
-
 class NDArray(tr.HasTraits):
     """
     The basic |NDArray| object.
@@ -237,7 +250,8 @@ class NDArray(tr.HasTraits):
         return name == self.__class__.__name__
 
     def __init__(self, data=None, **kwargs):
-        super().__init__(**kwargs)
+        self.accepted_kind = kwargs.pop("accepted_kind", "iufM")
+
         # By default, we try to keep a reference to the data, so we do not copy them.
         self._copy = kwargs.pop("copy", False)
         dtype = kwargs.pop("dtype", None)
@@ -254,6 +268,8 @@ class NDArray(tr.HasTraits):
         self.units = kwargs.pop("units", self.units)
         self.name = kwargs.pop("name", self.name)
         self.meta = kwargs.pop("meta", self.meta)
+
+        super().__init__(**kwargs)
 
     # ------------------------------------------------------------------------
     # Special methods
@@ -347,12 +363,18 @@ class NDArray(tr.HasTraits):
         return not self.__eq__(other, attrs)
 
     def __repr__(self):
-        prefix = f"{type(self).__name__} ({self.title}): "
+        name = f" {self.name}" if self.has_defined_name else " "
+
+        prefix = f"{type(self).__name__}{name}({self.title}): "
         units = ""
         sizestr = ""
 
         def _unitless_or_dimensionless(units):
-            return " unitless" if self.is_unitless else " dimensionless"
+            if self.is_unitless:
+                return " unitless"
+            if units.scaling != 1:
+                return f" {units:~P}"
+            return " dimensionless"
 
         if not self.is_empty and self.data is not None:
             sizestr = f" ({self._str_shape().strip()})"
@@ -360,7 +382,7 @@ class NDArray(tr.HasTraits):
             data = ""
             units = (
                 f" {self.units:~P}"
-                if self.has_units
+                if self.has_units and not self.is_dimensionless
                 else _unitless_or_dimensionless(self.units)
             )
             body = f"[{dtype}]{data}"
@@ -384,9 +406,7 @@ class NDArray(tr.HasTraits):
         self._data[keys] = value
 
     def __str__(self):
-        strg = "\n".join(self._cstr()).replace("\0", "")
-        strg = textwrap.dedent(strg).rstrip()
-        return strg
+        return self.__repr__()
 
     def _argsort(self, descend=False, **kwargs):
         # find the indices sorted by values
@@ -431,7 +451,8 @@ class NDArray(tr.HasTraits):
 
     def _cstr(self):
         str_name = f"         name: {self.name}"
-        return str_name, self._str_value(), self._str_shape()
+        str_title = f"        title: {self.title}"
+        return str_name, str_title, self._str_value(), self._str_shape()
 
     @staticmethod
     def _data_and_units_from_td64(data):
@@ -442,19 +463,19 @@ class NDArray(tr.HasTraits):
         newunits = from_dt64_units(dt64unit)
         return newdata, newunits
 
+    @tr.default("_data")
+    def _data_default(self):
+        return None
+
     @tr.validate("_data")
     def _data_validate(self, proposal):
         data = proposal["value"]
-        owner = proposal["owner"]
-        if owner._implements("NDArray"):
-            # we accept only float or integer values
-            accepted = "iufM"
-            if data.dtype.kind not in accepted:
-                raise CastingError(
-                    data.dtype,
-                    "The NDArray.data attribute accept only float, integer or "
-                    "datetime64 arrays",
-                )
+        # we accept only float or integer values
+        if data.dtype.kind not in self.accepted_kind:
+            raise CastingError(
+                data.dtype,
+                "The data attribute accept only numbers or " "datetime64 arrays",
+            )
         # return the validated data
         if self._copy:
             return data.copy()
@@ -485,7 +506,7 @@ class NDArray(tr.HasTraits):
                     "The unnamed arguments are interpreted as `dims`. But a named "
                     "argument `dims` or `axis` has been specified. The unnamed "
                     "arguments will thus be ignored.",
-                    SpectroChemPyWarning,
+                    ValueWarning,
                 )
             dims = kdims
         if dims is not None and not isinstance(dims, list):
@@ -620,7 +641,6 @@ class NDArray(tr.HasTraits):
 
         elif isinstance(key, str):
             index, error = self._interpret_strkey(key)
-
         else:
             raise IndexError(f"Could not find this location: {key}")
 
@@ -649,7 +669,7 @@ class NDArray(tr.HasTraits):
             else:
                 # integer
                 if key < 0:  # reverse indexing
-                    axis, dim = self.get_axis(dim)
+                    axis, dim = self._get_axis(dim)
                     start = self.shape[axis] + key
             stop = start + 1  # in order to keep a non squeezed slice
             return slice(start, stop, 1)
@@ -877,6 +897,62 @@ class NDArray(tr.HasTraits):
         text += sep
         return text
 
+    def _get_axis(self, *dims, **kwargs):
+        # """
+        # Helper function to determine an axis index.
+        #
+        # It is designed to work whatever the syntax used: axis index or dimension names.
+        #
+        # Parameters
+        # ----------
+        # *dims : str, int, or list of str or index
+        #     The axis indexes or dimensions names - they can be specified as argument
+        #     or using keyword 'axis', 'dim' or 'dims'.
+        #
+        # Returns
+        # -------
+        # axis : int
+        #     The axis indexes.
+        # dim : str
+        #     The axis name.
+        #
+        # Other Parameters
+        # ----------------
+        # negative_axis : bool, optional, default=False
+        #     If True a negative index is returned for the axis value
+        #     (-1 for the last dimension, etc...).
+        # allow_none : bool, optional, default=False
+        #     If True, if input is none then None is returned.
+        # only_first : bool, optional, default: True
+        #     By default return only information on the first axis if dim is a list.
+        #     Else, return a list for axis and dims information.
+        # """
+
+        # handle the various syntax to pass the axis
+        dims = self._get_dims_from_args(*dims, **kwargs)
+        axis = self._get_dims_index(dims)
+        allow_none = kwargs.get("allow_none", False)
+        if axis is None and allow_none:
+            return None, None
+        if isinstance(axis, tuple):
+            axis = list(axis)
+        if not isinstance(axis, list):
+            axis = [axis]
+        dims = axis[:]
+        for i, cax in enumerate(axis[:]):
+            # axis = axis[0] if axis else self.ndim - 1  # None
+            if cax is None:
+                cax = self.ndim - 1
+            if kwargs.get("negative_axis", False):
+                cax = cax - self.ndim if cax >= 0 else cax
+            axis[i] = cax
+            dims[i] = self.dims[cax]
+        only_first = kwargs.pop("only_first", True)
+        if len(dims) == 1 and only_first:
+            dims = dims[0]
+            axis = axis[0]
+        return axis, dims
+
     def _get_data_to_print(self, ufmt=" {:~K}"):
         units = ""
         data = self.values
@@ -1001,7 +1077,7 @@ class NDArray(tr.HasTraits):
             setattr(new, f"_{attr}", _attr)
         # name must be changed
         if not keepname:
-            new._name = ""  # reinit to default
+            new._name = self._id
         return new
 
     @property
@@ -1078,63 +1154,6 @@ class NDArray(tr.HasTraits):
             return None
         return self.data.dtype
 
-    @_docstring.dedent
-    def get_axis(self, *dims, **kwargs):
-        """
-        Helper function to determine an axis index.
-
-        It is designed to work whatever the syntax used: axis index or dimension names.
-
-        Parameters
-        ----------
-        *dims : str, int, or list of str or index
-            The axis indexes or dimensions names - they can be specified as argument
-            or using keyword 'axis', 'dim' or 'dims'.
-        %(kwargs)s
-
-        Returns
-        -------
-        axis : int
-            The axis indexes.
-        dim : str
-            The axis name.
-
-        Other Parameters
-        ----------------
-        negative_axis : bool, optional, default=False
-            If True a negative index is returned for the axis value
-            (-1 for the last dimension, etc...).
-        allow_none : bool, optional, default=False
-            If True, if input is none then None is returned.
-        only_first : bool, optional, default: True
-            By default return only information on the first axis if dim is a list.
-            Else, return a list for axis and dims information.
-        """
-        # handle the various syntax to pass the axis
-        dims = self._get_dims_from_args(*dims, **kwargs)
-        axis = self._get_dims_index(dims)
-        allow_none = kwargs.get("allow_none", False)
-        if axis is None and allow_none:
-            return None, None
-        if isinstance(axis, tuple):
-            axis = list(axis)
-        if not isinstance(axis, list):
-            axis = [axis]
-        dims = axis[:]
-        for i, cax in enumerate(axis[:]):
-            # axis = axis[0] if axis else self.ndim - 1  # None
-            if cax is None:
-                cax = self.ndim - 1
-            if kwargs.get("negative_axis", False):
-                cax = cax - self.ndim if cax >= 0 else cax
-            axis[i] = cax
-            dims[i] = self.dims[cax]
-        only_first = kwargs.pop("only_first", True)
-        if len(dims) == 1 and only_first:
-            dims = dims[0]
-            axis = axis[0]
-        return axis, dims
-
     @property
     def has_data(self):
         """
@@ -1145,7 +1164,6 @@ class NDArray(tr.HasTraits):
 
         return True
 
-    # ..........................................................................
     @property
     def has_defined_name(self):
         """
@@ -1153,7 +1171,6 @@ class NDArray(tr.HasTraits):
         """
         return not (self.name == self.id)
 
-    # ..........................................................................
     @property
     def has_units(self):
         """
@@ -1441,6 +1458,12 @@ class NDArray(tr.HasTraits):
             return 0
         return self.data.size
 
+    @property
+    def summary(self):
+        strg = "\n".join(self._cstr()).replace("\0", "")
+        strg = textwrap.dedent(strg).rstrip()
+        return strg
+
     @_docstring.dedent
     def to(self, other, inplace=False, force=False):
         """
@@ -1469,6 +1492,10 @@ class NDArray(tr.HasTraits):
         to_reduced_units : Rescaling to reduced units.
         ito_reduced_units : Rescaling to reduced units.
         """
+        if self.is_dt64:
+            warning_("`to` method cannot be used with datetime object. Ignored!")
+            return self
+
         new = self.copy()
         if other is None:
             if self.units is None:
@@ -1567,7 +1594,7 @@ class NDArray(tr.HasTraits):
         elif force:
             new._units = units
         else:
-            warning_("There is no units for this NDArray!", SpectroChemPyWarning)
+            warning_("There is no units for this NDArray!", UnitWarning)
         if inplace:
             self._data = new._data
             self._units = new._units
@@ -1742,7 +1769,7 @@ class NDComplexArray(NDArray):
         if dtype.kind in "cV":
             kwargs["dtype"] = None  # The treatment will be done after the NDArray
             # initialisation
-        super().__init__(data, **kwargs)
+        super().__init__(data, accepted_kind="iufcVM", **kwargs)
         if dtype.kind == "c":
             self.set_complex(inplace=True)
         if dtype.kind == "V":  # quaternion
@@ -2460,7 +2487,7 @@ class NDLabeledArray(NDArray):
         try:
             key = np.datetime64(key)
         except ValueError as exc:
-            raise NotImplementedError from exc
+            raise KeyError from exc
 
         index, error = self._value_to_index(key)
         return index, error
@@ -2573,9 +2600,7 @@ class NDLabeledArray(NDArray):
         if (self.labels.ndim > 1 and level > len(self.labels) - 1) or (
             self.labels.ndim == 1 and level > 0
         ):
-            warning_(
-                "There is no such level in the existing labels", SpectroChemPyWarning
-            )
+            warning_("There is no such level in the existing labels", LabelWarning)
             return None
 
         if len(self.labels) > 1 and self.labels.ndim > 1:

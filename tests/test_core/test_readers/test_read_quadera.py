@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 # flake8: noqa
 
 import pytest
@@ -12,7 +19,8 @@ MSDATA = DATADIR / "msdata"
 #     not MSDATA.exists(),
 #     reason="Experimental data not available for testing",
 # )
-# ..............................................................................
+
+
 def test_read_quadera():
     # single file
     A = NDDataset.read_quadera(MSDATA / "ion_currents.asc")

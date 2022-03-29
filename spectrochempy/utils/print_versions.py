@@ -1,4 +1,11 @@
-"""Utility functions for printing version information."""
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+"""
+Utility functions for printing version information.
+"""
 
 import locale
 import platform
@@ -7,8 +14,8 @@ import subprocess
 import sys
 from os import environ
 
-from . import optional
-from .pathlib import pathclean
+from spectrochempy.utils.optional import import_optional_dependency, get_module_version
+from spectrochempy.utils.paths import pathclean
 
 
 __all__ = ["show_versions"]
@@ -96,10 +103,10 @@ def show_versions(file=sys.stdout):
                     deps.append(dep)
     deps.append("spectrochempy")
     for dep in deps:
-        mod = optional.import_optional_dependency(dep, errors="ignore")
+        mod = import_optional_dependency(dep, errors="ignore")
         try:
             print(
-                f"{dep}: {optional.get_module_version(mod) if mod is not None else None}",
+                f"{dep}: " f"{get_module_version(mod) if mod is not None else None}",
                 file=file,
             )
         except ImportError:

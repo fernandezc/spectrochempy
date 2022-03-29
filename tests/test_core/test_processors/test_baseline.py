@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 # flake8: noqa
 
 import os
@@ -153,7 +160,7 @@ def test_issue_227():
     )
 
     # baseline correction the transposed data along x (now on axis 0) -> should produce the same results
-    # baseline correction along axis -1 previuosly
+    # baseline correction along axis -1 previously
     blc = scp.BaselineCorrection(ir.T)
     s2 = blc(
         [5999.0, 3500.0],

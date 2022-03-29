@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 #
-# =============================================================================
-# Copyright (©) 2015-2022 LCS
-# Laboratoire Catalyse et Spectrochimie, Caen, France.
-# CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
-# See full LICENSE agreement in the root directory
-# =============================================================================
 """
 This module implement the SIMPLISMA class.
 """
@@ -24,7 +24,7 @@ import warnings
 from traitlets import HasTraits, Instance, Unicode
 
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.core.dataset.npy import dot
+from spectrochempy.core.dataset.ndmath import dot
 from spectrochempy.core import info_, set_loglevel, INFO
 
 
@@ -416,10 +416,10 @@ class SIMPLISMA(HasTraits):
                     info_(llog)
                     finished = True
 
-        Pt.description = "Purity spectra from SIMPLISMA:\n" + logs
-        C.description = "Concentration/contribution matrix from SIMPLISMA:\n" + logs
-        St.description = "Pure compound spectra matrix from SIMPLISMA:\n" + logs
-        s.description = "Standard deviation spectra matrix from SIMPLISMA:\n" + logs
+        Pt.comment = "Purity spectra from SIMPLISMA:\n" + logs
+        C.comment = "Concentration/contribution matrix from SIMPLISMA:\n" + logs
+        St.comment = "Pure compound spectra matrix from SIMPLISMA:\n" + logs
+        s.comment = "Standard deviation spectra matrix from SIMPLISMA:\n" + logs
 
         self._logs = logs
         self._X = X
@@ -485,7 +485,7 @@ class SIMPLISMA(HasTraits):
         # reconstruct from concentration and spectra profiles
 
         X_hat = dot(self.C, self.St)
-        X_hat.description = "Dataset reconstructed by SIMPLISMA\n" + self.logs
+        X_hat.comment = "Dataset reconstructed by SIMPLISMA\n" + self.logs
         X_hat.title = "X_hat: " + self.X.title
         return X_hat
 

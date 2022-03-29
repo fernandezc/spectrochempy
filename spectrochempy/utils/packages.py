@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 import sys
 import os
@@ -14,11 +15,11 @@ from traitlets import import_item
 __all__ = ["list_packages", "generate_api", "get_pkg_path"]
 
 
-# ======================================================================================================================
+# ======================================================================================
 # PACKAGE and API UTILITIES
-# ======================================================================================================================
+# ======================================================================================
 
-# ..............................................................................
+
 def list_packages(package):
     """
     Return a list of the names of a package and its subpackages.
@@ -38,7 +39,6 @@ def list_packages(package):
     return names
 
 
-# ..............................................................................
 def generate_api(api_path):
     # name of the package
 
@@ -55,6 +55,7 @@ def generate_api(api_path):
     __all__ = []
 
     for pkg in pkgs:
+        # print(pkg)
         if pkg.endswith("api") or "test" in pkg:
             continue
         try:
@@ -71,6 +72,7 @@ def generate_api(api_path):
 
         __all__ += a
         for item in a:
+            # print(item)
 
             # set general method for the current package API
             obj = getattr(pkg, item)
@@ -97,7 +99,7 @@ def get_pkg_path(data_name, package=None):
     return path
 
 
-# ======================================================================================================================
+# ======================================================================================
 
 if __name__ == "__main__":
     pass

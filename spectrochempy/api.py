@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
-# Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-# CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root
-# directory.
-# ======================================================================================================================
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+
 """
 Application Programming Interface.
 """
@@ -13,13 +13,15 @@ Application Programming Interface.
 # and some `IPython` configurations are made.
 
 import sys
+import warnings
+from os import environ
 
 import matplotlib as mpl
 
 from IPython.core.interactiveshell import InteractiveShell
 from IPython import get_ipython
 
-from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.paths import pathclean
 
 # ------------------------------------------------------------------
 # Check the environment for plotting
@@ -88,6 +90,9 @@ ALL = ["NO_DISPLAY", "NO_DIALOG"]
 # ------------------------------------------------------------------
 # Now we can start loading the API
 # ------------------------------------------------------------------
+# ignore warnings during API loading
+warnings.filterwarnings("ignore")
+
 # import the core api
 from . import core
 from .core import *  # noqa: F403, F401, E402
@@ -125,15 +130,14 @@ DATADIR = pathclean(preferences.datadir)
 
 __all__ = ["pathclean", "DATADIR"] + ALL
 
-import warnings
-
-warnings.filterwarnings(action="ignore", module="matplotlib")  # , category=UserWarning)
-# warnings.filterwarnings(action="error", category=DeprecationWarning)
+warnings.filterwarnings(action="default")  # Change the filter in this process
+environ["PYTHONWARNINGS"] = "once"  # Also affect subprocesses
+warnings.filterwarnings(action="ignore", module="matplotlib")
+warnings.filterwarnings(action="once", category=DeprecationWarning)
+warnings.filterwarnings(action="ignore", category=ResourceWarning)
 
 if NO_DISPLAY:
     mpl.use("agg", force=True)
-
-    from os import environ
 
     # set test file and folder in environment
     # set a test file in environment

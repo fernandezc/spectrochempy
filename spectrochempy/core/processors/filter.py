@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 __all__ = ["savgol_filter", "detrend"]
 
@@ -129,8 +130,8 @@ def savgol_filter(
 
     is_ndarray = False
     axis = kwargs.pop("dim", kwargs.pop("axis", -1))
-    if hasattr(new, "get_axis"):
-        axis, dim = new.get_axis(axis, negative_axis=True)
+    if hasattr(new, "_get_axis"):
+        axis, dim = new._get_axis(axis, negative_axis=True)
         data = new.data
     else:
         is_ndarray = True
@@ -211,8 +212,8 @@ def detrend(dataset, type="linear", bp=0, **kwargs):
 
     is_ndarray = False
     axis = kwargs.pop("dim", kwargs.pop("axis", -1))
-    if hasattr(new, "get_axis"):
-        axis, dim = new.get_axis(axis, negative_axis=True)
+    if hasattr(new, "_get_axis"):
+        axis, dim = new._get_axis(axis, negative_axis=True)
         data = new.data
     else:
         is_ndarray = True

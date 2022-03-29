@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
+
+# ======================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory
+# ======================================================================================
+
 """
 SpectroChemPy documentation build configuration file
-
 """
 
 #
@@ -106,35 +112,28 @@ copyright = scp.application.__copyright__
 # today = ''
 # Else, today_fmt is used as the format for a strftime call.
 today_fmt = "%B %d, %Y"
-
 #
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = ["_templates", "_static", "**.ipynb_checkpoints", "gallery", "~temp"]
-
 #
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
 default_role = "obj"
-
 #
 # If true, '()' will be appended to :func: etc. cross-reference text.
 add_function_parentheses = False
-
 #
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
 add_module_names = False
-
 #
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
 # show_authors = False
-
 #
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
-
 #
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -574,7 +573,6 @@ exclusions = (
     "print_subcommands",
     "print_version",
     "python_config_loader_class",
-    "raises",
     "section_names",
     "set_trait",
     "setup_instance",

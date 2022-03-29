@@ -5,11 +5,12 @@
 #  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 #  See full LICENSE agreement in the root directory.
 # ======================================================================================
+
 from pathlib import Path
 from matplotlib import cycler
 
 from traitlets.config.configurable import Configurable
-from traitlets import All, List, TraitError, observe
+from traitlets import All, List, TraitError, observe, Undefined
 
 __all__ = ["MetaConfigurable", "Range"]
 
@@ -84,9 +85,9 @@ class MetaConfigurable(Configurable):
             self.updated = True
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Range trait type
-# ======================================================================================================================
+# ======================================================================================
 
 
 class Range(List):
@@ -112,7 +113,7 @@ class Range(List):
     info_text = "An ordered interval trait."
     allow_none = True
 
-    def __init__(self, trait=None, default_value=None, **kwargs):
+    def __init__(self, trait=None, default_value=Undefined, **kwargs):
 
         super(Range, self).__init__(trait=None, default_value=default_value, **kwargs)
 
@@ -141,6 +142,6 @@ class Range(List):
         return value
 
 
-# ======================================================================================================================
+# ======================================================================================
 if __name__ == "__main__":
     pass

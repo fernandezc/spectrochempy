@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 Plugin module to extend NDDataset with a JCAMP-DX export method.
 """
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime
 
 from spectrochempy.core.writers.exporter import Exporter, exportermethod
 
@@ -16,8 +17,7 @@ __all__ = ["write_jcamp", "write_jdx"]
 __dataset_methods__ = __all__
 
 
-# ...............................................................................
-def write_jcamp(*args, **kwargs):
+def write_jcamp(dataset, filename, **kwargs):
     """
     Write a dataset in JCAMP-DX format.
 
@@ -26,15 +26,19 @@ def write_jcamp(*args, **kwargs):
 
     Parameters
     ----------
-    filename: str or pathlib object, optional
+    dataset : |NDDataset|
+        Dataset to write.
+    filename : str or pathlib object, optional
         If not provided, a dialog is opened to select a file for writing.
-    protocol : {'scp', 'matlab', 'jcamp', 'csv', 'excel'}, optional
-        Protocol used for writing. If not provided, the correct protocol
-        is inferred (whnever it is possible) from the file name extension.
+    **kwargs : dict
+        See other parameters.
+
+    Other Parameters
+    ----------------
     directory : str, optional
         Where to write the specified `filename`. If not specified, write in the current directory.
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
 
     Returns
     -------
@@ -43,13 +47,13 @@ def write_jcamp(*args, **kwargs):
 
     Examples
     --------
-    The extension will be added automatically
+    The extension `jdx` will be added automatically
     >>> X.write_jcamp('myfile')
     """
     exporter = Exporter()
     kwargs["filetypes"] = ["JCAMP-DX files (*.jdx)"]
     kwargs["suffix"] = ".jdx"
-    return exporter(*args, **kwargs)
+    return exporter(dataset, filename, **kwargs)
 
 
 write_jdx = write_jcamp
@@ -92,7 +96,7 @@ def _write_jcamp(*args, **kwargs):
                     timestamp_index = i
 
         if timestamp_index is None:
-            timestamp = datetime.now(timezone.utc)
+            timestamp = datetime.utcnow()
 
         for i in range(dataset.shape[0]):
 
@@ -105,7 +109,7 @@ def _write_jcamp(*args, **kwargs):
                 fid.write(f"##TITLE={title}\n")
                 fid.write("##JCAMP-DX=5.01\n")
 
-            fid.write(f"##ORIGIN={dataset.origin}\n")
+            fid.write(f"##ORIGIN={dataset.source}\n")
             fid.write(f"##OWNER={dataset.author}\n")
 
             if timestamp_index is not None:

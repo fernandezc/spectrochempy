@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 In this module, methods are provided to download external datasets
 from public database.
@@ -14,7 +15,6 @@ __dataset_methods__ = __all__
 from io import StringIO
 import numpy as np
 import requests
-from datetime import datetime, timezone
 from pathlib import Path
 
 from spectrochempy.core.dataset.nddataset import NDDataset
@@ -25,7 +25,6 @@ from spectrochempy.utils.optional import import_optional_dependency
 from spectrochempy.core.common.compare import is_iterable
 
 
-# ..............................................................................
 def download_iris():
     """
     Upload the classical `IRIS` dataset.
@@ -63,7 +62,7 @@ def download_iris():
             labels = np.loadtxt(fil, delimiter=",", usecols=(4,), dtype="|S")
             labels = list((lab.decode("utf8") for lab in labels))
         except Exception:
-            raise OSError("can't read JCAMP file")
+            raise OSError("can't read CSV file")
 
         coordx = Coord(
             labels=["sepal_length", "sepal width", "petal_length", "petal_width"],
@@ -120,7 +119,6 @@ def download_nist_ir(CAS, index="all"):
     ----------
     CAS : int or str
         the CAS number, can be given as "XXXX-XX-X" (str), "XXXXXXX" (str), XXXXXXX (int)
-
     index : str or int or tuple of ints
         If set to 'all' (default, import all available spectra for the compound corresponding to the index, or a single spectrum,
         or selected spectra.
@@ -199,9 +197,7 @@ def download_nist_ir(CAS, index="all"):
             ds = read_jcamp("temp.jdx")
 
             # replace the default entry ":imported from jdx file":
-            ds.history[0] = ds.history[0][: len(str(datetime.now(timezone.utc)))] + (
-                f" : downloaded from NIST: {url}\n"
-            )
+            ds.history = [f"downloaded from NIST: {url}"]
             out.append(ds)
             (Path(".") / "temp.jdx").unlink()
 

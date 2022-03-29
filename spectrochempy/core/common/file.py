@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 File utilities.
 """
 from os import environ
 import re
 import warnings
-from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.paths import pathclean
 from pathlib import PurePath, Path
 
 __all__ = [
@@ -23,9 +24,9 @@ __all__ = [
 ]
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Utility functions
-# ======================================================================================================================
+# ======================================================================================
 
 
 def _insensitive_case_glob(pattern):
@@ -230,7 +231,8 @@ def _topspin_check_filename(filename, **kwargs):
             else:
                 files_ = [f / "1r"]
 
-    # depending on the glob patterns too many files may have been selected : restriction to the valid subset
+    # depending on the glob patterns too many files may have been selected :
+    # restriction to the valid subset
     filename = []
     for item in files_:
         if item.name in ["fid", "ser", "1r", "2rr", "3rrr"]:
@@ -522,7 +524,6 @@ def get_directory_name(directory, **kwargs):
         return pathclean(directory)
 
 
-# ..............................................................................
 def check_filename_to_save(
     dataset, filename=None, save_as=False, confirm=True, **kwargs
 ):
@@ -553,6 +554,10 @@ def check_filename_to_save(
             else:
                 info_(f"A file {filename} was present and has been overwritten.")
                 open_diag = False
+        else:
+            # name provided but file doesn't exist
+            caption = "Save as ..."
+            open_diag = True
 
         if not NODIAL and open_diag:
 
@@ -569,7 +574,6 @@ def check_filename_to_save(
     return pathclean(filename)
 
 
-# ..........................................................................
 def check_filename_to_open(*args, **kwargs):
     # Check the args and keywords arg to determine the correct filename
 

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 """
 A collection of NMR spectral processing functions which operate on the last
@@ -22,9 +23,9 @@ from spectrochempy.core import error_
 pi = np.pi
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Decorators
-# ======================================================================================================================
+# ======================================================================================
 
 
 def _phase_method(method):
@@ -32,7 +33,7 @@ def _phase_method(method):
     def wrapper(dataset, **kwargs):
 
         # On which axis do we want to phase (get axis from arguments)
-        axis, dim = dataset.get_axis(**kwargs, negative_axis=True)
+        axis, dim = dataset._get_axis(**kwargs, negative_axis=True)
 
         # output dataset inplace (by default) or not
         if not kwargs.pop("inplace", False):
@@ -128,9 +129,9 @@ def _phase_method(method):
     return wrapper
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Public methods
-# ======================================================================================================================
+# ======================================================================================
 
 
 @_phase_method
@@ -247,7 +248,7 @@ def pk_exp(dataset, phc0=0.0, pivot=0.0, exptc=0.0, **kwargs):
 #
 #     """
 #     # options evaluation
-#     parser = argparse.ArgumentParser(description='PK processing.', usage="""
+#     parser = argparse.ArgumentParser(comment='PK processing.', usage="""
 #     pk [-h] [--auto] [--fit_phc1] [--ediff EDIFF]
 #                            [--gamma GAMMA] [--select {standard,max,cols}]
 #                            [--threshold THRESHOLD] [--mode MODE]

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 """
 Plugin module to extend NDDataset with the import methods method.
@@ -14,7 +15,7 @@ __dataset_methods__ = __all__
 
 import io
 from warnings import warn
-from datetime import datetime, timezone
+from datetime import datetime
 
 import numpy as np
 import scipy.io as sio
@@ -23,9 +24,9 @@ from spectrochempy.core.dataset.nddataset import NDDataset, Coord
 from spectrochempy.core.readers.importer import Importer, _importer_method
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Public functions
-# ======================================================================================================================
+# ======================================================================================
 def read_matlab(*paths, **kwargs):
     """
     Read a matlab file with extension ``.mat`` and return its content as a list.
@@ -58,9 +59,6 @@ def read_matlab(*paths, **kwargs):
 
     Other Parameters
     ----------------
-    protocol : {'scp', 'omnic', 'opus', 'topspin', 'matlab', 'jcamp', 'csv', 'excel'}, optional
-        Protocol used for reading. If not provided, the correct protocol
-        is inferred (whnever it is possible) from the file name extension.
     directory : str, optional
         From where to read the specified `filename`. If not specified, read in the default ``datadir`` specified in
         SpectroChemPy Preferences.
@@ -68,8 +66,8 @@ def read_matlab(*paths, **kwargs):
         Default value is False. If True, and several filenames have been provided as arguments,
         then a single dataset with merged (stacked along the first
         dimension) is returned (default=False)
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     content : bytes object, optional
         Instead of passing a filename for further reading, a bytes content can be directly provided as bytes objects.
         The most convenient way is to use a dictionary. This feature is particularly useful for a GUI Dash application
@@ -107,7 +105,6 @@ def read_matlab(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-# ..............................................................................
 read_mat = read_matlab
 
 
@@ -133,7 +130,7 @@ def _read_mat(*args, **kwargs):
 
         dataset = NDDataset()
         if name == "__header__":
-            dataset.description = str(data, "utf-8", "ignore")
+            dataset.comment = str(data, "utf-8", "ignore")
             continue
         if name.startswith("__"):
             continue
@@ -154,10 +151,8 @@ def _read_mat(*args, **kwargs):
             # this is an array of numbers
             dataset.data = data
             dataset.name = name
-            dataset.history = (
-                str(datetime.now(timezone.utc)) + ":imported from .mat file \n"
-            )
-            # TODO: reshape from fortran/Matlab order to C opder
+            dataset.history = "Imported from .mat file"
+            # TODO: reshape from fortran/Matlab order to C order
             # for 3D or higher datasets ?
             datasets.append(dataset)
 
@@ -270,20 +265,19 @@ def _read_dso(dataset, name, data):
         dataset.set_coordset(*[coord for coord in coords])
         dataset.author = author
         dataset.name = name
-        dataset.date = date
+        dataset._created = date
 
         # TODO: reshape from fortran/Matlab order to C order
         #  for 3D or higher datasets ?
 
         for i in data["description"][0][0]:
-            dataset.description += i
+            dataset.comment += i
 
         for i in data["history"][0][0][0][0]:
             dataset.history.append(i)
 
-        dataset.history = (
-            str(datetime.now(timezone.utc)) + ": Imported by spectrochempy "
-        )
+        dataset.history = "Imported by spectrochempy "
+
     return dataset
 
 

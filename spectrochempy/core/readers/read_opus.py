@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module extend NDDataset with the import method for OPUS generated data files.
 """
@@ -12,17 +13,17 @@ __dataset_methods__ = __all__
 
 import io
 import numpy as np
-from datetime import datetime, timezone, timedelta
 
 from brukeropusreader.opus_parser import parse_data, parse_meta
 from spectrochempy.core.dataset.coord import LinearCoord, Coord
 from spectrochempy.core.readers.importer import Importer, _importer_method
 from spectrochempy.core import debug_
+from datetime import datetime, timedelta, timezone
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Public functions
-# ======================================================================================================================
+# ======================================================================================
 def read_opus(*paths, **kwargs):
     """
     Open Bruker OPUS file(s).
@@ -54,9 +55,6 @@ def read_opus(*paths, **kwargs):
 
     Other Parameters
     -----------------
-    protocol : {'scp', 'omnic', 'opus', 'topspin', 'matlab', 'jcamp', 'csv', 'excel'}, optional
-        Protocol used for reading. If not provided, the correct protocol
-        is inferred (whnever it is possible) from the file name extension.
     directory : str, optional
         From where to read the specified `filename`. If not specified, read in the default ``datadir`` specified in
         SpectroChemPy Preferences.
@@ -66,8 +64,8 @@ def read_opus(*paths, **kwargs):
         dimension) is returned (default=False).
     sortbydate : bool, optional
         Sort multiple spectra by acquisition date (default=True).
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     content : bytes object, optional
         Instead of passing a filename for further reading, a bytes content can be directly provided as bytes objects.
         The most convenient way is to use a dictionary. This feature is particularly useful for a GUI Dash application
@@ -160,11 +158,11 @@ def read_opus(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Private Functions
-# ======================================================================================================================
+# ======================================================================================
 
-# ..............................................................................
+
 @_importer_method
 def _read_opus(*args, **kwargs):
     debug_("Bruker OPUS import")
@@ -220,18 +218,17 @@ def _read_opus(*args, **kwargs):
     dataset.units = "absorbance"
     dataset.title = "absorbance"
 
-    # Set name, origin, description and history
+    # Set name, origin, comment and history
     dataset.name = filename.name
-    dataset.origin = "opus"
-    dataset.description = "Dataset from opus files. \n"
-    dataset.history = str(datetime.now(timezone.utc)) + ": import from opus files \n"
-    dataset._date = datetime.now(timezone.utc)
-    dataset._modified = dataset.date
+    dataset.source = "opus"
+    dataset.comment = "Dataset from opus files."
+    dataset.history = "Import from opus files"
+    dataset._created = datetime.utcnow()
+    dataset._modified = dataset._created
 
     return dataset
 
 
-# ..............................................................................
 def _read_data(fid):
     data = fid.read()
     meta_data = parse_meta(data)

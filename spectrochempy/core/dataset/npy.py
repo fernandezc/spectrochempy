@@ -13,7 +13,6 @@ __all__ = ["dot"]
 import numpy as np
 
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.utils import make_new_object
 
 
 def dot(a, b, strict=True, out=None):
@@ -93,7 +92,7 @@ def dot(a, b, strict=True, out=None):
 
     # make the output
     # ------------------------------------------------------------------------
-    new = make_new_object(a)
+    new = type(a)()
     new._data = data
     new._mask = mask
     new.set_coordset(y=coordy, x=coordx)

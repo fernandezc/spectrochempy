@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 Module containing multiplot function(s).
 """
@@ -36,7 +37,6 @@ from spectrochempy.utils.plots import _Axes
 # from spectrochempy.core import preferences, project_preferences
 
 
-# .............................................................................
 def multiplot_scatter(datasets, **kwargs):
     """
     Plot a multiplot with 1D scatter type plots.
@@ -47,7 +47,6 @@ def multiplot_scatter(datasets, **kwargs):
     return multiplot(datasets, **kwargs)
 
 
-# .............................................................................
 def multiplot_lines(datasets, **kwargs):
     """
     Plot a multiplot with 1D linetype plots.
@@ -58,7 +57,6 @@ def multiplot_lines(datasets, **kwargs):
     return multiplot(datasets, **kwargs)
 
 
-# .............................................................................
 def multiplot_stack(datasets, **kwargs):
     """
     Plot a multiplot with 2D stack type plots.
@@ -69,7 +67,6 @@ def multiplot_stack(datasets, **kwargs):
     return multiplot(datasets, **kwargs)
 
 
-# .............................................................................
 def multiplot_map(datasets, **kwargs):
     """
     Plot a multiplot with 2D map type plots.
@@ -80,7 +77,6 @@ def multiplot_map(datasets, **kwargs):
     return multiplot(datasets, **kwargs)
 
 
-# .............................................................................
 def multiplot_image(datasets, **kwargs):
     """
     Plot a multiplot with 2D image type plots.
@@ -109,7 +105,6 @@ def plot_with_transposed(dataset, **kwargs):
 multiplot_with_transposed = plot_with_transposed
 
 
-# .............................................................................
 def multiplot(
     datasets=[],
     labels=[],

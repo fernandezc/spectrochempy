@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+"""
+Various methods and classes used in other part of the program.
+"""
+
 import numpy as np
 
 
@@ -13,7 +24,6 @@ def _get_n_decimals(val, accuracy):
     return nd
 
 
-# ..............................................................................
 def spacings(arr):
     """
     Return a scalar for the spacing in the one-dimensional input array (if it is uniformly spaced,
@@ -28,7 +38,8 @@ def spacings(arr):
     out : float or array
     """
     spacings = np.diff(arr)
-    # we need to take into account only the significative digits ( but round to some decimals doesn't work
+    # we need to take into account only the significative digits
+    # ( but round to some decimals doesn't work
     # for very small number
     #    mantissa, twoexp = np.frexp(spacings)
     #    mantissa = mantissa.round(6)

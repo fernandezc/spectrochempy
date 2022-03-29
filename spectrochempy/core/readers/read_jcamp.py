@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module to extend NDDataset with the import methods.
 """
@@ -14,6 +15,7 @@ __dataset_methods__ = __all__
 import io
 import re
 from datetime import datetime, timezone
+
 import numpy as np
 
 from spectrochempy.core.dataset.coord import Coord
@@ -21,9 +23,9 @@ from spectrochempy.core.readers.importer import Importer, _importer_method
 from spectrochempy.core.common.exceptions import deprecated
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Public functions
-# ======================================================================================================================
+# ======================================================================================
 def read_jcamp(*paths, **kwargs):
     """
     Open Infrared JCAMP-DX files with extension ``.jdx`` or ``.dx``.
@@ -56,9 +58,6 @@ def read_jcamp(*paths, **kwargs):
 
     Other Parameters
     ----------------
-    protocol : {'scp', 'omnic', 'opus', 'topspin', 'matlab', 'jcamp', 'csv', 'excel'}, optional
-        Protocol used for reading. If not provided, the correct protocol
-        is inferred (whnever it is possible) from the file name extension.
     directory : str, optional
         From where to read the specified `filename`. If not specified, read in the default ``datadir`` specified in
         SpectroChemPy Preferences.
@@ -68,8 +67,8 @@ def read_jcamp(*paths, **kwargs):
         dimension) is returned (default=False).
     sortbydate : bool, optional
         Sort multiple spectra by acquisition date (default=True).
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     content : bytes object, optional
         Instead of passing a filename for further reading, a bytes content can be directly provided as bytes objects.
         The most convenient way is to use a dictionary. This feature is particularly useful for a GUI Dash application
@@ -100,25 +99,19 @@ def read_jcamp(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-@deprecated(
-    "read_jdx reading method is deprecated and may be removed in next versions "
-    "- use read_jcamp instead"
-)
+@deprecated(replace="read_jcamp")
 def read_jdx(*args, **kwargs):
     return read_jcamp(*args, **kwargs)
 
 
-@deprecated(
-    "read_dx reading method is deprecated and may be removed in next versions "
-    "- use read_jcamp instead"
-)
+@deprecated(replace="read_jcamp")
 def read_dx(*args, **kwargs):  # pragma: no cover
     return read_jcamp(*args, **kwargs)
 
 
-# ======================================================================================================================
+# ======================================================================================
 # private functions
-# ======================================================================================================================
+# ======================================================================================
 
 
 @_importer_method
@@ -135,7 +128,7 @@ def _read_jdx(*args, **kwargs):
         fid = open(filename, "r")
 
     # Read header of outer Block
-    # ..........................................................................
+
     keyword = ""
 
     while keyword != "##TITLE":
@@ -162,10 +155,10 @@ def _read_jdx(*args, **kwargs):
         raise ValueError("DATA TYPE must be LINK or INFRARED SPECTRUM")
 
     # Create variables
-    # ..........................................................................
+
     xaxis = np.array([])
     data = np.array([])
-    alltitles, alltimestamps, alldates, xunits, yunits, allorigins = (
+    alltitles, alltimestamps, alldates, xunits, yunits, allsources = (
         [],
         [],
         [],
@@ -180,7 +173,7 @@ def _read_jdx(*args, **kwargs):
     )
 
     # Read the spectra
-    # ..........................................................................
+
     for i in range(nspec):
 
         # Reset variables
@@ -196,7 +189,7 @@ def _read_jdx(*args, **kwargs):
             if keyword in ["##OWNER", "##JCAMP-DX"]:
                 continue
             elif keyword == "##ORIGIN":
-                allorigins.append(text)
+                allsources.append(text)
             elif keyword == "##TITLE":
                 # Add the title of the spectrum in the list alltitles
                 alltitles.append(text)
@@ -349,40 +342,38 @@ def _read_jdx(*args, **kwargs):
         _y = Coord()
     dataset.set_coordset(y=_y, x=_x)
 
-    # Set origin, description and history
+    # Set origin, comment and history
     if nspec > 1:
-        origins = set(allorigins)
-        if len(origins) == 0:
+        sources = set(allsources)
+        if len(sources) == 0:
             pass
-        elif len(origins) == 1:
-            dataset.origin = allorigins[0]
+        elif len(sources) == 1:
+            dataset.source = allsources[0]
         else:
-            dataset.origin = [(origin + "; ") for origin in set(allorigins)][0][:-2]
+            dataset.source = [(source + "; ") for source in set(allsources)][0][:-2]
 
-    dataset.description = "Dataset from jdx file: '{0}'".format(jdx_title)
+    dataset.comment = "Dataset from jdx file: '{0}'".format(jdx_title)
 
-    dataset.history = str(datetime.now(timezone.utc)) + " : imported from jdx file \n"
+    dataset.history = "Imported from jdx file"
 
     if sortbydate and nspec > 1:
         dataset.sort(dim="x", inplace=True)
-        dataset.history = str(datetime.now(timezone.utc)) + ":sorted by date\n"
+        dataset.history = "Sorted by date"
     # Todo: make sure that the lowest index correspond to the largest wavenumber
     #  for compatibility with dataset created by read_omnic:
 
     # Set the NDDataset date
-    dataset._date = datetime.now(timezone.utc)
-    dataset._modified = dataset.date
+    dataset._created = datetime.utcnow()
+    dataset._modified = dataset._created
 
     return dataset
 
 
-# ..............................................................................
 @_importer_method
 def _read_dx(*args, **kwargs):  # pragma: no cover
     return _read_jdx(*args, **kwargs)
 
 
-# ..............................................................................
 def _readl(fid):
     line = fid.readline()
     if not line:

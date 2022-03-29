@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 Peak finding module.
 
@@ -13,8 +14,6 @@ Contains wrappers of scipy.signal peak finding functions.
 __all__ = ["find_peaks"]
 
 __dataset_methods__ = ["find_peaks"]
-
-from datetime import datetime, timezone
 
 from scipy import signal
 import numpy as np
@@ -311,8 +310,6 @@ def find_peaks(
             ]
 
     out.name = "peaks of " + X.name
-    out.history = (
-        f"{str(datetime.now(timezone.utc))}: find_peaks(): {len(peaks)} peak(s) found"
-    )
+    out.history = f"Find_peaks(): {len(peaks)} peak(s) found."
 
     return out, properties

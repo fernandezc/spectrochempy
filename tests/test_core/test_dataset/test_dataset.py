@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 from os import environ
+=======
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+>>>>>>> release/0.4_initial_dev
 
 import numpy as np
 import pytest
@@ -20,19 +28,29 @@ from spectrochempy.utils.testing import (
     RandomSeedContext,
     assert_array_almost_equal,
     assert_array_equal,
+<<<<<<< HEAD
     assert_dataset_almost_equal,
     assert_dataset_equal,
     assert_equal,
     raises,
+=======
+    RandomSeedContext,
+>>>>>>> release/0.4_initial_dev
 )
 
 typequaternion = np.dtype(np.quaternion)
 
+<<<<<<< HEAD
 
 # --------------------------------------------------------------------------------------
 # FIXTURES
 # --------------------------------------------------------------------------------------
 
+=======
+# ========
+# FIXTURES
+# ========
+>>>>>>> release/0.4_initial_dev
 with RandomSeedContext(12345):
     ref_data = 10.0 * np.random.random((10, 8)) - 5.0
     ref3d_data = 10.0 * np.random.random((10, 100, 3)) - 5.0
@@ -184,11 +202,14 @@ def dsm():
     ).copy()
 
 
+<<<<<<< HEAD
 # --------------------------------------------------------------------------------------
 # Tests
 # --------------------------------------------------------------------------------------
 
 
+=======
+>>>>>>> release/0.4_initial_dev
 # test minimal constructor and dtypes
 adata = (
     [],
@@ -200,7 +221,12 @@ adata = (
     [0.0 + 1j, np.nan + 3.0j],
 )
 
+############################
+# TEST SUITE FOR nddataset #
+############################
 
+
+##########
 @pytest.mark.parametrize("a", adata)
 def test_dataset_init_1D(a):
     # 1D
@@ -215,6 +241,7 @@ def test_dataset_init_1D(a):
             assert ds.dtype in [np.int64, np.float64, np.complex128]
             assert ds.dims == ["x"]
         # force dtype
+<<<<<<< HEAD
         try:
             ds = NDDataset(arr, dtype=np.float32)
             if ds.size == 0:
@@ -228,11 +255,19 @@ def test_dataset_init_1D(a):
                 raise exc
 
         assert ds.title == "value"
+=======
+        ds = scp.NDDataset(arr, dtype=np.float32)
+        if ds.size == 0:
+            assert ds.dtype is None
+        else:
+            assert ds.dtype == np.float32
+        assert ds.title == "<untitled>"
+>>>>>>> release/0.4_initial_dev
         assert ds.mask == scp.NOMASK
         assert ds.meta == {}
         assert ds.name.startswith("NDDataset")
         assert ds.author == get_user_and_node()
-        assert ds.description == ""
+        assert ds.comment == ""
         assert ds.history == []
 
 
@@ -255,13 +290,17 @@ def test_2D_NDDataset(arr):
     else:
         assert ds.dtype in [np.int64, np.float64]
         assert ds.dims == ["y", "x"][-ds.ndim :]
+<<<<<<< HEAD
     assert ds.title == "value"
+=======
+    assert ds.title == "<untitled>"
+>>>>>>> release/0.4_initial_dev
     assert ds.mask == scp.NOMASK
     assert ds.meta == {}
     assert ds.name.startswith("NDDataset")
     assert ds.author == get_user_and_node()
     assert not ds.history
-    assert ds.description == ""
+    assert ds.comment == ""
     # force dtype
     ds = NDDataset(arr, dtype=np.float32)
     if ds.size == 0:
@@ -275,6 +314,7 @@ def test_2D_NDDataset(arr):
         else:
             assert ds.dtype == np.complex128
     else:
+<<<<<<< HEAD
         with pytest.raises(ShapeError):
             ds = NDDataset(arr, dtype=np.complex128)
     if (
@@ -283,13 +323,24 @@ def test_2D_NDDataset(arr):
         and (arr.shape[-2] % 2) == 0
     ):
         ds = NDDataset(arr, dtype=np.quaternion)
+=======
+        with pytest.raises(ValueError):
+            scp.NDDataset(arr, dtype=np.complex128)
+    if (arr.shape[-1] % 2) == 0 and (arr.shape[-2] % 2) == 0 and arr.ndim == 2:
+        ds = scp.NDDataset(arr, dtype=np.quaternion)
+>>>>>>> release/0.4_initial_dev
         if ds.size == 0:
             assert ds.dtype is None
         else:
             assert ds.dtype == np.quaternion
     else:
+<<<<<<< HEAD
         with pytest.raises(ShapeError):
             ds = NDDataset(arr, dtype=np.quaternion)
+=======
+        with pytest.raises(ValueError):
+            scp.NDDataset(arr, dtype=np.quaternion)
+>>>>>>> release/0.4_initial_dev
     # test units
     ds1 = NDDataset(arr * scp.ur.km)
     ds2 = NDDataset(arr, units=scp.ur.km)
@@ -611,7 +662,11 @@ def test_nddataset_coords_indexer():
     coord1 = np.linspace(0, 60, 10)  # wrong length
     coord2 = np.linspace(20, 30, 10)
     with pytest.raises(ValueError):  # wrong length
+<<<<<<< HEAD
         da = NDDataset(
+=======
+        scp.NDDataset(
+>>>>>>> release/0.4_initial_dev
             dx,
             coordset=[coord0, coord1, coord2],
             title="absorbance",
@@ -655,17 +710,27 @@ def test_nddataset_coords_indexer():
 # ======================================================================================================================
 # Methods
 # ======================================================================================================================
+<<<<<<< HEAD
 def test_nddataset_str():
     arr1d = NDDataset([1, 2, 3])
+=======
+def test_nddataset_str_repr_methods():
+
+    arr1d = scp.NDDataset([1, 2, 3])
+>>>>>>> release/0.4_initial_dev
     assert "[float64]" in str(arr1d)
     arr2d = NDDataset(np.array([[1, 2], [3, 4]]))
     assert str(arr2d) == "NDDataset: [float64] unitless (shape: (y:2, x:2))"
+<<<<<<< HEAD
 
 
 def test_nddataset_str_repr(ds1):
     arr1d = NDDataset(np.array([1, 2, 3]))
     assert repr(arr1d).startswith("NDDataset")
     arr2d = NDDataset(np.array([[1, 2], [3, 4]]))
+=======
+    assert repr(arr1d).startswith("NDDataset")
+>>>>>>> release/0.4_initial_dev
     assert repr(arr2d).startswith("NDDataset")
 
 
@@ -703,7 +768,7 @@ def test_nddataset_units(nd1d):
     assert nd2.data[1] == np.sqrt(nd.data[1])
     assert nd2.units == ur.m ** 0.5
     nd.units = "cm"
-    nd2 = np.sqrt(nd)
+    _ = np.sqrt(nd)
     nd.ito("m")
     nd2 = np.sqrt(nd)
     assert isinstance(nd2, type(nd))
@@ -902,7 +967,7 @@ def test_nddataset_slicing_out_limits(caplog, ds1):
     assert y2 is None  # as we are out of limits
     assert caplog.records[-1].levelname == "ERROR"
     assert caplog.records[-1].message.startswith(
-        "ERROR: Empty array of shape (0, 100, 3) resulted from slicing."
+        "ERROR | Empty array of shape (0, 100, 3) resulted from slicing."
     )
     y3 = da[:, 95:105]
     assert str(y3) == "NDDataset: [float64] a.u. (shape: (z:10, y:5, x:3))"
@@ -910,16 +975,16 @@ def test_nddataset_slicing_out_limits(caplog, ds1):
     assert y2 is None  # as we are out of limits
     assert caplog.records[-1].levelname == "ERROR"
     assert caplog.records[-1].message.startswith(
-        "ERROR: Empty array of shape (0, 100, 3) resulted from slicing."
+        "ERROR | Empty array of shape (0, 100, 3) resulted from slicing."
     )
     y5 = da[5000.0:3000.0]
     assert str(y5) == "NDDataset: [float64] a.u. (shape: (z:4, y:100, x:3))"
 
 
-@raises(IndexError)
 def test_nddataset_slicing_toomanyindex(ds1):
     da = ds1
-    da[:, 3000.0:2000.0, :, 210.0]
+    with pytest.raises(IndexError):
+        da[:, 3000.0:2000.0, :, 210.0]
 
 
 def test_nddataset_slicing_by_index_nocoords(ds1):
@@ -1073,16 +1138,25 @@ def test_nddataset_with_mask_acts_like_masked_array():
 def test_nddataset_creationdate():
     ndd = NDDataset([1.0, 2.0, 3.0])
     ndd2 = np.sqrt(ndd)
-    assert ndd2._date is not None
+    assert ndd2._created is not None
 
 
 def test_nddataset_title():
+<<<<<<< HEAD
     ndd = NDDataset([1.0, 2.0, 3.0], title="xxxx")
     assert ndd.title == "xxxx"
     ndd2 = NDDataset(ndd, title="yyyy")
     assert ndd2.title == "yyyy"
     ndd2.title = "zzzz"
     assert ndd2.title == "zzzz"
+=======
+    ndd = scp.NDDataset([1.0, 2.0, 3.0], title="xxxx")
+    assert ndd.title == "xxxx"
+    ndd2 = scp.NDDataset(ndd, title="yyyy")
+    assert ndd2.title == "yyyy"
+    ndd2.title = "zzzz"
+    assert ndd2.title == "zzzz"
+>>>>>>> release/0.4_initial_dev
 
 
 def test_nddataset_real_imag():
@@ -1237,9 +1311,15 @@ def test_nddataset_use_of_mask(dsm):
 # additional tests made following some bug fixes
 # ------------------------------------------------------------------
 def test_nddataset_repr_html_bug_undesired_display_complex():
+<<<<<<< HEAD
     da = NDDataset([1, 2, 3])
     da.title = "intensity"
     da.description = "Some experimental measurements"
+=======
+    da = scp.NDDataset([1, 2, 3])
+    da.title = "intensity"
+    da.source = "Some experimental measurements"
+>>>>>>> release/0.4_initial_dev
     da.units = "dimensionless"
     assert "(complex)" not in da._repr_html_()
     pass
@@ -1252,7 +1332,10 @@ def test_nddataset_bug_fixe_figopeninnotebookwithoutplot():
 
 
 def test_nddataset_bug_par_arnaud():
+<<<<<<< HEAD
     import numpy as np
+=======
+>>>>>>> release/0.4_initial_dev
 
     import spectrochempy as scp
 
@@ -1618,3 +1701,144 @@ def test_nddataset_apply_funcs(dsm):
 
 def test_take(dsm):
     pass
+
+def test_datetime64_coordinates(IR_dataset_2D):
+
+    X = IR_dataset_2D
+    assert X.y.dtype == np.dtype("datetime64[s]")
+    assert X.y.units is None
+    # there is no units for this object as it is defined internally
+
+    with assert_produces_warning(
+        match="method `to` cannot be used with datetime object. Ignored!"
+    ):
+        X.y.to("tesla")
+        # can not change to a foreign unit (of course)
+
+    # subtract a datetime to a datetime array --> should be a float
+    X.y = X.y - X.y[0]  # subtract the acquisition timestamp of the first spectrum
+    assert X.y.dtype == np.dtype("float")
+    assert X.y.units == ur.second
+
+    X.y = X.y.to("minute")  # convert to minutes
+    assert X.y.units == ur.minute
+    X.y += 2
+    # add 2 minutes
+    assert X.y.units == ur.minute
+    assert X.y[0].data == [2]
+
+# Conversion
+
+
+@pytest.mark.skipif(
+    scp.optional.import_optional_dependency("xarray", errors="ignore") is None,
+    reason="need xarray package to run",
+)
+def test_nddataset_to_xarray(IR_dataset_2D):
+
+    nd1 = IR_dataset_2D[0].squeeze()
+
+    xnd1 = nd1.to_xarray()
+    print(xnd1)
+    assert xnd1.x.attrs["pint_units"] == nd1.x.units
+
+    # 2D
+    nd2 = IR_dataset_2D
+    nd2[:, 1230.0:920.0] = scp.MASKED
+
+    # add some attribute
+    nd2.meta.pression = 34 * ur.pascal
+    nd2.meta.temperature = 3000 * ur.K
+    assert nd2.meta.temperature == 3000 * ur.K
+    assert nd2.temperature == 3000 * ur.K  # alternative way to get the meta attribute
+
+    assert nd2.meta.essai is None  # do not exist in dict
+    with pytest.raises(AttributeError):
+        nd2.essai2  # can not find this attribute
+
+    # also for the coordinates
+    nd2.y.meta.pression = 3 * ur.torr
+    assert nd2.y.meta["pression"] == 3 * ur.torr
+    assert nd2.y.pression == 3 * ur.torr  # alternative way to get the meta attribute
+
+    assert nd2.y.meta.essai is None  # not found so it is None
+    with pytest.raises(AttributeError):
+        nd2.y.essai  # can't find such attribute
+
+    # convert
+    xnd2 = nd2.to_xarray()
+    print(xnd2)
+    assert xnd2.y.attrs["pint_units"] == "None"
+    assert xnd2.y.attrs["meta_pression"] == nd2.y.meta["pression"].m
+    assert xnd2.y.attrs["meta_pression"] == nd2.y.pression.m
+    assert xnd2.y.attrs["pint_units_meta_pression"] == nd2.y.meta["pression"].u
+
+
+####
+def test_squeeze_method():
+
+    c1 = scp.Coord([2], units="m")
+    c2 = scp.Coord.arange(3, units="m^2")
+    c3 = scp.Coord([3], units="m^3")
+    nd = scp.NDDataset(np.ones((1, 3, 1)))
+
+    assert nd.shape == (1, 3, 1)
+
+    nd.x = c3
+    nd.y = c2
+    nd.z = c1
+
+    nd2 = nd.squeeze()
+
+    assert nd2.shape == (3,)
+
+    nd3 = nd.squeeze(0)
+
+    assert nd3.shape == (3, 1)
+
+    nd4 = nd.squeeze(keepdims=2)
+
+    assert nd4.shape == (3, 1)
+    assert str(nd4) == "NDDataset: [float64] unitless (shape: (y:3, x:1))"
+
+    nd5 = nd.squeeze("x")
+    assert nd5.shape == (1, 3)
+
+    nd6 = nd.squeeze(keepdims="x")
+
+    assert nd6.shape == (3, 1)
+
+def test_issue_310():
+
+    import numpy as np
+
+    import spectrochempy as scp
+
+    D = scp.NDDataset(np.zeros((10, 5)))
+    c5 = scp.Coord.linspace(start=0.0, stop=1000.0, num=5, name="xcoord")
+    c10 = scp.Coord.linspace(start=0.0, stop=1000.0, num=10, name="ycoord")
+
+    assert c5.name == "xcoord"
+    D.set_coordset(x=c5, y=c10)
+    assert c5.name == "x"
+    assert str(D.coordset) == "CoordSet: [x:<untitled>, y:<untitled>]"
+    assert D.dims == ["y", "x"]
+
+    E = scp.NDDataset(np.ndarray((10, 5)))
+    E.dims = ["t", "s"]
+    E.set_coordset(s=c5, t=c10)
+    assert c5.name == "s"
+    assert str(E.coordset) == "CoordSet: [s:<untitled>, t:<untitled>]"
+    assert E.dims == ["t", "s"]
+
+    E = scp.NDDataset(np.ndarray((5, 10)))
+    E.dims = ["s", "t"]
+    E.set_coordset(s=c5, t=c10)
+    assert c5.name == "s"
+    assert str(E.coordset) == "CoordSet: [s:<untitled>, t:<untitled>]"
+    assert E.dims == ["s", "t"]
+
+    assert str(D.coordset) == "CoordSet: [x:<untitled>, y:<untitled>]"
+    assert D.dims == ["y", "x"]
+
+    assert str(D[:, 1]) == "NDDataset: [float64] unitless (shape: (y:10, x:1))"

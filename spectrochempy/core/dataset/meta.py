@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module mainly contains the definition of a Meta class object.
 
 Such object is particularly used in `SpectrochemPy` by the |NDDataset| object
-to store metadata. Like a regular dictionary, the
-elements can be accessed by key, but also by attributes, *e.g.*
+to store metadata. Unlike a regular dictionary, the
+elements can be accessed not only by key, but also by attributes, *e.g.*
 ``a = meta['key']`` give the same results as ``a = meta.key``.
 """
 
@@ -27,9 +28,9 @@ import numpy as np
 __all__ = ["Meta"]
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Class Meta
-# ======================================================================================================================
+# ======================================================================================
 
 
 class Meta(object):  # HasTraits):
@@ -183,7 +184,8 @@ class Meta(object):  # HasTraits):
     # public methods
     # ------------------------------------------------------------------------
 
-    def _implements(self, name=None):
+    @staticmethod
+    def _implements(name=None):
         if name is None:
             return "Meta"
         else:
@@ -287,12 +289,12 @@ class Meta(object):  # HasTraits):
 
     def swap(self, dim1, dim2, inplace=True):
         """
-        Permute meta corresponding to distinct axis to reflect swapping on the
+        Permute metadata corresponding to distinct axis to reflect swapping on the
         corresponding data array.
 
         Parameters
         ----------
-        dim1
+        dim1 :
         dim2
         inplace
 

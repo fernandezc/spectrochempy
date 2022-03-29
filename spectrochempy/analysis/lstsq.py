@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 # TODO: create tests
 
@@ -102,8 +103,8 @@ class LSTSQ(HasTraits):
                 title="%s at origin" % Y.title,
             )
 
-            A.history = "Computed by spectrochempy.lstsq \n"
-            B.history = "Computed by spectrochempy.lstsq \n"
+            A.history = "Computed by spectrochempy.lstsq."
+            B.history = "Computed by spectrochempy.lstsq."
 
         return A, B
 
@@ -211,8 +212,8 @@ class NNLS(HasTraits):
                 title="%s at origin" % Y.title,
             )
 
-            A.history = "Computed by spectrochempy.lstsq \n"
-            B.history = "Computed by spectrochempy.lstsq \n"
+            A.history = "Computed by spectrochempy.lstsq."
+            B.history = "Computed by spectrochempy.lstsq."
 
         return A, B
 
@@ -325,8 +326,8 @@ class CurveFit(HasTraits):
                 title="%s at origin" % Y.title,
             )
 
-            A.history = "Computed by spectrochempy.lstsq \n"
-            B.history = "Computed by spectrochempy.lstsq \n"
+            A.history = "Computed by spectrochempy.lstsq."
+            B.history = "Computed by spectrochempy.lstsq."
 
         return A, B
 

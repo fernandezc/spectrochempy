@@ -33,7 +33,6 @@ for item in scripts[:]:
         scripts.remove(item)
 
 
-# ......................................................................................
 def example_run(path):
     import subprocess
 
@@ -51,7 +50,6 @@ def example_run(path):
     return pipe.returncode, so, serr
 
 
-# ......................................................................................
 @pytest.mark.parametrize("example", scripts)
 def test_example(example):
     # some test will failed due to the magic commands or for other known reasons

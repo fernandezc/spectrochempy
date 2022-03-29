@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# suppress test for PEP8 in this file
-# flake8: noqa
-
-# -*- coding: utf-8 -*-
-
 #  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
 #  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
@@ -69,7 +64,6 @@ from spectrochempy import set_loglevel, DEBUG
 # put in debug mode for development
 set_loglevel(DEBUG)
 
-
 # from os import environ
 # import pathlib
 #
@@ -87,7 +81,7 @@ set_loglevel(DEBUG)
 # import spectrochempy as scp
 # from spectrochempy import preferences as prefs
 #
-# from spectrochempy.utils.pathlib import pathclean
+# from spectrochempy.utils.paths import pathclean
 # from spectrochempy.utils.testing import RandomSeedContext
 #
 # # first download missing data
@@ -95,9 +89,9 @@ set_loglevel(DEBUG)
 # print("DATADIR: ", datadir)
 # scp.read_remote(datadir, download_only=True)
 #
-# # ======================================================================================================================
+# # ====================================================================================
 # # FIXTURES
-# # ======================================================================================================================
+# # ===================================================================================
 #
 # # initialize a ipython session before calling spectrochempy
 # # ------------------------------------------------------------------

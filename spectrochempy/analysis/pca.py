@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module implement the PCA (Principal Component Analysis) class.
 """
@@ -22,13 +23,13 @@ from spectrochempy.core import info_
 from spectrochempy.analysis.svd import SVD
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.core.dataset.npy import dot
+from spectrochempy.core.dataset.ndmath import dot
 from spectrochempy.utils import NRed, NBlue
 
 
-# ======================================================================================================================
+# ======================================================================================
 # class PCA
-# ======================================================================================================================
+# ======================================================================================
 
 
 class PCA(HasTraits):
@@ -88,7 +89,6 @@ class PCA(HasTraits):
     _ev_cum = Instance(NDDataset)
     """|NDDataset| - Cumulative Explained Variances."""
 
-    # ..........................................................................
     def __init__(self, dataset, centered=True, standardized=False, scaled=False):
 
         super().__init__()
@@ -156,7 +156,7 @@ class PCA(HasTraits):
             ),
         )
 
-        S.description = "scores (S) of " + X.name
+        S.comment = "scores (S) of " + X.name
         S.history = "Created by PCA"
 
         self._LT = LT
@@ -380,6 +380,7 @@ class PCA(HasTraits):
         X.history = f"PCA reconstructed Dataset with {n_pc} principal components"
         X.name = self._X.name
         X.title = self._X.title
+
         return X
 
     def printev(self, n_pc=None):
@@ -408,9 +409,10 @@ class PCA(HasTraits):
 
         Parameters
         ----------
-        n_pc : int
-            Number of components to plot.
-
+        n_pc : None, int or "auto"
+            Number of components to plot. If None all pc's are kept.
+            If "auto" they are not automatically determined.
+            If n_pc is specified, then this number is used as the number of pc to plot.
         **kwargs
             Extra arguments: `colors` (default: `[NBlue, NRed]`) to set the colors
             of the bar plot and scatter plot; `ylims` (default `[(0, 100), "auto"]`).
@@ -428,7 +430,7 @@ class PCA(HasTraits):
         ylim1, ylim2 = kwargs.get("ylims", [(0, 100), "auto"])
 
         if ylim2 == "auto":
-            y1 = np.around(self._ev_ratio.data[0] * 0.95, -1)
+            y1 = max(np.around(self._ev_ratio.data[0] * 0.95, -1) - 1.0, 0.0)
             y2 = 101.0
             ylim2 = (y1, y2)
 
@@ -439,6 +441,10 @@ class PCA(HasTraits):
             ylim=ylim2, color=color2, pen=True, markersize=7.0, twinx=ax1
         )
         ax1.set_title("Scree plot")
+
+        formatter = ScalarFormatter(useOffset=False)
+        ax2.yaxis.set_major_formatter(formatter)
+
         return ax1, ax2
 
     def scoreplot(self, *pcs, colormap="viridis", color_mapping="index", **kwargs):
@@ -466,7 +472,7 @@ class PCA(HasTraits):
         # colors
         if color_mapping == "index":
 
-            if np.any(self._S.y.data):
+            if self._S.y.data is not None:
                 colors = self._S.y.data
             else:
                 colors = np.array(range(self._S.shape[0]))

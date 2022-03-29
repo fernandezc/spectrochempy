@@ -5,6 +5,7 @@
 #  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 #  See full LICENSE agreement in the root directory
 # ======================================================================================
+
 """
 This module defines the `application` on which the API rely.
 
@@ -60,7 +61,7 @@ from jinja2 import Template
 
 from spectrochempy.utils.traits import MetaConfigurable
 from spectrochempy.utils.version import Version
-from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.paths import pathclean
 from spectrochempy.utils.packages import get_pkg_path
 from spectrochempy.plot_preferences import PlotPreferences
 
@@ -165,7 +166,6 @@ except LookupError:  # pragma: no cover
     __version__ = __release__
 
 
-# ............................................................................
 def _get_copyright():
     current_year = np.datetime64("now", "Y")
     right = f"2014-{current_year}"
@@ -177,7 +177,6 @@ __copyright__ = _get_copyright()
 "Copyright string of this package"
 
 
-# .............................................................................
 def _get_release_date():
     return subprocess.getoutput("git log -1 --tags --date=short --format='%ad'")
 
@@ -271,7 +270,7 @@ CHECK_UPDATE = threading.Thread(target=_check_for_updates, args=(1,))
 CHECK_UPDATE.start()
 
 # other info
-# ............................................................................
+
 
 __url__ = "https://www.spectrochempy.fr"
 "URL for the documentation of this package"
@@ -293,7 +292,6 @@ __cite__ = (
 "How to cite this package"
 
 
-# ..........................................................................
 def _find_or_create_spectrochempy_dir():
     directory = Path.home() / ".spectrochempy"
 
@@ -306,9 +304,9 @@ def _find_or_create_spectrochempy_dir():
     return directory
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Magic ipython function
-# ======================================================================================================================
+# ======================================================================================
 @magics_class
 class SpectroChemPyMagics(Magics):
     """
@@ -434,9 +432,9 @@ class SpectroChemPyMagics(Magics):
         # name')  #  #  # return args
 
 
-# ======================================================================================================================
+# ======================================================================================
 # DataDir class
-# ======================================================================================================================
+# ======================================================================================
 
 
 class DataDir(HasTraits):
@@ -515,9 +513,9 @@ class DataDir(HasTraits):
         return self.listing().replace("\n", "<br/>").replace(" ", "&nbsp;")
 
 
-# ======================================================================================================================
+# ======================================================================================
 # General Preferences
-# ======================================================================================================================
+# ======================================================================================
 
 
 class GeneralPreferences(MetaConfigurable):
@@ -614,24 +612,20 @@ class GeneralPreferences(MetaConfigurable):
 
         return pscp
 
-    # ..........................................................................
     @default("workspace")
     def _get_workspace_default(self):
         # the spectra path in package data
         return Path.home()
 
-    # ..........................................................................
     @default("databases_directory")
     def _get_databases_directory_default(self):
         # the spectra path in package data
         return pathclean(get_pkg_path("databases", "scp_data"))
 
-    # ..........................................................................
     @default("datadir")
     def _get_default_datadir(self):
         return pathclean(self.parent.datadir.path)
 
-    # ..........................................................................
     @observe("datadir")
     def _datadir_changed(self, change):
         self.parent.datadir.path = pathclean(change["new"])
@@ -644,7 +638,6 @@ class GeneralPreferences(MetaConfigurable):
             datadir = pathclean(datadir)
         return datadir
 
-    # ..........................................................................
     @property
     def log_level(self):
         """
@@ -652,7 +645,6 @@ class GeneralPreferences(MetaConfigurable):
         """
         return self.parent.log_level
 
-    # ..........................................................................
     @log_level.setter
     def log_level(self, value):
         if isinstance(value, str):
@@ -665,14 +657,13 @@ class GeneralPreferences(MetaConfigurable):
                 )
         self.parent.log_level = value
 
-    # ..........................................................................
     def __init__(self, **kwargs):
         super().__init__(jsonfile="GeneralPreferences", **kwargs)
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Application
-# ======================================================================================================================
+# ======================================================================================
 
 
 class SpectroChemPy(Application):
@@ -772,13 +763,15 @@ you are kindly requested to cite it this way: <pre>{__cite__}</pre></p>.
     )
     """Flag to set in NO DISPLAY mode."""
 
-    # last_project = Unicode('', help='Last used project').tag(config=True, type='project')
+    # last_project =
+    # Unicode('', help='Last used project').tag(config=True, type='project')
     # """Last used project"""
     #
     # @observe('last_project')
     # def _last_project_changed(self, change):
     #     if change.name in self.traits(config=True):
-    #         self.config_manager.update(self.config_file_name, {self.__class__.__name__: {change.name: change.new, }})
+    #         self.config_manager.update(self.config_file_name,
+    #         {self.__class__.__name__: {change.name: change.new, }})
 
     show_config = Bool(help="Dump configuration to stdout at startup").tag(config=True)
 
@@ -871,13 +864,15 @@ you are kindly requested to cite it this way: <pre>{__cite__}</pre></p>.
             self.log
         )  # we change the no name in order to avoid latter conflict with numpy.log
 
-        self.logs.setLevel(0)  # reset to NOTSET
+        self.logs.setLevel(WARNING)  # reset to WARNING
 
         # Set a log filehandler
         logdir = self.get_config_dir().parent / "logs"
         logdir.mkdir(exist_ok=True)
         rh = RotatingFileHandler(
-            str(logdir / "spectrochempy.log"), maxBytes=32 * 1024, backupCount=5
+            str(logdir / "spectrochempy.log"),
+            maxBytes=256 * 1024,
+            backupCount=5,  # 256 Kb
         )
         rh.setLevel(INFO)
         rh.setFormatter(logging.Formatter("%(message)s"))
@@ -935,19 +930,8 @@ you are kindly requested to cite it this way: <pre>{__cite__}</pre></p>.
 
         self._init_all_preferences()
 
-        # we catch warnings and error for a lighter display to the end-user.
-        # except if we are in debugging mode
-
-        # warning handler
+        # Exception handler
         # --------------------------------------------------------------------
-        def send_warnings_to_log(message, category):
-            self.logs.warning(f"{category.__name__} - {message}")
-
-        warnings.showwarning = send_warnings_to_log
-
-        # exception handler
-        # --------------------------------------------------------------------
-
         if in_python:  # pragma: no cover
 
             ipy = get_ipython()
@@ -965,6 +949,15 @@ you are kindly requested to cite it this way: <pre>{__cite__}</pre></p>.
             # --------------------------------------------------------------------
             if ipy is not None:
                 ipy.register_magics(SpectroChemPyMagics)
+
+        # Warning handler
+        # --------------------------------------------------------------------
+        def send_warnings_to_log(*args, **kwargs):
+            from spectrochempy.core import warning_
+
+            warning_(*args)
+
+        warnings.showwarning = send_warnings_to_log
 
     def _init_all_preferences(self):
 
@@ -1004,7 +997,6 @@ you are kindly requested to cite it this way: <pre>{__cite__}</pre></p>.
         self.preferences = GeneralPreferences(config=self.config, parent=self)
         self.plot_preferences = PlotPreferences(config=self.config, parent=self)
 
-    # ..........................................................................
     @staticmethod
     def get_config_dir():
         """
@@ -1146,7 +1138,6 @@ you are kindly requested to cite it this way: <pre>{__cite__}</pre></p>.
         self.logs.info("\n\nAPI loaded - application is ready")
         return True
 
-    # ..........................................................................
     def _make_default_config_file(self):
         """auto generate default config file."""
 
@@ -1181,7 +1172,7 @@ you are kindly requested to cite it this way: <pre>{__cite__}</pre></p>.
         )
 
 
-# ======================================================================================================================
+# ======================================================================================
 
 if __name__ == "__main__":
     pass

@@ -15,17 +15,36 @@ import pint
 import pytz
 
 
-# ==============================================================================
-# Exception and Warning Subclass
-# ==============================================================================
-
-
-class SpectroChemPyWarning(Warning):
+# ======================================================================================
+# Warning subclasses
+# ======================================================================================
+class SpectroChemPyWarning(UserWarning):
     """
     The base warning class for SpectroChemPy warnings.
     """
 
 
+class UnitWarning(SpectroChemPyWarning):
+    """
+    Warning raised when an issues arise regarding units
+    """
+
+
+class LabelWarning(SpectroChemPyWarning):
+    """
+    Warning raised when an issues arise regarding labels
+    """
+
+
+class ValueWarning(SpectroChemPyWarning):
+    """
+    Warning raised when an issues arise arguments or attributes
+    """
+
+
+# ======================================================================================
+# Exception Subclasses
+# ======================================================================================
 class SpectroChemPyException(Exception):
     """
     The base exception class for SpectroChemPy.
@@ -182,6 +201,7 @@ class WrongFileFormatError(SpectroChemPyException):
     """ """
 
 
+# noinspection PyDeprecation
 def deprecated(kind="method", replace="", extra_msg=""):
     """
     Deprecation decorator.
@@ -195,20 +215,19 @@ def deprecated(kind="method", replace="", extra_msg=""):
     extra_msg : str
         Additional message.
     """
+    from spectrochempy.core import warning_
 
     def deprecation_decorator(func):
         def wrapper(*args, **kwargs):
+            name = func.__qualname__
+            if name.endswith("__init__"):
+                name = name.split(".", maxsplit=1)[0]
+            sreplace = f" Use `{replace}` instead" if replace else ""
             warnings.warn(
-                f" `{func.__name__}` {kind} is now deprecated and could be "
-                f"completely "
-                f"removed in version 0.5.*." + f" Use `{replace}`."
-                if replace
-                else "" + f" {extra_msg}."
-                if extra_msg
-                else "",
-                DeprecationWarning,
+                f" `{name}` {kind} is now deprecated and could be completely "
+                f"removed in version 0.5.*. {sreplace} {extra_msg}",
+                category=DeprecationWarning,
             )
-
             return func(*args, **kwargs)
 
         return wrapper

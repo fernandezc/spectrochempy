@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 # flake8: noqa
 
 
@@ -14,7 +21,6 @@ irdatadir = pathclean(prefs.datadir) / "irdata"
 cwd = Path.cwd()
 
 
-# ..............................................................................
 def test_write():
     nd = scp.read_omnic("irdata/nh4y-activation.spg")
 
@@ -22,7 +28,8 @@ def test_write():
     with pytest.raises(TypeError):
         scp.write()
 
-    # the simplest way to save a dataset, is to use the function write with a filename as argument
+    # the simplest way to save a dataset, is to use the function write with
+    # a filename as argument
     if (cwd / "essai.scp").exists():
         (cwd / "essai.scp").unlink()
 

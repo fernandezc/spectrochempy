@@ -5,21 +5,24 @@
 #  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 #  See full LICENSE agreement in the root directory
 # ======================================================================================
+"""
+This module defines utilities related to paths manipulation.
+"""
 
 from pathlib import Path, PosixPath, WindowsPath
 
 from spectrochempy.utils.system import is_windows
 
 
-def pathclean(paths):
+def pathclean(pths):
     """
     Clean a path or a series of path.
 
-    This cleaning is done in order to be compatible with windows and  unix-based system.
+    This cleaning is done in order to be compatible with windows and Unix-based system.
 
     Parameters
     ----------
-    paths :  str or a list of str
+    pths :  str or a list of str
         Path to clean. It may contain windows or conventional python separators.
 
     Returns
@@ -29,7 +32,7 @@ def pathclean(paths):
 
     Examples
     --------
-    >>> from spectrochempy.utils.pathlib import pathclean
+    >>> from spectrochempy.utils.paths import pathclean
 
     Using unix/mac way to write paths
     >>> filename = pathclean('irdata/nh4y-activation.spg')
@@ -43,7 +46,8 @@ def pathclean(paths):
     >>> filename.parent.name
     'irdata'
 
-    Due to the escape character \\ in Unix, path string should be escaped \\\\ or the raw-string prefix `r` must be used
+    Due to the escape character \\ in Unix, path string should be escaped \\\\
+    or the raw-string prefix `r` must be used
     as shown below
     >>> filename = pathclean(r"irdata\\nh4y-activation.spg")
     >>> filename.suffix
@@ -52,26 +56,26 @@ def pathclean(paths):
     'irdata'
     """
 
-    def _clean(path):
-        if isinstance(path, (Path, PosixPath, WindowsPath)):
-            path = path.name
+    def _clean(pth):
+        if isinstance(pth, (Path, PosixPath, WindowsPath)):
+            pth = pth.name
         if is_windows():
-            path = WindowsPath(path)  # pragma: no cover
+            pth = WindowsPath(pth)  # pragma: no cover
         else:  # some replacement so we can handle window style path on unix
-            path = path.strip()
-            path = path.replace("\\", "/")
-            path = path.replace("\n", "/n")
-            path = path.replace("\t", "/t")
-            path = path.replace("\b", "/b")
-            path = path.replace("\a", "/a")
-            path = PosixPath(path)
-        return Path(path)
+            pth = pth.strip()
+            pth = pth.replace("\\", "/")
+            pth = pth.replace("\n", "/n")
+            pth = pth.replace("\t", "/t")
+            pth = pth.replace("\b", "/b")
+            pth = pth.replace("\a", "/a")
+            pth = PosixPath(pth)
+        return Path(pth)
 
-    if paths is not None:
-        if isinstance(paths, (str, Path, PosixPath, WindowsPath)):
-            path = str(paths)
+    if pths is not None:
+        if isinstance(pths, (str, Path, PosixPath, WindowsPath)):
+            path = str(pths)
             return _clean(path).expanduser()
-        elif isinstance(paths, (list, tuple)):
-            return [_clean(p).expanduser() if isinstance(p, str) else p for p in paths]
+        if isinstance(pths, (list, tuple)):
+            return [_clean(p).expanduser() if isinstance(p, str) else p for p in pths]
 
-    return paths
+    return pths

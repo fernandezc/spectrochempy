@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-#  =====================================================================================================================
-#  Copyright (©) 2015-$today.year LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory
-#  =====================================================================================================================
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 #
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -26,7 +27,7 @@ from traitlets import (
 
 from spectrochempy.utils.traits import MetaConfigurable
 from spectrochempy.utils.packages import get_pkg_path
-from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.paths import pathclean
 
 
 # ------------------------------------------------------------------
@@ -808,9 +809,9 @@ class PlotPreferences(MetaConfigurable):
                           randomly scaled.""",
     ).tag(config=True, kind="")
 
-    # ==================================================================================================================
+    # ==================================================================================
     # NON MATPLOTLIB OPTIONS
-    # ==================================================================================================================
+    # ==================================================================================
     style = Union(
         (Unicode(), List(), Tuple()), help="Basic matplotlib style to use"
     ).tag(config=True, default_="scpy")
@@ -880,7 +881,6 @@ class PlotPreferences(MetaConfigurable):
         config=True
     )
 
-    # ..........................................................................
     def __init__(self, **kwargs):
         super().__init__(jsonfile="PlotPreferences", **kwargs)
         for key in plt.rcParams:
@@ -1107,7 +1107,7 @@ class PlotPreferences(MetaConfigurable):
             key = self.to_rc_key(change.name)
             if key in mpl.rcParams:
                 if key.startswith("font"):
-                    print()
+                    pass
                 try:
                     mpl.rcParams[key] = change.new
                 except ValueError:  # pragma: no cover

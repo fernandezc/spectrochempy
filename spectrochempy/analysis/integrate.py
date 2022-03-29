@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 Integration methods.
 """
@@ -29,20 +30,29 @@ def _integrate_method(method):
         dim = dataset._get_dims_from_args(*args, **kwargs)
         if dim is None:
             dim = -1
-        axis = dataset._get_dims_index(dim)
-        axis = axis[0] if axis and not dataset.is_1d else None
+        axis, dim = dataset._get_axis(dim)
 
         if kwargs.get("dim"):
             kwargs.pop("dim")
 
-        data = method(dataset.data, x=dataset.coord(dim).data, axis=axis, **kwargs)
+        # particular case of datetime64 coord. To simplify the following
+        # it is interesting to transform first into a float coordinate with the same units
+        # Because only intervals here matters, we can just suppress the first datetiems, and the
+        # conversion to na array with the same units will be performed automatically (NDMath module)
+        coord = dataset.coord(dim)
+        coord = (
+            coord - coord[0]
+        )  # NOTE that we can't use the inplace assignement in this case
+
+        data = method(dataset.data, x=coord.data, axis=axis, **kwargs)
 
         if dataset.coord(dim).reversed:
             data *= -1
 
         new = dataset.copy()
-        new._data = data
+        new.data = data
 
+        # del new._coordset[new._dims[axis]]
         del new._dims[axis]
         if (
             new.implements("NDDataset")
@@ -53,10 +63,10 @@ def _integrate_method(method):
             del new._coordset.coords[idx]
 
         new.title = "area"
-        new._units = dataset.units * dataset.coord(dim).units
-        new._history = [
+        new._units = new._units * coord.units
+        new.history = (
             f"Dataset resulting from application of `{method.__name__}` method"
-        ]
+        )
 
         return new
 
@@ -106,9 +116,7 @@ def trapezoid(dataset, **kwargs):
     return scipy.integrate.trapz(dataset, **kwargs)
 
 
-@deprecated(
-    "Use the Trapezoid method instead. This method may be removed in future version"
-)
+@deprecated(replace="trapezoid")
 def trapz(dataset, **kwargs):
     return trapezoid(dataset, **kwargs)
 
@@ -174,11 +182,11 @@ def simpson(dataset, *args, **kwargs):
     return scipy.integrate.simps(dataset.data, **kwargs)
 
 
-@deprecated("Use simpson method instead. This method may be removed in future version")
+@deprecated(replace="simpson")
 def simps(dataset, **kwargs):
     return simpson(dataset, **kwargs)
 
 
 simps__doc__ = f"""
 An alias of `Simpson` kept for backwards compatibility.
-{trapezoid.__doc__}"""
+{simpson.__doc__}"""

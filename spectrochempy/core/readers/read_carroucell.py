@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module provides methods for reading data in a directory after a carroucell experiment.
 """
@@ -12,7 +13,6 @@ __dataset_methods__ = __all__
 
 import os
 import warnings
-import datetime
 import re
 
 import scipy.interpolate
@@ -27,7 +27,6 @@ from spectrochempy.core import info_, print_
 from spectrochempy.core.readers.importer import _importer_method, Importer
 
 
-# ..............................................................................
 def read_carroucell(directory=None, **kwargs):
     """
     Open .spa files in a directory after a carroucell experiment.
@@ -111,7 +110,7 @@ def _read_carroucell(*args, **kwargs):
 
     spectra = kwargs.get("spectra", None)
     discardbg = kwargs.get("discardbg", True)
-    delta_clocks = datetime.timedelta(seconds=kwargs.get("delta_clocks", 0))
+    delta_clocks = np.timedelta64(kwargs.get("delta_clocks", 0), "s")
 
     datasets = []
 
@@ -172,9 +171,7 @@ def _read_carroucell(*args, **kwargs):
             sheet = book.sheet_by_index(0)
             for i in range(9, sheet.nrows):
                 try:
-                    time = datetime.datetime.strptime(
-                        sheet.cell(i, 0).value, "%d/%m/%y %H:%M:%S"
-                    ).replace(tzinfo=datetime.timezone.utc)
+                    time = np.datetime64(sheet.cell(i, 0).value)
                     if ti <= time <= tf:
                         t.append(time)
                         T.append(sheet.cell(i, 4).value)

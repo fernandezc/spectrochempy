@@ -346,7 +346,9 @@ def test_ndarray_repr_html(ndarray):
 def test_ndarray_str(ndarrayunit):
     nd = ndarrayunit.copy()
     nd.name = "intensity"
-    assert str(nd).startswith(" name: intensity")
+    assert str(nd).startswith(
+        "NDArray intensity(value): [float64] m.s⁻¹ (shape: (y:10, x:8))"
+    )
 
 
 def test_ndarray_astype(ndarray):
@@ -372,7 +374,7 @@ def test_ndarray_copy(ndarray):
     assert nd1 is not nd
     assert nd1.data is not nd.data
     assert_array_equal(nd1, nd)
-    assert nd1.title == nd1.title  # default name
+    assert nd1.title == nd1.title
     d2 = copy(nd)
     assert d2 == nd
     d3 = deepcopy(nd)
@@ -383,7 +385,7 @@ def test_ndarray_copy(ndarray):
     assert repr(nd3) == repr(nd1)
     assert nd3 is not nd1
     nd4 = nd1.copy(keepname=False)
-    assert repr(nd4) == "NDArray (value): [float64] unitless (shape: (y:10, x:8))"
+    assert nd4.name != nd1.name
 
 
 def test_ndarray_data(ndarray):
@@ -436,30 +438,30 @@ def test_ndarray_dims(ndarray):
 
 def test_ndarray_get_axis(ndarray):
     nd = ndarray.copy()
-    assert nd.get_axis(None) == (1, "x")
-    assert nd.get_axis(None, allow_none=True) == (None, None)
-    axis, dim = nd.get_axis(1)
+    assert nd._get_axis(None) == (1, "x")
+    assert nd._get_axis(None, allow_none=True) == (None, None)
+    axis, dim = nd._get_axis(1)
     assert axis == 1
     assert dim == "x"
-    axis, dim = nd.get_axis("y")
+    axis, dim = nd._get_axis("y")
     assert axis == 0
     assert dim == "y"
-    axis, dim = nd.get_axis("y", negative_axis=True)
+    axis, dim = nd._get_axis("y", negative_axis=True)
     assert axis == -2
     assert dim == "y"
-    axis, dim = nd.get_axis("x", "y", negative_axis=True)
+    axis, dim = nd._get_axis("x", "y", negative_axis=True)
     assert axis == [-1, -2]
     assert dim == ["x", "y"]
 
     # user named axis
     nd.dims = ["yoyo", "xaxa"]
-    axis, dim = nd.get_axis("yoyo", negative_axis=True)
+    axis, dim = nd._get_axis("yoyo", negative_axis=True)
     assert axis == -2
     assert dim == "yoyo"
     with pytest.raises(ValueError):
         # axis not exits
-        nd.get_axis("notexists", negative_axis=True)
-    axis, dim = nd.get_axis(0, axis=1)  # conflict between args and kwargs (prioprity
+        nd._get_axis("notexists", negative_axis=True)
+    axis, dim = nd._get_axis(0, axis=1)  # conflict between args and kwargs (prioprity
     # to kwargs)
     assert axis == 1
     assert dim == "xaxa"

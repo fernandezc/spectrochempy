@@ -1,7 +1,7 @@
 # ---
 # jupyter:
 #   jupytext:
-#     formats: ipynb,py:percent,md:myst
+#     formats: ipynb,py:percent
 #     notebook_metadata_filter: all
 #     text_representation:
 #       extension: .py
@@ -9,7 +9,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.13.7
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 #   language_info:
@@ -21,7 +21,7 @@
 #     name: python
 #     nbconvert_exporter: python
 #     pygments_lexer: ipython3
-#     version: 3.8.8
+#     version: 3.9.9
 #   widgets:
 #     application/vnd.jupyter.widget-state+json:
 #       state: {}
@@ -33,18 +33,18 @@
 # # The NDDataset object
 
 # %% [markdown]
-# The NDDataset is the main object use by **SpectroChemPy**.
+# The [NDDataset](../reference/generated/spectrochempy.NDDataset.rst) is the main object use by **SpectroChemPy**.
 #
 # Like numpy ndarrays, NDDataset have the capability to be sliced, sorted and subject to mathematical operations.
 #
 # But, in addition, NDDataset may have units, can be masked and each dimensions can have coordinates also with units.
-# This make NDDataset aware of unit compatibility, *e.g.*, for binary operation such as additions or subtraction or
+# This make NDDataset aware of units compatibility, *e.g.*, for binary operation such as additions or subtraction or
 # during the application of mathematical operations. In addition or in replacement of numerical data for coordinates,
 # NDDataset can also have labeled coordinates where labels can be different kind of objects (strings, datetime,
 # numpy nd.ndarray or other NDDatasets, etc...).
 #
 # This offers a lot of flexibility in using NDDatasets that,  we hope, will be useful for applications.
-# See the **Tutorials** for more information about such possible applications.
+# See the **[Examples](../../gettingstarted/gallery/auto_examples/index.rst)** for additional information about such possible applications.
 
 # %% [markdown]
 # **Below (and in the next sections), we try to give an almost complete view of the NDDataset features.**
@@ -53,7 +53,7 @@
 import spectrochempy as scp
 
 # %% [markdown]
-# As we will make some reference to the `numpy` library, we also import it here.
+# As we will make some reference to the **[numpy](https://numpy.org/doc/stable/index.html)** library, we also import it here.
 
 # %%
 import numpy as np
@@ -65,7 +65,7 @@ import numpy as np
 from spectrochempy import NDDataset, CoordSet, Coord
 
 # %% [markdown]
-# For a convenient usage of units, we will also directly import `ur`, the unit registry which contains all available
+# For a convenient usage of units, we will also directly import **[ur]((../units/units.ipynb)**, the unit registry which contains all available
 # units.
 
 # %%
@@ -75,30 +75,35 @@ from spectrochempy import ur
 # Multidimensional array are defined in Spectrochempy using the `NDDataset` object.
 #
 # `NDDataset` objects mostly behave as numpy's `numpy.ndarray`
-# (see for instance __[numpy quickstart tutorial](https://numpy.org/doc/stable/user/quickstart.html)__).
+# (see for instance __
+# [numpy quickstart tutorial](https://numpy.org/doc/stable/user/quickstart.html)__).
 
 # %% [markdown]
-# However, unlike raw numpy's ndarray, the presence of optional properties make them (hopefully) more appropriate for
-# handling spectroscopic information, one of the major objectives of the SpectroChemPy package:
+# However, unlike raw numpy's ndarray, the presence of optional properties make
+# them (hopefully) more appropriate for handling spectroscopic information,
+# one of the major objectives of the SpectroChemPy package:
 #
 # *  `mask`: Data can be partially masked at will
 # *  `units`: Data can have units, allowing units-aware operations
 # *  `coordset`: Data can have a set of coordinates, one or several by dimensions
 #
-# Additional metadata can also be added to the instances of this class through the `meta` properties.
+# Additional metadata can also be added to the instances of this class
+# through the `meta` properties.
 
-# %% [markdown]
+# %% [markdown] tags=[]
 # ## 1D-Dataset (unidimensional dataset)
 
 # %% [markdown]
-# In the following example, a minimal 1D dataset is created from a simple list, to which we can add some metadata:
+# In the following example, a minimal 1D dataset is created from a simple list,
+# to which we can add some metadata:
 
 # %%
 d1D = NDDataset(
     [10.0, 20.0, 30.0],
     name="Dataset N1",
     author="Blake and Mortimer",
-    description="A dataset from scratch",
+    comment="A dataset from scratch",
+    history="creation",
 )
 d1D
 
@@ -125,42 +130,42 @@ _ = d1D.plot(figsize=(3, 2))
 
 # %% [markdown]
 # Except few additional metadata such `author`, `created` ..., there is not much
-# difference with respect to a conventional `numpy.ndarray`. For example, one
-# can apply numpy ufunc's directly to a NDDataset or make basic arithmetic
+# difference with respect to a conventional **[numpy.array](https://numpy.org/doc/stable/reference/generated/numpy.array.html#numpy.array)**. For example, one
+# can apply numpy **[ufunc](https://numpy.org/doc/stable/reference/ufuncs.html#available-ufuncs)'s** directly to a NDDataset or make basic arithmetic
 # operation with these objects:
 
 # %%
 np.sqrt(d1D)
 
 # %%
-d1D + d1D / 2.0
+d1D += d1D / 2.0
+d1D
 
 # %% [markdown]
-# As seen above, there are some metadata that are automatically added to the dataset:
+# As seen above, there are some attributes that are automatically added to the dataset:
 #
-# * `id`      : This is a unique identifier for the object
-# * `author`  : author determined from the computer name if not provided
-# * `created` : date/time of creation
-# * `modified`: date/time of modification
+# * `id`      : This is a unique identifier for the object.
+# * `name`: A short and unique name for the dataset. It will beequal to the automatic `id` if it is not provided.
+# * `author`  : Author determined from the computer name if not provided.
+# * `created` : Date and time of creation.
+# * `modified`: Date and time of modification.
 #
-# additional, dataset can have a **`name`** (equal to the `id` if it is not provided)
+# These attributes can be modified by the user, but the `id`, `created` and `modified` attributes are read only.
 #
-# Some other metadata are defined:
-#
-# * `history`: history of operation achieved on the object since the object creation
-# * `description`: A user-friendly description of the objects purpose or contents.
-# * `title`: A title that will be used in plots or in some other operation on the objects.
-#
-#
-# All this metadata (except, the `id`, `created`, `modified`) can be changed by the user.
-#
-# For instance:
+# Some other attributes are defined to describe the data:
+# * `title`: A long name that will be used in plots or in some other operations.
+# * `history`: history of operation achieved on the object since the object creation.
+# * `comment`: A comment or a description of the objects purpose or contents.
+# * `source`: An optional reference to the source of the data.
+
+# %% [markdown]
+# Here is an example of the use of the NDDataset attributes:
 
 # %%
-d1D.title = "intensity"
 d1D.name = "mydataset"
+d1D.title = "intensity"
 d1D.history = "created from scratch"
-d1D.description = "Some experimental measurements"
+d1D.comment = "Some experimental measurements"
 d1D
 
 # %% [markdown]
@@ -178,7 +183,7 @@ d1D.ndim  # the number of dimensions
 d1D.dims  # the name of the dimension (it has been automatically attributed)
 
 # %% [markdown]
-# **Note**: The names of the dimensions are set automatically. But they can be changed, with the limitation that the
+# **Note**: The names of the dimensions are set automatically. But they can be changed, with <u>the limitation</u> that the
 # name must be a single letter.
 
 # %%
@@ -186,6 +191,13 @@ d1D.dims = ["q"]  # change the list of dim names.
 
 # %%
 d1D.dims
+
+# %% [markdown]
+# **Note**
+#     The attributes `comment`, `title` and `source` where added in version 0.4.0 in replacement of `description`, `title` and `origin`, respectively. For backward compatibility, the previous attributes are still accessible but issue a deprecated warning when used. For example:
+
+# %%
+d1D.title = "a descriptive title"
 
 # %% [markdown]
 # ### nD-Dataset (multidimensional dataset)
@@ -203,7 +215,7 @@ d3D.title = "energy"
 d3D.author = "Someone"
 d3D.name = "3D dataset creation"
 d3D.history = "created from scratch"
-d3D.description = "Some example"
+d3D.comment = "Some example"
 d3D.dims = ["u", "v", "t"]
 d3D
 
@@ -218,7 +230,7 @@ d3D = NDDataset(
     author="Someone",
     name="3D_dataset",
     history="created from scratch",
-    description="a single statement creation example",
+    comment="a single statement creation example",
 )
 d3D
 
@@ -234,6 +246,63 @@ d3D.ndim
 
 # %%
 d3D.shape
+
+# %% [markdown]
+# ## About the dates and times
+# The dates and times are stored internally as [UTC (Coordinated_Universal_Time)](https://en.wikipedia.org/wiki/Coordinated_Universal_Time). Timezone information is stored in the timezone attribute. If not set, the default is to use the local timezone, which is probably the most common case.
+
+# %%
+nd = NDDataset()
+nd.created
+
+# %% [markdown]
+# In this case our local timezone has been used by default for the conversion from UTC datetime.
+
+# %%
+nd.local_timezone
+
+# %%
+nd.timezone = "EST"
+nd.created
+
+# %% [markdown]
+# For a list of timezone code (TZ) you can have a look at [List_of_tz_database_time_zones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
+
+# %% [markdown]
+# ## About the `history` attribute
+
+# %% [markdown]
+# The history is saved internally into a list, but its has a different behaviour than the usual list.
+# The first time a NDDataset is created, the list is empty
+
+# %%
+nd = NDDataset()
+nd.history
+
+# %% [markdown]
+# Assigning a string to the history attribute has two effects. The first one is that the string is appended automatically to the previous history list, and second it is preceeded by the time it has been added.
+
+# %%
+nd.history = "some history"
+nd.history = "another history to append"
+nd.history = "..."
+nd.history
+
+# %% [markdown]
+# If you want to erase the history, assign an empty list
+
+# %%
+nd.history = []
+nd.history
+
+# %% [markdown]
+# If you want to replace the full history use bracket around your history line:
+
+# %%
+nd.history = "Created form scratch"
+nd.history = "a second ligne that will be erased"
+nd.history = ["A more interesting message"]
+nd.history
 
 # %% [markdown]
 # ## Units
@@ -330,7 +399,7 @@ d3D.v.has_data, d3D.v.is_empty
 # %%
 try:
     d3D.x
-except KeyError as e:
+except AttributeError as e:
     scp.error_(e)
 
 # %% [markdown]
@@ -363,13 +432,13 @@ d3D
 # %% [markdown]
 # or more complex objects.
 #
-# For instance here we use datetime.timedelta objects:
+# For instance here we use timedelta objects:
 
 # %%
-from datetime import timedelta
+from numpy import timedelta64
 
-start = timedelta(0)
-times = [start + timedelta(seconds=x * 60) for x in range(6)]
+start = timedelta64(0)
+times = [start + timedelta64(x * 60, "s") for x in range(6)]
 d3D.t = None
 d3D.t.labels = times
 d3D.t.title = "time"
@@ -512,10 +581,8 @@ d3D
 # %%
 try:
     d3D.coordset = [coord0, coord1, coord2]
-except ValueError:
-    scp.error_(
-        "Coordinates must be of the same size for a dimension with multiple coordinates"
-    )
+except scp.utils.exceptions.InvalidCoordinatesSizeError as e:
+    scp.error_(e)
 
 # %% [markdown]
 # This works : it uses a tuple `()`, not a list `[]`
@@ -598,7 +665,7 @@ ds = NDDataset.fromfunction(
     units=None,
 )  # when None, units will be determined from the function results
 
-ds.description = """Dataset example created for this tutorial.
+ds.comment = """Dataset example created for this tutorial.
 It's a 2-D dataset"""
 
 ds.author = "Blake & Mortimer"
@@ -609,17 +676,21 @@ ds
 
 # %%
 dz = NDDataset.zeros(
-    (5, 3), coordset=cs, units="meters", title="Datasets with only zeros"
+    (5, 3), coordset=cs, units="meters", commment="Datasets with only zeros"
 )
 
 # %%
 do = NDDataset.ones(
-    (5, 3), coordset=cs, units="kilograms", title="Datasets with only ones"
+    (5, 3), coordset=cs, units="kilograms", comment="Datasets with only ones"
 )
 
 # %%
 df = NDDataset.full(
-    (5, 3), fill_value=1.25, coordset=cs, units="radians", title="with only float=1.25"
+    (5, 3),
+    fill_value=1.25,
+    coordset=cs,
+    units="radians",
+    comment="with only float=1.25",
 )
 df
 

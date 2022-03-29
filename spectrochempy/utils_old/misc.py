@@ -106,7 +106,6 @@ def _codechange(code_obj, changes):
     return code(*values)
 
 
-# ..............................................................................
 class _DummyFile(object):
     """
     A writeable object.
@@ -284,7 +283,6 @@ def dict_compare(d1, d2, check_equal_only=True):
         return True
 
 
-# ..........................................................................
 def get_component(data, select="REAL"):
     """
     Take selected components of an hypercomplex array (RRR, RIR, ...).
@@ -358,7 +356,6 @@ def get_component(data, select="REAL"):
     return new
 
 
-# ..............................................................................
 def getdocfrom(origin):
     def decorated(func):
         func.__doc__ = origin.__doc__
@@ -373,7 +370,6 @@ def getdocfrom(origin):
     return decorated
 
 
-# ..............................................................................
 def gt_eps(arr):
     """
     Lambda function to check that an array has at least some values greater than epsilon.
@@ -390,7 +386,6 @@ def gt_eps(arr):
     return np.any(arr > EPSILON)
 
 
-# ..............................................................................
 def htmldoc(text):
     """
     Format docstring in html for a nice display in IPython.
@@ -429,7 +424,6 @@ def htmldoc(text):
     return html
 
 
-# ..............................................................................
 def interleaved2complex(data):
     """
     Make a complex array from interleaved data.
@@ -437,7 +431,6 @@ def interleaved2complex(data):
     return data[..., ::2] + 1j * data[..., 1::2]
 
 
-# ..............................................................................
 def interleaved2quaternion(data):
     """
     Make a complex array from interleaved data.
@@ -445,7 +438,6 @@ def interleaved2quaternion(data):
     return data[..., ::2] + 1j * data[..., 1::2]
 
 
-# ..............................................................................
 def is_iterable(arg):
     """
     Determine if an object is iterable.
@@ -453,7 +445,6 @@ def is_iterable(arg):
     return hasattr(arg, "__iter__")
 
 
-# ..............................................................................
 def is_number(x):
     try:
         if isinstance(x, np.ndarray):
@@ -464,7 +455,6 @@ def is_number(x):
         return False
 
 
-# ..............................................................................
 def is_sequence(arg):
     """
     Determine if an object is iterable but is not a string.
@@ -472,7 +462,6 @@ def is_sequence(arg):
     return (not hasattr(arg, "strip")) and hasattr(arg, "__iter__")
 
 
-# ..............................................................................
 def largest_power_of_2(value):
     """
     Find the nearest power of two equal to or larger than a value.
@@ -491,7 +480,7 @@ def largest_power_of_2(value):
 
 
 #
-# # ..............................................................................
+#
 # def make_func_from(func, first=None):
 #     """
 #     Create a new func with its arguments from another func and a new signature.
@@ -518,7 +507,7 @@ def largest_power_of_2(value):
 #     return modified
 #
 
-# ..............................................................................
+
 def make_new_object(objtype):
     """
     Make a new object of type obj.
@@ -541,7 +530,7 @@ def make_new_object(objtype):
     return new
 
 
-# # ..............................................................................
+#
 # def makedirs(newdir):
 #     """
 #     Works the way a good mkdir should :
@@ -568,7 +557,7 @@ def make_new_object(objtype):
 #             os.mkdir(newdir)
 #
 
-# # ..............................................................................
+#
 # def makestr(li):
 #     """
 #     Make a string from a list of string.
@@ -582,7 +571,7 @@ def make_new_object(objtype):
 #     return li
 #
 
-# # ..............................................................................
+#
 # def multisort(*args, **kargs):
 #     z = list(zip(*args))
 #     z = sorted(z, key=itemgetter(kargs.get("index", 0)))
@@ -603,7 +592,7 @@ def make_new_object(objtype):
 #             return result
 
 
-# # ..............................................................................
+#
 # @contextmanager
 # def silence():
 #     """
@@ -619,7 +608,7 @@ def make_new_object(objtype):
 #     sys.stderr = old_stderr
 #
 
-# ..............................................................................
+
 def spacing_(arr):
     """
     Return a scalar for the spacing in the one-dimensional input array (if it is uniformly spaced,
@@ -650,7 +639,7 @@ def spacing_(arr):
         return spacings
 
 
-# # ..............................................................................
+#
 # def srepr(arg):
 #     if is_sequence(arg):
 #         return "<" + ", ".join(srepr(x) for x in arg) + ">"

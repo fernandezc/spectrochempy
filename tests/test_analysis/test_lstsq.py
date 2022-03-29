@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 # flake8: noqa
 
 
@@ -9,7 +16,6 @@ from spectrochempy.utils import show
 import spectrochempy.core as sc
 
 
-# ............................................................................
 def test_lstsq_from_scratch():
     t = sc.NDDataset(data=[0, 1, 2, 3], title="time", units="hour")
 
@@ -34,7 +40,6 @@ def test_lstsq_from_scratch():
     show()
 
 
-# ............................................................................
 def test_implicit_lstsq():
     t = sc.Coord(data=[0, 1, 2, 3], units="hour", title="time")
 

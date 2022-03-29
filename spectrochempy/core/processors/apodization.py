@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 __all__ = [
     "em",
@@ -32,9 +33,9 @@ from spectrochempy.core import error_
 pi = np.pi
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Decorators
-# ======================================================================================================================
+# ======================================================================================
 
 
 def _apodize_method(**units):
@@ -47,11 +48,11 @@ def _apodize_method(**units):
             # what to return
             retapod = kwargs.pop("retapod", False)
             dryrun = kwargs.pop("dryrun", False)
-            # is_nmr = dataset.origin.lower() in ["topspin", ]
-            is_ir = dataset.origin.lower() in ["omnic", "opus"]
+            # is_nmr = dataset.source.lower() in ["topspin", ]
+            is_ir = dataset.source.lower() in ["omnic", "opus"]
 
             # On which axis do we want to apodize? (get axis from arguments)
-            axis, dim = dataset.get_axis(**kwargs, negative_axis=True)
+            axis, dim = dataset._get_axis(**kwargs, negative_axis=True)
 
             # output dataset inplace (by default) or not
             if not kwargs.pop("inplace", False) and not dryrun:
@@ -94,7 +95,8 @@ def _apodize_method(**units):
 
                     apod[key] = par
                     if par.dimensionality == 1 / dunits.dimensionality:
-                        kwargs[key] = 1.0 / (1.0 / par).to(dunits)
+                        # kwargs[key] = 1.0 / (1.0 / par).to(dunits)
+                        kwargs[key] = par.to(1 / dunits)
                     else:
                         kwargs[key] = par.to(dunits)
 
@@ -154,9 +156,9 @@ def _apodize_method(**units):
     return decorator_apodize_method
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Public module methods
-# ======================================================================================================================
+# ======================================================================================
 
 
 @_apodize_method(lb="Hz", shifted="us")
@@ -237,7 +239,6 @@ def em(dataset, lb=1, shifted=0, **kwargs):
     return np.exp(-e)
 
 
-# ..............................................................................
 @_apodize_method(gb="Hz", lb="Hz", shifted="us")
 def gm(dataset, gb=1, lb=0, shifted=0, **kwargs):
     r"""
@@ -326,7 +327,6 @@ def gm(dataset, gb=1, lb=0, shifted=0, **kwargs):
     return np.exp(e - g ** 2)
 
 
-# ..............................................................................
 @_apodize_method(ssb=None, pow=None)
 def sp(dataset, ssb=1, pow=1, **kwargs):
     r"""
@@ -403,7 +403,6 @@ def sp(dataset, ssb=1, pow=1, **kwargs):
     return np.sin((np.pi - phi) * t + phi) ** pow
 
 
-# ..............................................................................
 def sine(dataset, *args, **kwargs):
     """
     Strictly equivalent to :meth:`sp`.
@@ -415,7 +414,6 @@ def sine(dataset, *args, **kwargs):
     return sp(dataset, *args, **kwargs)
 
 
-# ..............................................................................
 def sinm(dataset, ssb=1, **kwargs):
     """
     Equivalent to :meth:`sp`, with pow = 1 (sine bell apodization window).
@@ -427,7 +425,6 @@ def sinm(dataset, ssb=1, **kwargs):
     return sp(dataset, ssb=ssb, pow=1, **kwargs)
 
 
-# ..............................................................................
 def qsin(dataset, ssb=1, **kwargs):
     """
     Equivalent to :meth:`sp`, with pow = 2 (squared sine bell apodization window).
@@ -439,7 +436,6 @@ def qsin(dataset, ssb=1, **kwargs):
     return sp(dataset, ssb=ssb, pow=2, **kwargs)
 
 
-# ..............................................................................
 @_apodize_method(alpha=None)
 def general_hamming(dataset, alpha, **kwargs):
     r"""

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 __all__ = ["smooth"]
 __dataset_methods__ = __all__
@@ -65,8 +66,8 @@ def smooth(dataset, window_length=5, window="flat", **kwargs):
 
     is_ndarray = False
     axis = kwargs.pop("dim", kwargs.pop("axis", -1))
-    if hasattr(new, "get_axis"):
-        axis, dim = new.get_axis(axis, negative_axis=True)
+    if hasattr(new, "_get_axis"):
+        axis, dim = new._get_axis(axis, negative_axis=True)
     else:
         is_ndarray = True
 

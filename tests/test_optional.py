@@ -10,7 +10,7 @@ from spectrochempy.utils.optional import (
     import_optional_dependency,
 )
 
-import spectrochempy.utils.testing as tm
+from spectrochempy.utils.testing import assert_produces_warning
 
 
 def test_import_optional():
@@ -39,7 +39,7 @@ def test_bad_version(monkeypatch):
     result = import_optional_dependency("fakemodule", min_version="0.8")
     assert result is module
 
-    with tm.assert_produces_warning(UserWarning):
+    with assert_produces_warning(UserWarning):
         result = import_optional_dependency("fakemodule", errors="warn")
     assert result is None
 
@@ -64,7 +64,7 @@ def test_submodule(monkeypatch):
     with pytest.raises(ImportError, match=match):
         import_optional_dependency("fakemodule.submodule")
 
-    with tm.assert_produces_warning(UserWarning):
+    with assert_produces_warning(UserWarning):
         result = import_optional_dependency("fakemodule.submodule", errors="warn")
     assert result is None
 

@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 # flake8: noqa
 
 import pytest
 
 import spectrochempy as scp
 
-DATADIR = scp.preferences.datadir
-GALACTICDATA = DATADIR / "galacticdata"
+
+GALACTICDATA = scp.DATADIR / "galacticdata"
 
 
 # @pytest.mark.skipif(

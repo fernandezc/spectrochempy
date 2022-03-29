@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module implements the MCRALS class.
 """
@@ -18,7 +19,7 @@ import warnings
 
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.analysis.pca import PCA
-from spectrochempy.core.dataset.npy import dot
+from spectrochempy.core.dataset.ndmath import dot
 from spectrochempy.core import info_, set_loglevel, INFO
 
 
@@ -649,7 +650,7 @@ class MCRALS(HasTraits):
 
         X_hat = dot(C, St)
 
-        X_hat.history = "Dataset reconstructed by MCS ALS optimization"
+        X_hat.history = "Dataset reconstructed by MCS ALS optimization."
         X_hat.title = "X_hat: " + self.X.title
         return X_hat
 

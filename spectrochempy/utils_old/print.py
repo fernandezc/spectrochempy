@@ -1,3 +1,9 @@
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 import numpy as np
 import re
 from colorama import Fore, Style
@@ -36,9 +42,9 @@ def pstr(object, **kwargs):
         return str(object).strip()
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Terminal colors and styles
-# ======================================================================================================================
+# ======================================================================================
 
 
 def TBold(text):
@@ -118,8 +124,10 @@ def html_output(out):
 def convert_to_html(obj):
     tr = (
         "<tr>"
-        "<td style='padding-right:5px; padding-bottom:0px; padding-top:0px; width:124px'>{0}</td>"
-        "<td style='text-align:left; padding-bottom:0px; padding-top:0px; {2} '>{1}</td><tr>\n"
+        "<td style='padding-right:5px; padding-bottom:0px; padding-top:0px; "
+        "font-size: 0.8em; width:88px'>{0}</td>"
+        "<td style='font-size: 0.8em; text-align:left; padding-bottom:0px; "
+        "padding-top:0px; {2} '>{1}</td><tr>\n"
     )
 
     obj._html_output = True
@@ -188,12 +196,12 @@ def convert_to_html(obj):
     return html
 
 
-# ======================================================================================================================
+# ======================================================================================
 #  Printing options
 #  copied from numpy.ma.core to avoid using
 #  the non-public interface of numpy.ma
 #  see the header of numpy.ma.core.py for the license
-# ======================================================================================================================
+# ======================================================================================
 
 
 class _MaskedPrintOption(object):
@@ -352,9 +360,9 @@ def insert_masked_print(ds, mask_string="--"):
     return res
 
 
-# ======================================================================================================================
+# ======================================================================================
 # numpy printoptions
-# ======================================================================================================================
+# ======================================================================================
 
 
 def numpyprintoptions(

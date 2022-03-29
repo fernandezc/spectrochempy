@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 
 __all__ = ["concatenate", "stack"]
 
 __dataset_methods__ = __all__
 
+from datetime import datetime
 import numpy as np
-import datetime as datetime
 from warnings import warn
 
 from spectrochempy.utils.orderedset import OrderedSet
 from spectrochempy.core.dataset.coord import Coord
-from spectrochempy.core.dataset.ndarray import DEFAULT_DIM_NAME
+from spectrochempy.core.common.constants import DEFAULT_DIM_NAME
 from spectrochempy.utils import DimensionsCompatibilityError, UnitsCompatibilityError
 
 
@@ -86,7 +87,7 @@ def concatenate(*datasets, **kwargs):
     datasets = _get_copy(datasets)
 
     # get axis from arguments
-    axis, dim = datasets[0].get_axis(**kwargs)
+    axis, dim = datasets[0]._get_axis(**kwargs)
 
     # check shapes, except for dim along which concatenation will be done
     shapes = {ds.shape[:axis] + ds.shape[axis + 1 :] for ds in datasets}
@@ -175,7 +176,7 @@ def concatenate(*datasets, **kwargs):
 
         out.author = " & ".join([str(author) for author in authortuple])
 
-        out.description += ", {}".format(dataset.name)
+        out.comment += ", {}".format(dataset.name)
 
     out.description += " )"
     out._date = out._modified = datetime.datetime.now(datetime.timezone.utc)

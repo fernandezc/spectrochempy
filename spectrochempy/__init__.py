@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
-# Copyright (©) 2015-2022 LCS
-# Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 #
 # Authors:
 # christian.fernandez@ensicaen.fr
@@ -10,7 +12,7 @@
 #
 # This software is a computer program whose purpose is to provide a framework
 # for processing, analysing and modelling *Spectro*scopic
-# data for *Chem*istry with *Py*thon (SpectroChemPy). It is is a cross
+# data for *Chem*istry with *Py*thon (SpectroChemPy). It is a cross
 # platform software, running on Linux, Windows or OS X.
 #
 # This software is governed by the CeCILL-B license under French law and
@@ -38,7 +40,7 @@
 #
 # The fact that you are presently reading this means that you have had
 # knowledge of the CeCILL-B license and that you accept its terms.
-# ======================================================================================================================
+# ======================================================================================
 """
 SpectroChemPy API.
 

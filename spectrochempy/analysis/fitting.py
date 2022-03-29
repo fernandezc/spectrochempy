@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 Module to perform fitting of 1D or n-D spectral data.
 """
@@ -26,7 +27,7 @@ from spectrochempy.core import preferences, info_, warning_, INFO
 from spectrochempy.analysis import models as models_
 
 
-# ======================================================================================================================
+# ======================================================================================
 def getmodel(x, y=None, modelname=None, par=None, **kargs):
     """
     Get the model for a given x vector.
@@ -153,8 +154,6 @@ class FitParameters(UserDict):
 
     # ------------------------------------------------------------------------
     def __str__(self):
-
-        # .............................................................
         def makestr(key):
 
             keystring = key.split("_")[0]
@@ -174,8 +173,6 @@ class FitParameters(UserDict):
                 val = str(self.data[key])
 
                 return f"{keystring}: {float(val):10.4f}, {lob}, {upb}\n"
-
-        # ..............................................................
 
         message = "#PARAMETER SCRIPT\n\nCOMMON:\n"
 
@@ -516,7 +513,7 @@ class ParameterScript(HasTraits):
         return fp
 
 
-# ======================================================================================================================
+# ======================================================================================
 class Fit(HasTraits):
     """
     Fit a 1D or 2D dataset, or a list of datasets.
@@ -555,6 +552,7 @@ class Fit(HasTraits):
 
     def __init__(self, *args, **kwargs):
 
+        super().__init__(*args, **kwargs)
         if args:
             # look in args
             if not isinstance(args[0], list):
@@ -819,7 +817,7 @@ class Fit(HasTraits):
         # which will be returned to the main program.
 
         expedata = dataset.real.data.squeeze()
-        axis, dim = dataset.get_axis(-1)
+        axis, dim = dataset._get_axis(-1)
         x = dataset.coordset[dim].data
 
         if expedata.ndim > 1:
@@ -1182,7 +1180,7 @@ class Fit(HasTraits):
         return A, a, b, c
 
 
-# ======================================================================================================================
+# ======================================================================================
 def optimize(
     func,
     fp0,

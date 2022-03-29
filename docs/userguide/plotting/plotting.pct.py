@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -10,7 +9,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.13.7
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 #   language_info:
@@ -22,7 +21,7 @@
 #     name: python
 #     nbconvert_exporter: python
 #     pygments_lexer: ipython3
-#     version: 3.9.1
+#     version: 3.9.10
 #   widgets:
 #     application/vnd.jupyter.widget-state+json:
 #       state: {}
@@ -33,20 +32,27 @@
 # %% [markdown]
 # # Plotting
 #
-# This section shows the main plotting capabilities of SpectroChemPy. Most of them are based on [Matplotlib](
+# This section shows the main plotting capabilities of SpectroChemPy. Most of them are
+# based on [Matplotlib](
 # https://matplotlib.org), one of the most used plotting library for Python, and its
-# [pyplot](https://matplotlib.org/stable/tutorials/introductory/pyplot.html) interface. While not mandatory, to follow
-# this tutorial, some familiarity with this library can help, and we recommend a brief look at some
+# [pyplot](https://matplotlib.org/stable/tutorials/introductory/pyplot.html) interface.
+# While not mandatory, to follow
+# this tutorial, some familiarity with this library can help, and we recommend a brief
+# look at some
 # [matplotlib tutorials](https://matplotlib.org/stable/tutorials/index.html) as well.
 #
-# Note that in the near future, SpectroChemPy should also offer the possibility to use [Plotly](https://plotly.com/)
-# for a better interactivity inside a notebook.
+# Note that in the near future, SpectroChemPy should also offer the possibility to use
+# [Plotly](https://plotly.com/) for a better interactivity inside a notebook.
 #
-# Finally, some commands and objects used here are described in-depth in the sections related to
-# [import](../importexport/import.ipynb) and [slicing](../processing/slicing.ipynb) of NDDatasets and the *
+# Finally, some commands and objects used here are described in-depth in the sections
+# related to
+# [import](../importexport/import.ipynb) and [slicing](../processing/slicing.ipynb) of
+# NDDatasets and the *
 # [NDDatasets](../dataset/dataset.ipynb) themselves.
+
 # %% [markdown]
 # ## Load the API
+#
 # First, before anything else, we import the spectrochempy API:
 
 # %%
@@ -54,8 +60,9 @@ import spectrochempy as scp
 
 # %% [markdown]
 # ## Loading the data
-# For sake of demonstration we import a NDDataset consisting in infrared spectra from an omnic .spg file
-# and make some (optional) preparation of the data to display
+#
+# For sake of demonstration we import a NDDataset consisting in infrared spectra from
+# an omnic .spg file and make some (optional) preparation of the data to display
 # (see also [Import IR Data](../importexport/importIR.ipynb)).
 
 # %%
@@ -64,15 +71,12 @@ dataset = scp.NDDataset.read("irdata/nh4y-activation.spg")
 # %% [markdown]
 # ## Preparing the data
 
-# %% [markdown]
-#
-
-
 # %%
 dataset = dataset[:, 4000.0:650.0]  # We keep only the region that we want to display
 
 # %% [markdown]
-# We change the y coordinated so that times start at 0, put it in minutes and change its title/
+# We change the y coordinated so that times start at 0, put it in minutes and change
+# its title/
 
 # %%
 dataset.y -= dataset.y[0]
@@ -89,24 +93,29 @@ dataset[:, 1290.0:920.0] = scp.MASKED
 # ## Selecting the output window
 
 # %% [markdown]
-# For the examples below, we use inline matplotlib figures (non-interactive): this can be forced using the magic
-# function before loading spectrochempy.:
+# For the examples below, we use inline matplotlib figures (non-interactive): this can
+# be forced using the magic function before loading spectrochempy.:
 # ```ipython3
 # %matplotlib inline
 # ```
-# but it is also the default in `Jupyter lab` (so we don't really need to specify this). Note that when such magic
-# function has been used, it is not possible to change the setting, except by resetting the notebook kernel.
+# but it is also the default in `Jupyter lab` (so we don't really need to specify this).
+# Note that when such magic
+# function has been used, it is not possible to change the setting, except by resetting
+# the notebook kernel.
 #
 # If one wants interactive displays (with selection, zooming, etc...) one can use:
 # ```ipython3
 #     %matplotlib widget
 # ```
-# However, this suffers (at least for us) some incompatibilities in `jupyter lab`... it is worth to try!
-# If you can not get it working in `jupyter lab` and you need interactivity, you can use the following:
+# However, this suffers (at least for us) some incompatibilities in `jupyter lab`...
+# it is worth to try!
+# If you can not get it working in `jupyter lab` and you need interactivity, you can
+# use the following:
 # ```ipython3
 #     %matplotlib
 # ```
-# which has the effect of displaying the figures in independent windows using default matplotlib backend (e.g.,
+# which has the effect of displaying the figures in independent windows using default
+# matplotlib backend (e.g.,
 # `Tk`), with all the interactivity of matplotlib.
 #
 # But you can explicitly request a different GUI backend:
@@ -121,9 +130,11 @@ dataset[:, 1290.0:920.0] = scp.MASKED
 # ## Default plotting
 
 # %% [markdown]
-# To plot the previously loaded dataset, it is very simple: we use the `plot` command (generic plot).
+# To plot the previously loaded dataset, it is very simple: we use the `plot` command
+# (generic plot).
 #
-# As the current NDDataset is 2D, a **stack plot** is displayed by default, with a **viridis** colormap.
+# As the current NDDataset is 2D, a **stack plot** is displayed by default, with
+# a **viridis** colormap.
 
 # %%
 _ = dataset.plot()
@@ -132,15 +143,18 @@ _ = dataset.plot()
 # Note, in the cell above, that we used ` _ = ... `  syntax.
 # This is to avoid any output but the plot from this statement.
 #
-# Note also that the `plot()` method uses some of NDDataset metadata: the `NDDataset.x` coordinate `data` (here the
-# wavenumber values), `name` (here 'wavenumbers'), `units` (here 'cm-1') as well as the `NDDataset.title`
+# Note also that the `plot()` method uses some of NDDataset metadata: the `NDDataset.x`
+# coordinate `data` (here the
+# wavenumber values), `name` (here 'wavenumbers'), `units` (here 'cm-1') as well as the
+# `NDDataset.title`
 # (here 'absorbance') and `NDDataset.units (here 'absorbance').
 # %% [markdown]
 # ## Changing the aspect of the plot
 
 # %% [markdown]
 # ### Change the `NDDataset.preferences`
-# We can change the default plot configuration for this dataset by changing its `preferences' attributes
+# We can change the default plot configuration for this dataset by changing its
+# `preferences' attributes
 # (see at the end of this tutorial  for an overview of all the available parameters).
 
 # %%
@@ -162,8 +176,10 @@ prefs.font.family = "monospace"
 _ = dataset.plot()
 
 # %% [markdown]
-# Once changed, the `NDDataset.preferences` attributes will be used for the subsequent plots, but can be reset to the
-# initial defaults anytime using the `NDDataset.preferences.reset()` method. For instance:
+# Once changed, the `NDDataset.preferences` attributes will be used for the subsequent
+# plots, but can be reset to the
+# initial defaults anytime using the `NDDataset.preferences.reset()` method.
+# For instance:
 
 # %%
 print(f"font before reset: {prefs.font.family}")
@@ -171,8 +187,10 @@ prefs.reset()
 print(f"font after reset: {prefs.font.family}")
 
 # %% [markdown]
-# It is also possible to change a parameter for a single plot without changing the `preferences` attribute by passing
-# it as an argument of the `plot()`method. For instance, as in matplotlib, the default colormap is `viridis':
+# It is also possible to change a parameter for a single plot without changing the
+# `preferences` attribute by passing
+# it as an argument of the `plot()`method. For instance, as in matplotlib, the default
+# colormap is `viridis':
 
 # %%
 prefs.colormap
@@ -199,7 +217,8 @@ _ = dataset.plot()
 # ## Adding titles and annotations
 
 # %% [markdown]
-# The plot function return a reference to the subplot `ax` object on which the data have been plotted.
+# The plot function return a reference to the subplot `ax` object on which the data have
+# been plotted.
 # We can then use this reference to modify some element of the plot.
 #
 # For example, here we add a title and some annotations:
@@ -239,15 +258,18 @@ _ = ax.annotate(
 )
 
 # %% [markdown]
-# More information about annotation can be found in the [matplotlib documentation:  annotations](
+# More information about annotation can be found in the [matplotlib documentation:
+# annotations](
 # https://matplotlib.org/stable/tutorials/text/annotations.html)
 
 # %% [markdown]
 # ## Changing the plot style using matplotlib style sheets
 
 # %% [markdown]
-#  The easiest way to change the plot style may be to use pre-defined styles such as those used in [matplotlib
-#  styles](https://matplotlib.org/stable/tutorials/introductory/customizing.html). This is directly included in the
+#  The easiest way to change the plot style may be to use pre-defined styles such as
+#  those used in [matplotlib
+#  styles](https://matplotlib.org/stable/tutorials/introductory/customizing.html).
+#  This is directly included in the
 #  preferences of SpectroChemPy
 
 # %%
@@ -274,7 +296,8 @@ prefs.style = "grayscale", "paper"
 _ = dataset.plot(colorbar=True)
 
 # %% [markdown]
-# As previously, style specification can also be done directly in the plot method without
+# As previously, style specification can also be done directly in the plot method
+# without
 # affecting the `preferences' attribute.
 
 # %%
@@ -297,7 +320,8 @@ _ = dataset.plot()
 # %% [markdown]
 # ## Create your own style
 #
-# If you want to create your own style for later use, you can use the command  `makestyle` (**warning**: you can not
+# If you want to create your own style for later use, you can use the command
+# `makestyle` (**warning**: you can not
 # use `scpy` which is the READONLY default style:
 
 # %%
@@ -339,10 +363,12 @@ _ = dataset.plot()  # plot with our own style
 # ## Changing the type of plot
 
 # %% [markdown]
-# By default, plots of 2D datasets are done in 'stack' mode. Other available modes are 'map', 'image', 'surface' and
+# By default, plots of 2D datasets are done in 'stack' mode. Other available modes
+# are 'map', 'image', 'surface' and
 # 'waterfall'.
 #
-# The default can be changed permanently by setting the variable `pref.method_2D` to one of these alternative modes,
+# The default can be changed permanently by setting the variable `pref.method_2D`
+# to one of these alternative modes,
 # for instance if you like to have contour plot, you can use:
 
 # %%
@@ -354,8 +380,10 @@ prefs.figure_figsize = (5, 3)
 _ = dataset.plot()
 
 # %% [markdown]
-# You can also, for an individual plot use specialised plot commands, such as `plot_stack()`, `plot_map()`,
-# `plot_waterfall()`, `plot_surface()` or `plot_image()` , or equivalently the generic `plot` function with
+# You can also, for an individual plot use specialised plot commands, such as
+# `plot_stack()`, `plot_map()`,
+# `plot_waterfall()`, `plot_surface()` or `plot_image()` , or equivalently the generic
+# `plot` function with
 # the `method` parameter, i.e., `plot(method='stack')`, `plot(method='map')`, etc...
 #
 # These modes are illustrated below:
@@ -423,14 +451,17 @@ _ = scp.plot_multiple(
 prefs
 
 # %% [markdown]
-# **Warning**: Note that with respect to matplotlib,the parameters in the `dataset.preferences` dictionary
-# have a slightly different name, e.g. `figure_figsize` (SpectroChemPy) instead of `figure.figsize` (matplotlib syntax)
+# **Warning**: Note that with respect to matplotlib,the parameters in the
+# `dataset.preferences` dictionary
+# have a slightly different name, e.g. `figure_figsize` (SpectroChemPy) instead of
+# `figure.figsize` (matplotlib syntax)
 # (this is because in SpectroChemPy, dot (`.`) cannot be used in parameter name,
 # and thus it is replaced by an underscore (`_`))
 #
 
 # %% [markdown]
-# To display the current values of **all parameters** corresponding to one group, e.g. `lines`, type:
+# To display the current values of **all parameters** corresponding to one group,
+# e.g. `lines`, type:
 
 # %%
 prefs.lines

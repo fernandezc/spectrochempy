@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# ======================================================================================================================
+#  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in the root directory.
-# ======================================================================================================================
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
 """
 This module implements the IRIS class.
 """
@@ -255,7 +256,7 @@ class IRIS:
         # check if x dimension exists
         if "x" in X.dims:
             # if multiple coords for a given dimension, take the default ones:
-            channels = X.x.default
+            channels = X.x.default.copy()
         else:
             # else, set a single channel:
             channels = Coord([0])
@@ -273,7 +274,7 @@ class IRIS:
                     )
                 p = Coord(p, title="External variable")
         else:
-            p = X.y.default
+            p = X.y.default.copy()
 
         # check options
         # defines the kernel
@@ -552,7 +553,7 @@ class IRIS:
         f = NDDataset(f)
         f.name = "2D distribution functions"
         f.title = "density"
-        f.history = "2D IRIS analysis of {} dataset".format(X.name)
+        f.history = f"2D IRIS analysis of {X.name} dataset."
         f.set_coordset(z=Coord(data=reg_par, title="lambda"), y=q.copy(), x=channels)
         self.f = f
         self.K = K
@@ -614,7 +615,7 @@ class IRIS:
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.set_title("L curve")
+        ax.set_title(title)
         plt.plot(self.RSS, self.SM, "o")
         ax.set_xlabel("Residuals")
         ax.set_ylabel("Curvature")

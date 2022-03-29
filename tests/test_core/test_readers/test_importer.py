@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 # flake8: noqa
 import pathlib
 import os
@@ -6,8 +13,8 @@ import os
 import spectrochempy.core.common.exceptions
 import pytest
 
-from spectrochempy import NDDataset  # , preferences as prefs
-from spectrochempy.utils.pathlib import pathclean
+from spectrochempy.utils.paths import pathclean
+from spectrochempy.core.dataset.nddataset import NDDataset  # , preferences as prefs
 
 from spectrochempy.core.readers.importer import (
     read,

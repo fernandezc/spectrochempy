@@ -1,11 +1,12 @@
 #  -*- coding: utf-8 -*-
+
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 #
-#  =====================================================================================================================
-#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie,
-#  Caen, France.
-#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT - See full LICENSE agreement in
-#  the root directory
-#  =====================================================================================================================
 #
 """
 This module extend NDDataset with the import method for Thermo galactic (spc) data files.
@@ -13,10 +14,9 @@ This module extend NDDataset with the import method for Thermo galactic (spc) da
 __all__ = ["read_spc"]
 __dataset_methods__ = __all__
 
-from datetime import datetime, timezone
 import io
 import struct
-
+from datetime import datetime
 import numpy as np
 from warnings import warn
 
@@ -25,9 +25,9 @@ from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.readers.importer import _importer_method, Importer
 from spectrochempy.core.units import Quantity
 
-# ======================================================================================================================
+# ======================================================================================
 # Public function
-# ======================================================================================================================
+# ======================================================================================
 
 
 def read_spc(*paths, **kwargs):
@@ -72,8 +72,8 @@ def read_spc(*paths, **kwargs):
         dimension) is returned (default=False).
     sortbydate : bool, optional
         Sort multiple spectra by acquisition date (default=True).
-    description: str, optional
-        A Custom description.
+    comment : str, optional
+        A Custom comment.
     content : bytes object, optional
         Instead of passing a filename for further reading, a bytes content
         can be directly provided as bytes objects.
@@ -116,11 +116,11 @@ def read_spc(*paths, **kwargs):
     return importer(*paths, **kwargs)
 
 
-# ======================================================================================================================
+# ======================================================================================
 # Private functions
-# ======================================================================================================================
+# ======================================================================================
 
-# ..............................................................................
+
 @_importer_method
 def _read_spc(*args, **kwargs):
     dataset, filename = args
@@ -534,7 +534,7 @@ def _read_spc(*args, **kwargs):
     dataset.name = str(filename)
     dataset.units = y_unit
     dataset.title = y_title
-    dataset.origin = "thermo galactic"
+    dataset.source = "thermo galactic"
 
     # now add coordinates
     _y = Coord(
@@ -546,40 +546,36 @@ def _read_spc(*args, **kwargs):
 
     dataset.set_coordset(y=_y, x=_x)
 
-    dataset.description = kwargs.get("description", "Dataset from spc file.\n")
+    dataset.comment = kwargs.get("description", "Dataset from spc file.\n")
     if ord(Fexper) != 0 and ord(Fexper) != 7:
-        dataset.description += "Instrumental Technique: " + technique + "\n"
+        dataset.comment += "Instrumental Technique: " + technique + "\n"
     if Fres != b"\x00\x00\x00\x00\x00\x00\x00\x00\x00":
-        dataset.description += "Resolution: " + sres + "\n"
+        dataset.comment += "Resolution: " + sres + "\n"
     if Fsource != b"\x00\x00\x00\x00\x00\x00\x00\x00\x00":
-        dataset.description += "Source Instrument: " + ssource + "\n"
+        dataset.comment += "Source Instrument: " + ssource + "\n"
     if (
         Fcmnt
         != b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
     ):
-        dataset.description += "Memo: " + scmnt + "\n"
+        dataset.comment += "Memo: " + scmnt + "\n"
     if Flogoff:
         if Logtxto:
-            dataset.description += "Log Text: \n---------\n"
-            dataset.description += logtxt
-            dataset.description += "---------\n"
+            dataset.comment += "Log Text: \n---------\n"
+            dataset.comment += logtxt
+            dataset.comment += "---------\n"
         if Logbins or Logsizd:
             if Logtxto:
-                dataset.description += (
+                dataset.comment += (
                     "Note: The Log block of the spc file also contains: \n"
                 )
             else:
-                dataset.description += (
-                    "Note: The Log block of the spc file contains: \n"
-                )
+                dataset.comment += "Note: The Log block of the spc file contains: \n"
             if Logbins:
-                dataset.description += f"a Log binary block of size {Logbins} bytes "
+                dataset.comment += f"a Log binary block of size {Logbins} bytes "
             if Logsizd:
-                dataset.description += f"a Log disk block of size {Logsizd} bytes "
+                dataset.comment += f"a Log disk block of size {Logsizd} bytes "
 
-    dataset.history = str(
-        datetime.now(timezone.utc)
-    ) + ":imported from spc file {} ; ".format(filename)
+    dataset.history = f"Imported from spc file {filename}."
 
     if y_unit == "Interferogram":
         # interferogram

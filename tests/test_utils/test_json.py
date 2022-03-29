@@ -1,3 +1,9 @@
+#  =====================================================================================
+#  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
+#  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
+#  See full LICENSE agreement in the root directory.
+#  =====================================================================================
+
 import json
 import base64
 import pickle
@@ -29,3 +35,8 @@ def test_json_serialiser_decoder(IR_dataset_2D):
     jsd = json.loads(js_string, object_hook=json_decoder)
 
     assert np.all(pickle.loads(base64.b64decode(js["data"]["base64"])) == jsd["data"])
+
+    # backward compatibility
+    from spectrochempy import read, preferences as prefs
+
+    nd = read(prefs.datadir / "irdata/nh4y-activation.scp")

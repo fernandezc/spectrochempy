@@ -1,7 +1,6 @@
 from pathlib import Path
 
 
-# ..........................................................................
 def convert_py_to_pct_py():
     DOCS = Path(__file__).parent
 
