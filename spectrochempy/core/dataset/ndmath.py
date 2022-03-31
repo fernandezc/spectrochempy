@@ -27,7 +27,7 @@ from numpy.random import rand
 
 from quaternion import as_float_array
 
-from spectrochempy.core import error_, warning_, exception_, debug_
+from spectrochempy.core import error_, warning_, debug_
 from spectrochempy.core.common.compare import is_sequence
 from spectrochempy.core.common.complex import (
     as_quat_array,
@@ -1469,10 +1469,8 @@ class NDMath(object):
         """
 
         if not cls.implements("NDDataset") or cls.coordset is None:
-            exception_(
-                Exception(
-                    "Method `coordmax` apply only on NDDataset and if it has defined coordinates"
-                )
+            raise Exception(
+                "Method `coordmax` apply only on NDDataset and if it has defined coordinates"
             )
 
         axis, dim = cls._get_axis(dim, allows_none=True)
@@ -1504,10 +1502,8 @@ class NDMath(object):
         """
 
         if not cls.implements("NDDataset") or cls.coordset is None:
-            exception_(
-                Exception(
-                    "Method `coordmin` apply only on NDDataset and if it has defined coordinates"
-                )
+            raise Exception(
+                "Method `coordmin` apply only on NDDataset and if it has defined coordinates"
             )
 
         axis, dim = cls._get_axis(dim, allows_none=True)
@@ -1640,7 +1636,7 @@ class NDMath(object):
             # ------------------
             return new.diagonal(offset=offset, **kwargs)
 
-        exception_(ValueError("Input must be 1- or 2-d."))
+        raise ValueError("Input must be 1- or 2-d.")
 
     @_reduce_method
     @_from_numpy_method
@@ -2948,10 +2944,8 @@ class NDMath(object):
                     s = "DIMENSIONLESS input"
                 else:
                     s = f"`{requnits}` units"
-                exception_(
-                    DimensionalityError(
-                        units, requnits, extra_msg=f"\nFunction `{fname}` requires {s}"
-                    )
+                raise DimensionalityError(
+                    units, requnits, extra_msg=f"\nFunction `{fname}` requires {s}"
                 )
         return units
 
@@ -2986,7 +2980,7 @@ class NDMath(object):
                         *objdimensionality[::-1],
                         extra_msg=f", Units must be compatible for the `{fname}` operator",
                     )
-                    exception_(error)  # raise and log error
+                    raise error  # raise and log error
         debug_("... Dimensionality of the units are compatible")
 
     def _check_compatible_operand_shapes(self, fname, objs):
@@ -3010,9 +3004,9 @@ class NDMath(object):
                 if (
                     len(objshapes[1]) > 1
                 ):  # Cannot be broadcasted to the shape of the first operand
-                    exception_(IncompatibleShapeError(*objshapes[::-1]))
+                    raise IncompatibleShapeError(*objshapes[::-1])
                 elif checksize != last_dim_size and checksize > 1:  # Same problem
-                    exception_(IncompatibleShapeError(*objshapes[::-1]))
+                    raise IncompatibleShapeError(*objshapes[::-1])
 
         debug_("... Shapes are compatibles")
 
@@ -3063,20 +3057,19 @@ class NDMath(object):
                                 coord0, coord1, quantity_only=True, decimals=4
                             )
                     except AssertionError as e:
-                        exception_(
-                            CoordinateMismatchError(coord0, coord1, extra_msg=e.args[0])
+                        raise CoordinateMismatchError(
+                            coord0, coord1, extra_msg=e.args[0]
                         )
                 elif shapes[1][-1] == shapes[0][-1]:
                     # Solution 2. coord1 is one dimensional shape (size,) or (1, size)
                     # and size match the last dimension size.
                     if len(shapes[1]) > 1 and shapes[1][0] > 1:
                         # but the second obj is not unidimensional
-                        exception_(
-                            IncompatibleShapeError(
-                                *objs,
-                                extra_msg=" If arrays shapes are differents, the second must be 1D",
-                            )
+                        raise IncompatibleShapeError(
+                            *objs,
+                            extra_msg=" If arrays shapes are differents, the second must be 1D",
                         )
+
                     coord1 = coordsets[1][dimss[1][-1]]
                     coord0 = coordsets[0][dimss[0][-1]]
                     try:
@@ -3084,8 +3077,8 @@ class NDMath(object):
                             coord0, coord1, quantity_only=True, decimals=4
                         )
                     except AssertionError as e:
-                        exception_(
-                            CoordinateMismatchError(coord0, coord1, extra_msg=e.args[0])
+                        raise CoordinateMismatchError(
+                            coord0, coord1, extra_msg=e.args[0]
                         )
                 else:
                     print()
@@ -3170,10 +3163,8 @@ class NDMath(object):
                 elif is_masked:
                     magnitudes[i] = np.ma.masked_array(magnitudes[i], mask=mask)
 
-            except ValueError as e:
-                exception_(e)
-            except IndexError as e:
-                exception_(e)
+            except (ValueError, IndexError) as e:
+                raise e
 
         if is_masked:
             debug_(
@@ -3227,11 +3218,11 @@ class NDMath(object):
                         this.astype(np.complex128), other
                     )  # data = getattr(np.emath, fname)(d, *args)
                     if ws:
-                        exception_(ValueError(ws[-1].message.args[0]))
+                        raise ValueError(ws[-1].message.args[0])
                 elif ws and "overflow encountered" in ws[-1].message.args[0]:
                     warning_(ws[-1].message.args[0])
                 elif ws:
-                    exception_(ValueError(ws[-1].message.args[0]))
+                    raise ValueError(ws[-1].message.args[0])
 
             # TODO: check the complex nature of the result to return it
 
@@ -3263,7 +3254,7 @@ class NDMath(object):
                         else operator.sub(this)
                     )
                 else:
-                    exception_(ArithmeticError(e.args[0]))
+                    raise ArithmeticError(e.args[0])
 
         return data
 
@@ -3296,7 +3287,7 @@ class NDMath(object):
             else:
                 q1 = None
         except Exception as e:
-            exception_(e)
+            raise e
 
         # Some functions are not handled by pint regarding units, try to solve this here
         f_u = f
@@ -3308,7 +3299,7 @@ class NDMath(object):
             res = f_u(q0, q1) if q1 is not None else f_u(q0)
 
         except Exception as e:
-            exception_(e)
+            raise e
 
         units = res.units if hasattr(res, "units") else None
 
@@ -3447,7 +3438,7 @@ class NDMath(object):
                 inputs[0] *= np.log(inputs[1])
                 inputs = inputs[:1]
             else:
-                exception_(NotImplementedError())
+                raise NotImplementedError()
 
         if fname in ["exp"]:
             f = getattr(np, fname)

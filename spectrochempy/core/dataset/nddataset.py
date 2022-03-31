@@ -21,7 +21,7 @@ import pytz
 import traitlets as tr
 from traittypes import Array
 
-from spectrochempy.core import error_, exception_, warning_
+from spectrochempy.core import error_, warning_
 from spectrochempy.core.common.constants import DEFAULT_DIM_NAME, MaskedConstant
 from spectrochempy.core.common.docstrings import DocstringProcessor
 from spectrochempy.core.common.exceptions import (
@@ -1367,8 +1367,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
         try:
             self._timezone = pytz.timezone(val)
         except pytz.UnknownTimeZoneError:
-            exception_(
-                UnknownTimeZoneError,
+            raise UnknownTimeZoneError(
                 "You can get a list of valid timezones in "
                 "https://en.wikipedia.org/wiki/tr.List_of_tz_database_time_zones ",
             )

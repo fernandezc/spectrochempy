@@ -31,8 +31,9 @@ from spectrochempy.core.common.docstrings import (
 from spectrochempy.core.common.datetimes import (
     get_datetime_labels,
 )
-from spectrochempy.core import exception_
 from spectrochempy.core.dataset.coord import LinearCoord
+
+from spectrochempy.core.common.exceptions import ShapeError
 
 _PLOT2D_DOC = """
 autolayout : bool, optional, default=True
@@ -158,12 +159,12 @@ def plot_2D(dataset, method=None, **kwargs):
     if dataset._squeeze_ndim < 2:
         return dataset.plot_1D(**kwargs)
 
-    # MAke the data 2D or raise an error if not possible
+    # Make the data 2D or raise an error if not possible
     if dataset.ndim > 2:
         try:
             dataset = dataset.squeeze(keepdims=(-2, -1))
-        except Exception as e:
-            exception_(e)
+        except Exception as exc:
+            raise ShapeError(exc) from exc
 
     # Get the data to plot
     # ---------------------------------------------------------------

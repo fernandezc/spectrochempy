@@ -11,12 +11,11 @@ Package defining the *core* methods of the |scpy| API.
 Most the API methods such as plotting, processing, analysis, etc...
 """
 
-from os import environ
 import sys
-import warnings
+from os import environ
 
+from spectrochempy.core.common.exceptions import SpectroChemPyWarning, deprecated
 from spectrochempy.utils.optional import import_optional_dependency
-from spectrochempy.core.common.exceptions import SpectroChemPyWarning
 from spectrochempy.utils.paths import pathclean
 
 # ======================================================================================
@@ -29,66 +28,72 @@ __all__ = []
 # logging functions
 # ======================================================================================
 
-from .common.print import pstr  # noqa: E402
-import logging
 import inspect
+import logging
+
+from spectrochempy.core.common.print import pstr, colored_output  # noqa: E402
 
 
-def _get_class_function(stack):
+def _get_class_function(stack, stacklevel=-1):
+    mystack = []
     for s in stack[::-1]:
         # this is to handle the case we are running in the debbuger
         filename = s.filename
+        # report only from our code
         if "pydev" in filename or "pytest" in filename or "site-packages" in filename:
             continue
-        break
+        function = s.function
+        if function in ["_format_args", "error_", "debug_", "warning_"]:
+            continue
+        mystack.append(s)
+    s = mystack[stacklevel]
     function = s.function
     filename = s.filename.split("/")[-1]
     lineno = s.lineno
-    return f"{filename}:{function}({lineno})"
+    return f"{function}[{filename}:{lineno}]"
 
 
 def _format_args(*args, **kwargs):
 
     # find the calling origin
+    stacklevel = kwargs.pop("stacklevel", -1)
     stack = inspect.stack()
     formatter = logging.Formatter(
-        f"[%(asctime)s - {_get_class_function(stack)}] %(message)s"
+        f"[%(asctime)s - {_get_class_function(stack, stacklevel)} - %(message)s"
     )
     app.logs.handlers[1].setFormatter(formatter)
-    if app.logs.handlers[0].level == DEBUG:
+    if app.logs.handlers[0].level in [DEBUG, ERROR]:
         app.logs.handlers[0].setFormatter(formatter)
     else:
         app.logs.handlers[0].setFormatter(logging.Formatter("%(message)s"))
 
     stg = ""
-    for arg in args[1:]:
+    for arg in args:
         stg += pstr(arg, **kwargs) + " "
-    return stg.replace("\0", "").strip()
+    return stg.replace("\0", "").rstrip()
 
 
 def print_(*args, **kwargs):
     """
     Formatted printing.
     """
-    stg = _format_args("", *args, **kwargs)
-    print(stg)
+    stg = _format_args(*args, **kwargs)
+    print(colored_output(stg))
 
 
-# ------------------------------------------------------------------
 def info_(*args, **kwargs):
     """
     Formatted info message.
     """
-    stg = _format_args("", *args, **kwargs)
+    stg = _format_args(*args, **kwargs)
     app.logs.info(stg)
 
 
-# ------------------------------------------------------------------
 def debug_(*args, **kwargs):
     """
     Formatted debug message.
     """
-    stg = _format_args("", "DEBUG: ", *args, **kwargs)
+    stg = _format_args("DEBUG : ", *args, **kwargs)
     try:
         app.logs.debug(stg)
     except NameError:  # pragma: no cover
@@ -96,30 +101,28 @@ def debug_(*args, **kwargs):
         pass
 
 
-def exception_(*args, **kwargs):
-    """
-    log exception
-    """
-    name = args[0].__class__.__name__ + " | "
-    msg = args[0].message if hasattr(args[0], "message") else args[0]
-    stg = _format_args("", name, msg, *args[1:], **kwargs)
-    app.logs.error(stg)
-
-    raise args[0]
-
-
-# ------------------------------------------------------------------
 def error_(*args, **kwargs):
     """
     Formatted error message.
+    Unlike raising error the programme is not stopped after an error. It is
+    especially designed for Jupyter Notebook so that error ar more like warnings and
+    doesn't stop the execution.
     """
-    name = "ERROR" + " | "
+    name = args[0]
+    try:
+        if issubclass(name, BaseException):
+            name = name.__name__
+    except TypeError:
+        print(
+            "ValueError: First argument of `error_` must be a subclass of "
+            "BaseException"
+        )
+        return
 
-    stg = _format_args("", name, *args, **kwargs)
+    stg = _format_args(f"{name} : {args[1]}")
     app.logs.error(stg)
 
 
-# ------------------------------------------------------------------
 def warning_(*args, **kwargs):
     """
     Formatted warning message.
@@ -127,11 +130,12 @@ def warning_(*args, **kwargs):
     if len(args) > 1:
         kwargs["category"] = args[1]  # priority to arg
     category = kwargs.pop("category", SpectroChemPyWarning)
-    stg = _format_args("", f"{category.__name__}: ", str(args[0]))
+    stg = _format_args(f"{category.__name__}: ", str(args[0]))
     app.logs.warning(stg)
 
 
-__all__ += ["info_", "debug_", "error_", "warning_", "print_", "exception_"]
+__all__ += ["info_", "debug_", "error_", "warning_", "print_"]
+
 
 # ======================================================================================
 # Progress bar
@@ -176,27 +180,21 @@ def _pbar_update(close=None):
 # ======================================================================================
 
 _pbar_update()
-from ..application import SpectroChemPy  # noqa: E402
+from spectrochempy.application import SpectroChemPy  # noqa: E402
 
 app = SpectroChemPy()
 __all__ += ["app"]
 
 # noinspection PyUnresolvedReferences
-from ..application import (  # noqa: E402
-    __version__ as version,
-    __release__ as release,
-    __copyright__ as copyright,
-    __license__ as license,
-    __release_date__ as release_date,
-    __author__ as authors,
-    __contributor__ as contributors,
-    __url__ as url,
-    DEBUG,
-    WARNING,
-    ERROR,
-    CRITICAL,
-    INFO,
-)
+from spectrochempy.application import CRITICAL, DEBUG, ERROR, INFO, WARNING
+from spectrochempy.application import __author__ as authors
+from spectrochempy.application import __contributor__ as contributors
+from spectrochempy.application import __copyright__ as copyright
+from spectrochempy.application import __license__ as license
+from spectrochempy.application import __release__ as release
+from spectrochempy.application import __release_date__ as release_date
+from spectrochempy.application import __url__ as url
+from spectrochempy.application import __version__ as version  # noqa: E402
 
 preferences = app.preferences
 plot_preferences = app.plot_preferences
@@ -251,11 +249,17 @@ __all__ += [
 
 _pbar_update()
 
+from spectrochempy.utils.print_versions import show_versions  # noqa: E402
+
 # constants and utilities
 # ------------------------------------------------------------------
-from .common.constants import MASKED, NOMASK, EPSILON, INPLACE  # noqa: E402
-from .common.plots import show  # noqa: E402
-from ..utils.print_versions import show_versions  # noqa: E402
+from spectrochempy.core.common.constants import (
+    EPSILON,
+    INPLACE,
+    MASKED,
+    NOMASK,
+)  # noqa: E402
+from spectrochempy.core.common.plots import show  # noqa: E402
 
 __all__ += ["show", "MASKED", "NOMASK", "EPSILON", "INPLACE", "show_versions"]
 
@@ -267,64 +271,64 @@ __all__.append("Coord")
 # # dataset
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from .dataset import api  # noqa: E402
-# from .dataset.api import *  # noqa: E402,F403,F401
+# from spectrochempy.core.dataset import api  # noqa: E402
+# from spectrochempy.core.dataset.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
 # # plotters
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from .plotters import api  # noqa: E402
-# from .plotters.api import *  # noqa: E402,F403,F401
+# from spectrochempy.core.plotters import api  # noqa: E402
+# from spectrochempy.core.plotters.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
 # # processors
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from .processors import api  # noqa: E402
-# from .processors.api import *  # noqa: E402,F403,F401
+# from spectrochempy.core.processors import api  # noqa: E402
+# from spectrochempy.core.processors.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
 # # readers
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from .readers import api  # noqa: E402
-# from .readers.api import *  # noqa: E402,F403,F401
+# from spectrochempy.core.readers import api  # noqa: E402
+# from spectrochempy.core.readers.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
 # # writers
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from .writers import api  # noqa: E402
-# from .writers.api import *  # noqa: E402,F403,F401
+# from spectrochempy.core.writers import api  # noqa: E402
+# from spectrochempy.core.writers.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
 # # units
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from .units import api  # noqa: E402
-# from .units.api import *  # noqa: E402,F403,F401
+# from spectrochempy.core.units import api  # noqa: E402
+# from spectrochempy.core.units.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
 # # databases
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from ..databases import api  # noqa: E402
-# from ..databases.api import *  # noqa: E402,F403,F401
+# from spectrochempy.databases import api  # noqa: E402
+# from spectrochempy.databases.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
 # # analysis
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from ..analysis import api  # noqa: E402
-# from ..analysis.api import *  # noqa: E402,F403,F401
+# from spectrochempy.analysis import api  # noqa: E402
+# from spectrochempy.analysis.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
@@ -347,8 +351,8 @@ __all__.append("Coord")
 # # widgets
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from ..widgets import api  # noqa: E402
-# from ..widgets.api import *  # noqa: E402,F403,F401
+# from spectrochempy.widgets import api  # noqa: E402
+# from spectrochempy.widgets.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #

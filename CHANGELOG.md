@@ -34,6 +34,7 @@
   ```
 
 * Change the size of rotating log to 256K instead of 32K.
+* Revision of the way info are displayed in log file and stdout/stderr
 * Revision of the math operations :
   This function is at the heart of the mathematical calculations on the
   data sets and coordinates. However the complexity of its structure made
@@ -74,7 +75,6 @@
 * Copy method of Coord now copy the size attribute.
 * Display problem in PCA examples.
 * Docs display problems for twinx (both axes are now unit-aware)
-* Warnings display in log file
 
 ### DEPRECATED
 * `LinearCoord` object is now deprecated. Use `Coord` with the `linear` keywords set to True instead.

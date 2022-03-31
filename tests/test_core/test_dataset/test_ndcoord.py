@@ -30,7 +30,7 @@ from spectrochempy.core.common.exceptions import (
 from spectrochempy.utils.testing import (
     assert_approx_equal,
     assert_array_equal,
-    assert_produces_warning,
+    assert_produces_log_warning,
     assert_units_equal,
 )
 from spectrochempy.utils.traits import Range
@@ -339,8 +339,7 @@ def test_coord_init():
 def test_linearcoord_deprecated():
     from spectrochempy.core.dataset.coord import LinearCoord
 
-    with assert_produces_warning(DeprecationWarning, check_stacklevel=False):
-        # AS I don't really issue a classical warning this do not work (see
+    with assert_produces_log_warning(DeprecationWarning):
         _ = LinearCoord(title="z")
 
 
@@ -804,7 +803,10 @@ def test_coordset_loc2index_method(coord0, coord1, coord2):
 
     c = CoordSet(coord2, [coord0, coord1[:10]], coord0)
 
-    with pytest.raises(TypeError):
+    with pytest.raises(AttributeError):
+        # no loc2index for coordset except
+        # if the coordset describe the same dimension (but this cannot be called
+        # directly)
         c.loc2index(3000.0)
 
     idx = c.y.loc2index(3000.0)
@@ -932,9 +934,6 @@ def test_coordset_del_item_method(coord0, coord1, coord2):
     with pytest.raises(AttributeError):
         x = c.temperature
 
-    # _repr_html
-    assert c._repr_html_().startswith("<table style='background:transparent'>")
-
 
 def test_coordset_copy_method(coord0, coord1):
     coord2 = Coord.linspace(200.0, 300.0, 3, units="K", title="temperature")
@@ -967,6 +966,9 @@ def test_coordset_str_repr_method(coord0, coord1, coord2):
         == "CoordSet: [x:time-on-stream (coord1), y:[_1:wavenumber (coord0), _2:wavenumber (coord0)], z:temperature (coord2)]"
     )
     assert repr(coords) == str(coords)
+
+    # _repr_html
+    assert coords._repr_html_().startswith("<table style='background:transparent'>")
 
 
 def test_coordset_set_item_method(coord0, coord1, coord2):

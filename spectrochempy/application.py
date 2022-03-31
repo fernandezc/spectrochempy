@@ -12,9 +12,6 @@ This module defines the `application` on which the API rely.
 It also defines
 the default application preferences and IPython magic functions.
 """
-
-__all__ = []
-
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
@@ -64,6 +61,9 @@ from spectrochempy.utils.version import Version
 from spectrochempy.utils.paths import pathclean
 from spectrochempy.utils.packages import get_pkg_path
 from spectrochempy.plot_preferences import PlotPreferences
+
+__all__ = []
+__mycode = True
 
 # set the default style
 plt.style.use(["classic"])
@@ -682,7 +682,8 @@ class SpectroChemPy(Application):
     "Running name of the application"
 
     description = Unicode(
-        "SpectroChemPy is a framework for processing, analysing and modelling Spectroscopic data for "
+        "SpectroChemPy is a framework for processing, analysing and modelling "
+        "Spectroscopic data for "
         "Chemistry with Python."
     )
     "Short description of the |scpy| application"
@@ -949,13 +950,14 @@ you are kindly requested to cite it this way: <pre>{__cite__}</pre></p>.
             # --------------------------------------------------------------------
             if ipy is not None:
                 ipy.register_magics(SpectroChemPyMagics)
+        else:
+            from spectrochempy.core.common.exceptions import handle_exception
+
+            sys.excepthook = handle_exception
 
         # Warning handler
         # --------------------------------------------------------------------
-        def send_warnings_to_log(*args, **kwargs):
-            from spectrochempy.core import warning_
-
-            warning_(*args)
+        from spectrochempy.core.common.exceptions import send_warnings_to_log
 
         warnings.showwarning = send_warnings_to_log
 

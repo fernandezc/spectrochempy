@@ -20,7 +20,7 @@ import warnings
 import numpy as np
 import traitlets as tr
 
-from spectrochempy.core import error_, exception_, print_, warning_, debug_
+from spectrochempy.core import error_, print_, warning_, debug_
 from spectrochempy.core.common.compare import is_number, is_sequence
 from spectrochempy.core.common.constants import DEFAULT_DIM_NAME, INPLACE, NOMASK
 from spectrochempy.core.common.exceptions import (
@@ -32,7 +32,8 @@ from spectrochempy.core.common.exceptions import (
     deprecated,
 )
 from spectrochempy.core.common.print import colored_output, convert_to_html
-from spectrochempy.core.dataset.ndarray import NDArray, NDLabeledArray
+from spectrochempy.core.dataset.ndarray import NDArray
+from spectrochempy.core.dataset.ndlabeledarray import NDLabeledArray
 from spectrochempy.core.dataset.ndmath import NDMath
 from spectrochempy.core.units import Quantity, encode_quantity, ur
 from spectrochempy.utils.misc import spacings
@@ -293,9 +294,9 @@ class Coord(NDMath, NDLabeledArray):
     # ------------------------------------------------------------------------
     # public methods
     # ------------------------------------------------------------------------
-    def loc2index(self, loc):
+    def loc2index(self, loc, dim=None, *, units=None):
         """
-        Return the index corresponding to a given location.
+        Return the index corresponding to a given location .
 
         Parameters
         ----------
@@ -314,6 +315,67 @@ class Coord(NDMath, NDLabeledArray):
         >>> dataset.x.loc2index(1644.0)
         4517
         """
+
+        # check units compatibility
+        if (
+            units is not None
+            and (is_number(loc) or is_sequence(loc))
+            and units != self.units
+        ):
+            raise ValueError(
+                f"Units of the location {loc} {units} "
+                f"are not compatible with those of this array:"
+                f"{self.units}"
+            )
+
+        if self.is_empty and not self.is_labeled:
+
+            raise IndexError(f"Could not find this location {loc} on an empty array")
+
+        data = self.data
+
+        if is_number(loc):
+            # get the index of a given values
+            error = None
+            if np.all(loc > data.max()) or np.all(loc < data.min()):
+                print_(
+                    f"This coordinate ({loc}) is outside the axis limits "
+                    f"({data.min()}-{data.max()}).\nThe closest limit index is "
+                    f"returned"
+                )
+                error = "out_of_limits"
+            index = (np.abs(data - loc)).argmin()
+            # TODO: add some precision to this result
+            if not error:
+                return index
+            return index, error
+
+        if is_sequence(loc):
+            # TODO: is there a simpler way to do this with numpy functions
+            index = []
+            for lo_ in loc:
+                index.append(
+                    (np.abs(data - lo_)).argmin()
+                )  # TODO: add some precision to this result
+            return index
+
+        if self.is_labeled:
+
+            # TODO: look in all row of labels
+            labels = self._labels
+            indexes = np.argwhere(labels == loc).flatten()
+            if indexes.size > 0:
+                return indexes[0]
+            raise IndexError(f"Could not find this label: {loc}")
+
+        if isinstance(loc, np.datetime64):
+            # not implemented yet
+            raise NotImplementedError(
+                "datetime as location is not yet implemented"
+            )  # TODO: date!
+
+        raise IndexError(f"Could not find this location: {loc}")
+
         idx = self._loc2index(loc)
         if isinstance(idx, tuple):
             idx, _ = idx
@@ -859,6 +921,10 @@ class CoordSet(tr.HasTraits):
         if "_validate" in item or "_changed" in item:
             raise AttributeError
 
+        # case of loc2index
+        if item == "loc2index" and self.is_same_dim:
+            return self._loc2index
+
         try:
             return self.__getitem__(item)
         except (IndexError, KeyError):
@@ -891,14 +957,13 @@ class CoordSet(tr.HasTraits):
 
             # maybe it is a title or a name in a sub-coords
             for item in self._coords:
-                if isinstance(item, CoordSet) and index in item.titles:
-                    # selection by subcoord title
-                    return item.__getitem__(item.titles.index(index))
-
-            for item in self._coords:
-                if isinstance(item, CoordSet) and index in item.names:
-                    # selection by subcoord name
-                    return item.__getitem__(item.names.index(index))
+                if isinstance(item, CoordSet):
+                    if index in item.titles:
+                        # selection by subcoord title
+                        return item.__getitem__(item.titles.index(index))
+                    if index in item.names:
+                        # selection by subcoord name
+                        return item.__getitem__(item.names.index(index))
 
             try:
                 # let try with the canonical dimension names
@@ -1201,7 +1266,7 @@ class CoordSet(tr.HasTraits):
         return txt.rstrip()
 
     @tr.default("_id")
-    def _id_default(self):
+    def __id_default(self):
         # a unique id
         return f"{type(self).__name__}_{str(uuid.uuid1()).split('-', maxsplit=1)[0]}"
 
@@ -1255,8 +1320,9 @@ class CoordSet(tr.HasTraits):
         """
         True if the name has been defined (bool).
         """
-        return self.name != self.id
+        return not (self.name == self.id)
 
+    # ..........................................................................
     @property
     def id(self):
         """
@@ -1447,88 +1513,7 @@ class CoordSet(tr.HasTraits):
             keys.extend(list(self.references.keys()))
         return keys
 
-    def loc2index(self, loc, dim=None, *, units=None):
-        """
-        Return the index corresponding to a given location .
-
-        Parameters
-        ----------
-        loc : float.
-            Value corresponding to a given location on the coordinate's axis.
-
-        Returns
-        -------
-        index : int.
-            The corresponding index.
-
-        Examples
-        --------
-
-        >>> dataset = scp.NDDataset.read("irdata/nh4y-activation.spg")
-        >>> dataset.x.loc2index(1644.0)
-        4517
-        """
-
-        # check units compatibility
-        if (
-            units is not None
-            and (is_number(loc) or is_sequence(loc))
-            and units != self.units
-        ):
-            raise ValueError(
-                f"Units of the location {loc} {units} "
-                f"are not compatible with those of this array:"
-                f"{self.units}"
-            )
-
-        if self.is_empty and not self.is_labeled:
-
-            raise IndexError(f"Could not find this location {loc} on an empty array")
-
-        data = self.data
-
-        if is_number(loc):
-            # get the index of a given values
-            error = None
-            if np.all(loc > data.max()) or np.all(loc < data.min()):
-                print_(
-                    f"This coordinate ({loc}) is outside the axis limits "
-                    f"({data.min()}-{data.max()}).\nThe closest limit index is "
-                    f"returned"
-                )
-                error = "out_of_limits"
-            index = (np.abs(data - loc)).argmin()
-            # TODO: add some precision to this result
-            if not error:
-                return index
-            return index, error
-
-        if is_sequence(loc):
-            # TODO: is there a simpler way to do this with numpy functions
-            index = []
-            for lo_ in loc:
-                index.append(
-                    (np.abs(data - lo_)).argmin()
-                )  # TODO: add some precision to this result
-            return index
-
-        if self.is_labeled:
-
-            # TODO: look in all row of labels
-            labels = self._labels
-            indexes = np.argwhere(labels == loc).flatten()
-            if indexes.size > 0:
-                return indexes[0]
-            raise IndexError(f"Could not find this label: {loc}")
-
-        if isinstance(loc, np.datetime64):
-            # not implemented yet
-            raise NotImplementedError(
-                "datetime as location is not yet implemented"
-            )  # TODO: date!
-
-        raise IndexError(f"Could not find this location: {loc}")
-
+    # ..........................................................................
     def select(self, val):
         """
         Select the default coord index.

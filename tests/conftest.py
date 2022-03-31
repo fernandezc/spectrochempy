@@ -53,13 +53,11 @@ def pytest_sessionfinish(session, exitstatus):  # pragma: no cover
 
 try:
     # work only if spectrochempy is installed
-    import spectrochempy
+    from spectrochempy import set_loglevel, DEBUG
 except ModuleNotFoundError:  # pragma: no cover
     raise ModuleNotFoundError(
         "You must install spectrochempy and its dependencies before executing tests!"
     )
-
-from spectrochempy import set_loglevel, DEBUG
 
 # put in debug mode for development
 set_loglevel(DEBUG)

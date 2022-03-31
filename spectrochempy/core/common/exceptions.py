@@ -9,6 +9,9 @@
 SpectroChemPy specific exceptions
 """
 import warnings
+import sys, logging
+from pathlib import Path
+
 from contextlib import contextmanager
 
 import pint
@@ -66,6 +69,12 @@ class CastingError(SpectroChemPyException):
         super().__init__(message)
 
 
+class InvalidNameError(SpectroChemPyException):
+    """
+    Exception when a object name is not valid
+    """
+
+
 class ShapeError(SpectroChemPyException):
     """
     Exception raised when an array cannot be set due to a wrong shape.
@@ -111,6 +120,12 @@ class UnitsCompatibilityError(SpectroChemPyException):
     """
     Exception raised when units are not compatible,
     preventing some mathematical operations.
+    """
+
+
+class InvalidUnitsError(SpectroChemPyException):
+    """
+    Exception raised when units is not valid.
     """
 
 
@@ -211,7 +226,7 @@ def deprecated(kind="method", replace="", extra_msg=""):
     kind : str
         By default, it is method.
     replace : str
-        Name of the method taht replace the deprecated one.
+        Name of the method that replace the deprecated one.
     extra_msg : str
         Additional message.
     """
@@ -223,7 +238,7 @@ def deprecated(kind="method", replace="", extra_msg=""):
             if name.endswith("__init__"):
                 name = name.split(".", maxsplit=1)[0]
             sreplace = f" Use `{replace}` instead" if replace else ""
-            warnings.warn(
+            warning_(
                 f" `{name}` {kind} is now deprecated and could be completely "
                 f"removed in version 0.5.*. {sreplace} {extra_msg}",
                 category=DeprecationWarning,
@@ -268,5 +283,43 @@ def ignored(*exc):
         pass
 
 
-# ==============================================================================
-# EOF
+def _get_trace_info(*args):
+    import traceback
+
+    typ, val, tb = args
+    info = traceback.extract_tb(tb)[-1]
+    return (
+        f"{info.name}[{Path(info.filename).name}:{info.lineno}] - {typ.__name__}"
+        f" : {val}"
+    )
+
+
+def handle_exception(*args):
+    """
+    Custom handling of the uncaught exceptions
+
+    Parameters
+    ----------
+    *args
+        Arguments received from the caught exception.
+    """
+
+    from spectrochempy.core import app
+
+    stg = _get_trace_info(*args)
+    app.logs.handlers[0].setFormatter(logging.Formatter("%(message)s"))
+    app.logs.handlers[1].setFormatter(logging.Formatter(f"[%(asctime)s - %(message)s"))
+    app.logs.error(stg)
+    sys.exit(1)
+
+
+def send_warnings_to_log(*args, **kwargs):
+    import inspect
+    from spectrochempy.core import warning_, _format_args, app, _get_class_function
+
+    if len(args) > 1:
+        kwargs["category"] = args[1]  # priority to arg
+    category = kwargs.pop("category", SpectroChemPyWarning)
+    stack = inspect.stack()
+    stg = _format_args(f"{category.__name__}: ", str(args[0]), stacklevel=-3)
+    app.logs.warning(stg)

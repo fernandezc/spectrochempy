@@ -29,7 +29,7 @@ __all__ = [
 
 def pstr(object, **kwargs):
     if hasattr(object, "_cstr"):
-        return ("\n".join(object._cstr(**kwargs))).rstrip()
+        return "\n".join(object._cstr(**kwargs)).rstrip()
     else:
         return str(object).rstrip()
 
