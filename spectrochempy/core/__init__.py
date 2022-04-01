@@ -14,9 +14,6 @@ Most the API methods such as plotting, processing, analysis, etc...
 import sys
 from os import environ
 
-from spectrochempy.core.common.exceptions import SpectroChemPyWarning, deprecated
-from spectrochempy.utils.optional import import_optional_dependency
-from spectrochempy.utils.paths import pathclean
 
 # ======================================================================================
 # Tells here the methods or object we allow importing from this library
@@ -127,6 +124,9 @@ def warning_(*args, **kwargs):
     """
     Formatted warning message.
     """
+
+    from .common.exceptions import SpectroChemPyWarning
+
     if len(args) > 1:
         kwargs["category"] = args[1]  # priority to arg
     category = kwargs.pop("category", SpectroChemPyWarning)
@@ -264,7 +264,7 @@ from spectrochempy.core.common.plots import show  # noqa: E402
 __all__ += ["show", "MASKED", "NOMASK", "EPSILON", "INPLACE", "show_versions"]
 
 # TEMPO
-from .dataset.coord import Coord
+from spectrochempy.core.dataset.coord import Coord
 
 __all__.append("Coord")
 
@@ -335,16 +335,16 @@ __all__.append("Coord")
 # # project
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from .project import api  # noqa: E402
-# from .project.api import *  # noqa: E402,F403,F401
+# from spectrochempy.core.project import api  # noqa: E402
+# from spectrochempy.core.project.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #
 # # script
 # # ------------------------------------------------------------------
 # _pbar_update()
-# from .scripts import api  # noqa: E402
-# from .scripts.api import *  # noqa: E402,F403,F401
+# from spectrochempy.core.scripts import api  # noqa: E402
+# from spectrochempy.core.scripts.api import *  # noqa: E402,F403,F401
 #
 # __all__ += api.__all__
 #

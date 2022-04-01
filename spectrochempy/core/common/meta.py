@@ -96,7 +96,7 @@ class Meta(object):  # HasTraits):
         self.name = data.pop("name", None)
         self._data = data
 
-    def _attributes(self):
+    def _attributes(self, removed=[]):
         return ["data", "readonly", "parent", "name"]
 
     def __setattr__(self, key, value):

@@ -252,7 +252,7 @@ def compare_coords(this, other, approx=False, decimal=6, data_only=False):
         if attr != "units":
             sattr = getattr(this, f"_{attr}")
             if this.linear and attr == "data":
-                # allow comparison of LinearCoord and Coord
+                # allow comparison of Coord
                 sattr = this.data
             if hasattr(other, f"_{attr}"):
                 oattr = getattr(other, f"_{attr}")

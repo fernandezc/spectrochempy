@@ -12,8 +12,8 @@ import numpy as np
 import pytest
 
 import spectrochempy
-from spectrochempy.core.dataset.ndarray import NDArray
-from spectrochempy.core.dataset.ndlabeledarray import NDLabeledArray
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
+from spectrochempy.core.dataset.basearrays.ndlabeledarray import NDLabeledArray
 from spectrochempy.core.common.exceptions import (
     LabelsError,
 )
@@ -31,10 +31,10 @@ from spectrochempy.utils import check_docstrings as td
 # test docstring
 def test_ndlabeledarray_docstring():
     td.PRIVATE_CLASSES = []  # override default to test private class docstring
-    module = "spectrochempy.core.dataset.ndlabeledarray"
+    module = "spectrochempy.core.dataset.basearrays.ndlabeledarray"
     td.check_docstrings(
         module,
-        obj=spectrochempy.core.dataset.ndlabeledarray.NDLabeledArray,
+        obj=spectrochempy.core.dataset.basearrays.ndlabeledarray.NDLabeledArray,
         exclude=["SA01", "EX01"],
     )
 
@@ -50,7 +50,7 @@ def test_ndlabeledarray_init():
     # Without data
     nd = NDLabeledArray(labels=list("abcdefghij"))
     assert nd.is_labeled
-    assert nd.data is None
+    assert np.all(nd.data == nd.get_labels(level=0))
     assert nd.ndim == 1
     assert nd.shape == (10,)
     assert nd.size == 10
@@ -118,6 +118,8 @@ def test_ndlabeledarray_getitem():
     assert nd[1].values == "b"
     assert nd["b"].values == "b"
     assert nd["c":"d"].shape == (2,)
+    assert nd.__getitem__("b", return_index=True) == "b", 1
+
     assert_array_equal(nd["c":"d"].values, np.array(["c", "d"]))
     assert_array_equal(nd["c":"j":2].values, np.array(["c", "e", "g", "i"]))
 
@@ -215,3 +217,22 @@ def test_ndlabeledarray_str_repr_summary():
         labels=list("abcdefghij"),
     )
     assert repr(nd) == "NDLabeledArray toto(value): [datetime64[Y]] unitless (size: 10)"
+
+
+def test_ndlabeledarray_data():
+    nd = NDLabeledArray(
+        np.linspace(4000, 1000, 10),
+        labels=list("abcdefghij"),
+        units="s",
+        name="wavelength",
+    )
+
+    assert np.all(nd.data == np.linspace(4000, 1000, 10))
+    nd = NDLabeledArray(
+        labels=[
+            list("abcdefghij"),
+        ],
+        name="wavelength",
+    )
+
+    assert np.all(nd.data == nd.get_labels(level=0))

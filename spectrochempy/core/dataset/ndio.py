@@ -20,7 +20,7 @@ import numpy as np
 from numpy.lib.npyio import zipfile_factory
 from traitlets import HasTraits, Instance, Union, Unicode
 
-from spectrochempy.core.dataset.coord import Coord, LinearCoord
+from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.common.constants import TYPE_BOOL
 from spectrochempy.utils.paths import pathclean
 from spectrochempy.utils.zip import ScpFile
@@ -95,7 +95,7 @@ class NDIO(HasTraits):
             klass = self._implements()
             return SCPY_SUFFIX[klass]
 
-    def _attributes(self):
+    def _attributes(self, removed=[]):
         return [
             "filename",
         ]
@@ -356,10 +356,7 @@ class NDIO(HasTraits):
                     elif key in ["_coordset"]:
                         _coords = []
                         for v in val["coords"]:
-                            if "data" in v:
-                                _coords.append(item_to_attr(Coord(), v))
-                            else:
-                                _coords.append(item_to_attr(LinearCoord(), v))
+                            _coords.append(item_to_attr(Coord(), v))
 
                         if val["is_same_dim"]:
                             obj.set_coordset(_coords)

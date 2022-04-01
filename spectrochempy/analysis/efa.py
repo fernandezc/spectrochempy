@@ -13,8 +13,8 @@ from traitlets import HasTraits, Instance, Float
 
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.dataset.coord import CoordSet, Coord
-from spectrochempy.utils import MASKED
-from .svd import SVD
+from spectrochempy.core.common.constants import MASKED
+from spectrochempy.analysis.svd import SVD
 
 __all__ = ["EFA"]
 

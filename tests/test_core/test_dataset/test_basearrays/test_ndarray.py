@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 import spectrochempy
-from spectrochempy.core.dataset.ndarray import NDArray
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.common.exceptions import (
     DimensionalityError,
     LabelsError,
@@ -662,9 +662,11 @@ def test_ndarray_urray(ndarrayunit):
 # test docstring
 def test_ndarray_docstring():
     td.PRIVATE_CLASSES = []  # override default to test private class docstring
-    module = "spectrochempy.core.dataset.ndarray"
+    module = "spectrochempy.core.dataset.basearrays.ndarray"
     result = td.check_docstrings(
-        module, obj=spectrochempy.core.dataset.ndarray.NDArray, exclude=["SA01", "EX01"]
+        module,
+        obj=spectrochempy.core.dataset.basearrays.ndarray.NDArray,
+        exclude=["SA01", "EX01"],
     )
 
 

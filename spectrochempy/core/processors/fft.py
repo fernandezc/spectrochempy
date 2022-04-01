@@ -21,7 +21,6 @@ from quaternion import as_float_array
 
 from spectrochempy.core import error_
 from spectrochempy.core.units import ur
-from spectrochempy.core.dataset.coord import LinearCoord
 from spectrochempy.utils import (
     largest_power_of_2,
     get_component,
@@ -513,7 +512,7 @@ def fft(dataset, size=None, sizeff=None, inv=False, ppm=True, **kwargs):
             first = sfo1 - sf - deltaf * sizem / 2.0
 
             # newcoord = type(x)(np.arange(size) * deltaf + first)
-            newcoord = LinearCoord.arange(size) * deltaf + first
+            newcoord = Coord.arange(size) * deltaf + first
             newcoord.show_datapoints = False
             newcoord.name = x.name
             new.title = "intensity"
@@ -535,7 +534,7 @@ def fft(dataset, size=None, sizeff=None, inv=False, ppm=True, **kwargs):
                 sw = bf1.to("Hz") * sw / 1.0e6
             deltat = (1.0 / sw).to("us")
 
-            newcoord = LinearCoord.arange(size) * deltat
+            newcoord = Coord.arange(size) * deltat
             newcoord.name = x.name
             newcoord.title = "time"
             newcoord.ito("us")

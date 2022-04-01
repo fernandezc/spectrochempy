@@ -8,7 +8,7 @@
 
 import pytest
 
-from spectrochempy.core.dataset.ndarray import NDArray
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.project.project import Project
 from spectrochempy.core.scripts.script import Script
@@ -84,7 +84,7 @@ def test_compare_coords(IR_dataset_2D):
     x1 = IR_dataset_2D.x
     x2 = x1.copy()
 
-    assert x1.implements("LinearCoord")
+    assert x1.implements("Coord")
     testing.assert_coord_equal(x1, x2)
 
     y1 = IR_dataset_2D.y

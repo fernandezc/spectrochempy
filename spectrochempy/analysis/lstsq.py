@@ -17,7 +17,7 @@ import scipy.linalg as lng
 from traitlets import HasTraits, Instance
 
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.core.dataset.ndarray import NDArray
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 
 from spectrochempy.core.units import Quantity
 

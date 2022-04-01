@@ -18,7 +18,7 @@ import numpy as np
 
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.core.dataset.ndarray import MASKED
+from spectrochempy.core.common.constants import MASKED
 
 
 def _svd_flip(U, VT, u_based_decision=True):

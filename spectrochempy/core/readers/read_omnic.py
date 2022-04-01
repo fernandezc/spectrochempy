@@ -20,7 +20,7 @@ from datetime import datetime, timezone, timedelta
 import numpy as np
 
 from spectrochempy.core import info_
-from spectrochempy.core.dataset.coord import Coord, LinearCoord
+from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.readers.importer import (
     _importer_method,
@@ -690,7 +690,7 @@ def _read_spg(*args, **kwargs):
 
     # now add coordinates
     spacing = (lastx[0] - firstx[0]) / int(nx[0] - 1)
-    _x = LinearCoord(
+    _x = Coord(
         offset=firstx[0],
         increment=spacing,
         size=int(nx[0]),
@@ -846,9 +846,7 @@ def _read_spa(*args, **kwargs):
 
         spacing = (lastx - firstx) / (nx - 1)
 
-        _x = LinearCoord(
-            offset=firstx, increment=spacing, size=nx, title=xtitle, units=xunit
-        )
+        _x = Coord(offset=firstx, increment=spacing, size=nx, title=xtitle, units=xunit)
 
     else:  # interferogram
         if return_ifg == "sample":
@@ -863,7 +861,7 @@ def _read_spa(*args, **kwargs):
         spa_name += ": Sample IFG"
         dataset.units = "V"
         dataset.title = "detector signal"
-        _x = LinearCoord(
+        _x = Coord(
             offset=0,
             increment=1,
             size=len(intensities),
@@ -1017,7 +1015,7 @@ def _read_srs(*args, **kwargs):
 
     # now add coordinates
     spacing = (info["lastx"] - info["firstx"]) / (info["nx"] - 1)
-    _x = LinearCoord(
+    _x = Coord(
         offset=info["firstx"],
         increment=spacing,
         size=info["nx"],

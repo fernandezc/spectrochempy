@@ -25,7 +25,7 @@ from traitlets import Dict, HasTraits, Instance, Union, default, TraitError
 
 from spectrochempy.core.common.plots import get_figure, _Axes, _Axes3D
 from spectrochempy.utils.paths import pathclean
-from spectrochempy.core.dataset.meta import Meta
+from spectrochempy.core.common.meta import Meta
 from spectrochempy.core import preferences, plot_preferences, error_  # , warning_
 from spectrochempy.core.plotters.plot1d import plot_1D
 from spectrochempy.core.plotters.plot2d import plot_2D
@@ -718,7 +718,7 @@ class NDPlot(HasTraits):
     # Special attributes
     # ------------------------------------------------------------------------
 
-    def _attributes(self):
+    def _attributes(self, removed=[]):
         return ["fignum", "ndaxes", "divider"]
 
     # ------------------------------------------------------------------------

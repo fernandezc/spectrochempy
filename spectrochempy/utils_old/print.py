@@ -33,7 +33,6 @@ def pstr(object, **kwargs):
         "NDArray",
         "NDComplexArrray",
         "NDDataset",
-        "LinearCoord",
         "Coord",
         "CoordSet",
     ]:

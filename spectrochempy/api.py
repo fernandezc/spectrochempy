@@ -22,6 +22,7 @@ from IPython.core.interactiveshell import InteractiveShell
 from IPython import get_ipython
 
 from spectrochempy.utils.paths import pathclean
+from spectrochempy.utils.optional import import_optional_dependency
 
 # ------------------------------------------------------------------
 # Check the environment for plotting
@@ -94,8 +95,8 @@ ALL = ["NO_DISPLAY", "NO_DIALOG"]
 warnings.filterwarnings("ignore")
 
 # import the core api
-from . import core
-from .core import *  # noqa: F403, F401, E402
+from spectrochempy import core
+from spectrochempy.core import *  # noqa: F403, F401, E402
 
 ALL += core.__all__
 

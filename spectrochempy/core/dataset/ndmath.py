@@ -40,7 +40,7 @@ from spectrochempy.core.common.exceptions import (
     CoordinateMismatchError,
     IncompatibleShapeError,
 )
-from spectrochempy.core.dataset.ndarray import NDArray
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.units.units import DimensionalityError, Quantity, ur
 from spectrochempy.utils.orderedset import OrderedSet
 from spectrochempy.utils.testing import assert_coord_almost_equal
@@ -390,7 +390,7 @@ def _logical_binary_ufuncs():
 
 
 # Expected Operand Order
-ORDER = {"Panel": 1, "NDDataset": 2, "Coord": 3, "LinearCoord": 4}
+ORDER = {"Panel": 1, "NDDataset": 2, "Coord": 3}
 
 
 class NDManipulation(object):
@@ -1384,7 +1384,7 @@ class NDMath(object):
         >>> m
         NDDataset: [float64] a.u. (size: 5549)
         >>> m.x
-        LinearCoord: [float64] cm⁻¹ (size: 5549)
+        Coord: [float64] cm⁻¹ (size: 5549)
         >>> m = scp.average(nd, dim='y', weights=np.arange(55))
         >>> m.data
         array([   1.789,    1.789, ...,    1.222,     1.22])
@@ -1895,7 +1895,7 @@ class NDMath(object):
         Create a 1D NDDataset from a function
 
         >>> func1 = lambda t, v: v * t
-        >>> time = scp.LinearCoord.arange(0, 60, 10, units='min')
+        >>> time = scp.Coord.arange(0, 60, 10, units='min')
         >>> d = scp.fromfunction(func1, v=scp.Quantity(134, 'km/hour'), coordset=scp.CoordSet(t=time))
         >>> d.dims
         ['t']
@@ -2319,7 +2319,7 @@ class NDMath(object):
         >>> m
         NDDataset: [float64] a.u. (size: 5549)
         >>> m.x
-        LinearCoord: [float64] cm⁻¹ (size: 5549)
+        Coord: [float64] cm⁻¹ (size: 5549)
         """
 
         axis, dim = cls._get_axis(dim, allows_none=True)
@@ -3410,17 +3410,12 @@ class NDMath(object):
                 returntype = "NDDataset"
             elif objtype == "Coord" and returntype != "NDDataset":
                 returntype = "Coord"
-            elif objtype == "LinearCoord" and returntype != "NDDataset":
-                returntype = "LinearCoord"
             else:
                 # only the three above type have math capabilities in spectrochempy.
                 pass
 
         # it may be necessary to change the object order regarding the types
-        if (
-            returntype in ["NDDataset", "Coord", "LinearCoord"]
-            and objtypes[0] != returntype
-        ):
+        if returntype in ["NDDataset", "Coord"] and objtypes[0] != returntype:
 
             inputs.reverse()
             objtypes.reverse()
@@ -3509,7 +3504,7 @@ class NDMath(object):
 
             new = NDDataset(new)
 
-        if returntype in ["LinearCoord", "Coord"]:
+        if returntype in ["Coord"]:
             from spectrochempy.core.dataset.coord import Coord
 
             new = Coord(new)
@@ -3519,8 +3514,6 @@ class NDMath(object):
 
         # set the data
         new.data = cpy.deepcopy(data)
-        if returntype == "LinearCoord":
-            new.linear = True
 
         # update the other attributes
         if mask is not None and np.any(mask != NOMASK):

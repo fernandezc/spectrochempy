@@ -31,7 +31,7 @@ from spectrochempy.core.common.docstrings import (
 from spectrochempy.core.common.datetimes import (
     get_datetime_labels,
 )
-from spectrochempy.core.dataset.coord import LinearCoord
+from spectrochempy.core.dataset.coord import Coord
 
 from spectrochempy.core.common.exceptions import ShapeError
 
@@ -246,7 +246,7 @@ def plot_2D(dataset, method=None, **kwargs):
         show_x_points = x.show_datapoints
     if show_x_points:
         # remove data and units for display
-        x = LinearCoord.arange(xsize)
+        x = Coord.arange(xsize)
 
     discrete_data = False
 
@@ -307,7 +307,7 @@ def plot_2D(dataset, method=None, **kwargs):
         show_y_points = y.show_datapoints
     if show_y_points:
         # remove data and units for display
-        y = LinearCoord.arange(ysize)
+        y = Coord.arange(ysize)
 
     # special case of datetime64
     if y is not None and y.is_dt64:

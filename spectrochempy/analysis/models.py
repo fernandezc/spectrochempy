@@ -12,7 +12,7 @@ from functools import wraps
 import numpy as np
 
 from spectrochempy.core.units import Quantity
-from spectrochempy.core.dataset.coord import Coord, LinearCoord
+from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
 
 __all__ = [
@@ -80,7 +80,7 @@ def make_units_compatibility(func):
 
         if returntype == "NDDataset":
             res = NDDataset(_data, units=ampl_units)
-            res.x = LinearCoord(xinput)
+            res.x = Coord(xinput)
             res.name = cls.__class__.__name__.split("model")[0]
             res.title = "intensity"
 

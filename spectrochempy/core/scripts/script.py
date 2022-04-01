@@ -83,7 +83,7 @@ class Script(HasTraits):
     # special methods
     # ------------------------------------------------------------------------
 
-    def _attributes(self):
+    def _attributes(self, removed=[]):
         return ["name", "content", "parent"]
 
     def __call__(self, *args):
@@ -160,7 +160,7 @@ class Script(HasTraits):
     # ------------------------------------------------------------------------
 
     @staticmethod
-    def implements(name=None):
+    def _implements(name=None):
         """
         Utility to check if the current object implement `Project`.
 

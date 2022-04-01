@@ -21,8 +21,8 @@ from spectrochempy.core.common.constants import (
     typequaternion,
 )
 from spectrochempy.core.common.print import insert_masked_print, numpyprintoptions
-from spectrochempy.core.dataset.ndarray import _docstring
-from spectrochempy.core.dataset.ndcomplexarray import NDComplexArray
+from spectrochempy.core.dataset.basearrays.ndarray import _docstring
+from spectrochempy.core.dataset.basearrays.ndcomplexarray import NDComplexArray
 
 # Printing settings
 # --------------------------------------------------------------------------------------
@@ -67,12 +67,18 @@ class NDMaskedComplexArray(NDComplexArray):
         (tr.Bool(), Array(tr.Bool(), allow_none=True), tr.Instance(MaskedConstant))
     )
 
+    # ----------------------------------------------------------------------------------
+    # Initialisation
+    # ----------------------------------------------------------------------------------
     def __init__(self, data=None, **kwargs):
         super().__init__(data, **kwargs)
         mask = kwargs.pop("mask", NOMASK)
         if np.any(mask):
             self.mask = mask
 
+    # ----------------------------------------------------------------------------------
+    # Special methods
+    # ----------------------------------------------------------------------------------
     def __getitem__(self, items, return_index=False):
         new, keys = super().__getitem__(items, return_index=True)
         if (new.data is not None) and new.is_masked:
@@ -97,8 +103,11 @@ class NDMaskedComplexArray(NDComplexArray):
         # set data item case
         super().__setitem__(items, value)
 
-    def _attributes(self):
-        return super()._attributes() + ["mask"]
+    # ----------------------------------------------------------------------------------
+    # Private methods
+    # ----------------------------------------------------------------------------------
+    def _attributes(self, removed=[]):
+        return super()._attributes(removed) + ["mask"]
 
     @tr.default("_mask")
     def __mask_default(self):
@@ -145,6 +154,9 @@ class NDMaskedComplexArray(NDComplexArray):
         data = np.ma.masked_where(mask, data)  # np.ma.masked_array(data, mask)
         return data
 
+    # ----------------------------------------------------------------------------------
+    # Public methods and properties
+    # ----------------------------------------------------------------------------------
     @_docstring.dedent
     def component(self, select="REAL"):
         """%(component)s"""

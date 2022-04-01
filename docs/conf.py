@@ -160,7 +160,7 @@ rst_epilog = """
 
 .. |Script| replace:: :class:`~spectrochempy.core.dataset.scripts.Script`
 
-.. |NDArray| replace:: :class:`~spectrochempy.core.dataset.ndarray.NDArray`
+.. |NDArray| replace:: :class:`~spectrochempy.core.dataset.basearrays.ndarray.NDArray`
 
 .. |NDDataset| replace:: :class:`~spectrochempy.core.dataset.nddataset.NDDataset`
 

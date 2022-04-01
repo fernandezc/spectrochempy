@@ -20,7 +20,7 @@ from datetime import datetime
 import numpy as np
 from warnings import warn
 
-from spectrochempy.core.dataset.coord import Coord, LinearCoord
+from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.readers.importer import _importer_method, Importer
 from spectrochempy.core.units import Quantity
@@ -490,7 +490,7 @@ def _read_spc(*args, **kwargs):
 
     if not txvals:  # evenly spaced x data
         spacing = (Flast - Ffirst) / (Fnpts - 1)
-        _x = LinearCoord(
+        _x = Coord(
             offset=Ffirst,
             increment=spacing,
             size=Fnpts,

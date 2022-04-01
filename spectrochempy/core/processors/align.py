@@ -129,8 +129,6 @@ def align(dataset, *others, **kwargs):
 
     # should we align on given external coordinates
     extern_coord = kwargs.pop("coord", None)
-    if extern_coord and extern_coord.implements("LinearCoord"):
-        extern_coord = Coord(extern_coord, linear=False, copy=True)
 
     # what's the method to use (by default='outer')
     method = kwargs.pop("method", "outer")
@@ -207,9 +205,6 @@ def align(dataset, *others, **kwargs):
 
         ndec = get_n_decimals(new_coord.data.max(), 1.0e-5)
 
-        if new_coord.implements("LinearCoord"):
-            new_coord = Coord(new_coord, linear=False, copy=True)
-
         # loop on all object
         for index, object in _objects.items():
 
@@ -224,8 +219,6 @@ def align(dataset, *others, **kwargs):
 
             # get the current object coordinates and check compatibility
             coord = obj.coordset[dim]
-            if coord.implements("LinearCoord") or coord.linear:
-                coord = Coord(coord, linear=False, copy=True)
 
             if not coord.is_units_compatible(ref_coord):
                 # not compatible, stop everything

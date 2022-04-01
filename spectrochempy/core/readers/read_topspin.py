@@ -19,8 +19,8 @@ import numpy as np
 from quaternion import as_quat_array
 
 from spectrochempy.core import debug_
-from spectrochempy.core.dataset.meta import Meta
-from spectrochempy.core.dataset.coord import LinearCoord
+from spectrochempy.core.common.meta import Meta
+from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.units import ur
 from spectrochempy.core.common.exceptions import deprecated
 from spectrochempy.core.readers.importer import Importer, _importer_method
@@ -1042,7 +1042,7 @@ def _read_topspin(*args, **kwargs):
             # coordpoints = np.arange(meta.td[axis])
             # coord = Coord(coordpoints * dw,
             #             title=f"F{axis + 1} acquisition time")  # TODO: use AQSEQ for >2D data
-            coord = LinearCoord(
+            coord = Coord(
                 offset=0.0,
                 increment=dw,
                 units="us",
@@ -1058,7 +1058,7 @@ def _read_topspin(*args, **kwargs):
             first = meta.sfo1[axis] - meta.sf[axis] - deltaf * sizem / 2.0
 
             # coord = Coord(np.arange(size) * deltaf + first)
-            coord = LinearCoord(offset=first, increment=deltaf, size=size)
+            coord = Coord(offset=first, increment=deltaf, size=size)
             coord.meta.larmor = meta.sfo1[axis]  # needed for ppm transformation
             coord.ito("ppm")
             if meta.nuc1 is not None:

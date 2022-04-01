@@ -26,7 +26,7 @@ from spectrochempy.core.common.exceptions import (
 from spectrochempy.core.common.print import (
     numpyprintoptions,
 )
-from spectrochempy.core.dataset.ndarray import NDArray, _docstring
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray, _docstring
 
 
 # Printing settings
@@ -58,6 +58,9 @@ class NDComplexArray(NDArray):
 
     _interleaved = tr.Bool(False)
 
+    # ----------------------------------------------------------------------------------
+    # Initialisation
+    # ----------------------------------------------------------------------------------
     def __init__(self, data=None, **kwargs):
         dtype = np.dtype(kwargs.get("dtype", None))
         if dtype.kind in "cV":
@@ -69,6 +72,9 @@ class NDComplexArray(NDArray):
         if dtype.kind == "V":  # quaternion
             self.set_hypercomplex(inplace=True)
 
+    # ----------------------------------------------------------------------------------
+    # Special methods
+    # ----------------------------------------------------------------------------------
     def __getattr__(self, item):
         if item in "RRRIIIRR":
             return self.component(select=item)
@@ -85,6 +91,9 @@ class NDComplexArray(NDArray):
         else:
             super().__setitem__(items, value)
 
+    # ----------------------------------------------------------------------------------
+    # Private methods
+    # ----------------------------------------------------------------------------------
     def _make_complex(self, data):
         if self.is_complex:  # pragma: no cover
             return data  # normally, this is never used as checks are done before
@@ -148,6 +157,9 @@ class NDComplexArray(NDArray):
             cplx[-1] = True
         return cplx
 
+    # ----------------------------------------------------------------------------------
+    # Public methods and properties
+    # ----------------------------------------------------------------------------------
     @staticmethod
     def _get_component(data, select="REAL"):
         """

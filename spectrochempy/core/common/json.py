@@ -80,8 +80,6 @@ def json_serialiser(byte_obj, encoding=None):
 
         objnames = byte_obj._attributes()
         # particular case of Linear Coordinates
-        if byte_obj.implements("LinearCoord"):
-            objnames.remove("data")
         dic = {}
         for name in objnames:
 

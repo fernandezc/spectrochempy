@@ -300,11 +300,8 @@ def compare_coords(
             )
         return eq
 
-    if thistype not in ["Coord", "LinearCoord"]:
-        raise TypeError(
-            "This function compare `Coord` or `LinearCoord` objects, "
-            "not `{thistype}`"
-        )
+    if thistype not in ["Coord"]:
+        raise TypeError(f"This function compare `Coord` not `{thistype}`")
 
     if not data_only:
         # we must rescale the two coordinates to the same base units for correct comparison
@@ -334,7 +331,7 @@ def compare_coords(
         if attr != "units":
             sattr = getattr(this, f"_{attr}")
             if this.linear and attr == "data":
-                # allow comparison of LinearCoord and Coord
+                # allow comparison of Coord
                 sattr = this.data
             if hasattr(other, f"_{attr}"):
                 oattr = getattr(other, f"_{attr}")

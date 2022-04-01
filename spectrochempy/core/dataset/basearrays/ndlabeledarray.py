@@ -18,7 +18,7 @@ from traittypes import Array
 from spectrochempy.core import info_, warning_
 from spectrochempy.core.common.exceptions import LabelsError, LabelWarning
 from spectrochempy.core.common.print import numpyprintoptions
-from spectrochempy.core.dataset.ndarray import NDArray, _docstring
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray, _docstring
 from spectrochempy.core.units import Quantity
 
 # Printing settings
@@ -56,10 +56,16 @@ class NDLabeledArray(NDArray):
 
     _labels = Array(allow_none=True)
 
+    # ----------------------------------------------------------------------------------
+    # Initialisation
+    # ----------------------------------------------------------------------------------
     def __init__(self, data=None, **kwargs):
         super().__init__(data, **kwargs)
         self.labels = kwargs.pop("labels", None)
 
+    # ----------------------------------------------------------------------------------
+    # Special methods
+    # ----------------------------------------------------------------------------------
     def __getitem__(self, items, return_index=False):
         new, keys = super().__getitem__(items, return_index=True)
         if self.is_labeled:
@@ -73,16 +79,19 @@ class NDLabeledArray(NDArray):
 
     def __str__(self):
         rep = super().__str__()
-        if "empty" in rep and self.is_labeled:
+        if "[object]" in rep and self.is_labeled:
             # no data but labels
             lab = self.get_labels(level=0)
             data = f" {lab}"
             size = f" (size: {len(lab)})"
             dtype = "labels"
             body = f"[{dtype}]{data}{size}"
-            rep = rep.replace("empty", body)
+            rep = f"{rep.split(':', maxsplit=1)[0]}: {body}"
         return rep
 
+    # ----------------------------------------------------------------------------------
+    # Private properties and methods
+    # ----------------------------------------------------------------------------------
     def _argsort(self, descend=False, by="value", level=None):
         # found the indices sorted by values or labels
         args = self.data
@@ -107,8 +116,8 @@ class NDLabeledArray(NDArray):
             args = args[::-1]
         return args
 
-    def _attributes(self):
-        return super()._attributes() + ["labels"]
+    def _attributes(self, removed=[]):
+        return super()._attributes(removed) + ["labels"]
 
     def _is_labels_allowed(self):
         return self._squeeze_ndim <= 1
@@ -214,6 +223,24 @@ class NDLabeledArray(NDArray):
                     for i in range(idx, len(lab)):
                         text += self._get_label_str(lab[i], i, sep=sep)
         return text.rstrip()
+
+    # ----------------------------------------------------------------------------------
+    # Public methods and properties
+    # ----------------------------------------------------------------------------------
+    @property
+    def data(self):
+        """
+        The `data` array (|ndarray|).
+
+        If there is no data but labels, then the labels are returned instead of data.
+        """
+        if self._data is None and self.is_labeled:
+            return self.get_labels(level=0)
+        return self._data
+
+    @data.setter
+    def data(self, data):
+        self._set_data(data)
 
     def get_labels(self, level=0):
         """

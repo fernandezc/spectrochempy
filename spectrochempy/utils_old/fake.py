@@ -34,7 +34,7 @@ def _make_spectra_matrix(modelname, ampl, pos, width, ratio=None, asym=None):
 
 
 def _make_concentrations_matrix(*profiles):
-    t = scp.LinearCoord(np.linspace(0, 10, 50), units="hour", title="time")
+    t = scp.Coord(np.linspace(0, 10, 50), units="hour", title="time")
     c = []
     for p in profiles:
         c.append(p(t.data))

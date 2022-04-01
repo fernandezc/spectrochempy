@@ -14,9 +14,9 @@ import mpl_toolkits.mplot3d.axes3d as maxes3D
 
 import numpy as np
 
-from ..dataset.meta import Meta
-from ..units import remove_args_units
-from ...utils.optional import import_optional_dependency
+from spectrochempy.core.common.meta import Meta
+from spectrochempy.core.units import remove_args_units
+from spectrochempy.utils.optional import import_optional_dependency
 
 
 @maxes.subplot_class_factory

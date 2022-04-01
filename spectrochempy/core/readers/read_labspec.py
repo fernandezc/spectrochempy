@@ -21,9 +21,9 @@ __dataset_methods__ = __all__
 import numpy as np
 from datetime import datetime
 
-from spectrochempy.core.dataset.coord import Coord, LinearCoord
+from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.readers.importer import _importer_method, Importer
-from spectrochempy.core.dataset.meta import Meta
+from spectrochempy.core.common.meta import Meta
 from spectrochempy.utils.datetimeutils import strptime64
 
 # from spectrochempy.utils.exceptions import deprecated
@@ -199,10 +199,6 @@ def _read_txt(*args, **kwargs):
 
     # try to transform to linear coord
     _x.linear = True
-
-    # if success linear should still be True
-    if _x.linear:
-        _x = LinearCoord(_x)
 
     # set dataset metadata
     dataset.data = data

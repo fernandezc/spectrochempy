@@ -306,7 +306,7 @@ def insert_masked_print(ds, mask_string="--"):
     ds : |NDDataset| instance
     mask_string : str
     """
-    from .constants import NOMASK
+    from spectrochempy.core.common.constants import NOMASK
 
     mask = ds._mask
     if mask is NOMASK:
@@ -361,7 +361,11 @@ def numpyprintoptions(
     linewidth
     kargs
     """
-    from .constants import TYPE_COMPLEX, TYPE_FLOAT, TYPE_INTEGER
+    from spectrochempy.core.common.constants import (
+        TYPE_COMPLEX,
+        TYPE_FLOAT,
+        TYPE_INTEGER,
+    )
 
     def _format_object(x):
 

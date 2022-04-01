@@ -53,7 +53,7 @@ def func(t, v, var):
     return d
 
 
-time = scp.LinearCoord.linspace(0, 10, 20, title="time", units="hour")
+time = scp.Coord.linspace(0, 10, 20, title="time", units="hour")
 d = scp.NDDataset.fromfunction(
     func,
     v=100.0 * ur("km/hr"),

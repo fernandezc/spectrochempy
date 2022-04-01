@@ -14,7 +14,7 @@
 """
 import pytest
 
-from spectrochempy.core.dataset.meta import Meta
+from spectrochempy.core.common.meta import Meta
 from spectrochempy.core.units import ur
 
 

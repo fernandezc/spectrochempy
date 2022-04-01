@@ -53,6 +53,7 @@ Derived classes
 """
 
 import copy as cpy
+
 import itertools
 import pathlib
 import re
@@ -62,6 +63,7 @@ from datetime import datetime
 
 import numpy as np
 import pint
+
 import traitlets as tr
 from traittypes import Array
 
@@ -90,7 +92,7 @@ from spectrochempy.core.common.print import (
     numpyprintoptions,
     pstr,
 )
-from spectrochempy.core.dataset.meta import Meta
+from spectrochempy.core.common.meta import Meta
 from spectrochempy.core.units import (
     Quantity,
     Unit,
@@ -130,7 +132,7 @@ def _check_dtype():
 
 
 # ======================================================================================
-# The basic NDArray class
+# A simple NDArray class
 # ======================================================================================
 class NDArray(tr.HasTraits):
     """
@@ -313,7 +315,7 @@ class NDArray(tr.HasTraits):
         items = self._make_index(items)
         # init returned object
         new = self if inplace else self.copy()
-        if new.data is not None:
+        if new.has_data:
             udata = new.data[items]
             new._data = np.asarray(udata)
         if new.is_empty:
@@ -400,9 +402,8 @@ class NDArray(tr.HasTraits):
             args = args[::-1]
         return args
 
-    @staticmethod
-    def _attributes():
-        return [
+    def _attributes(self, removed=[]):
+        attrs = [
             "dims",
             "data",
             "name",
@@ -411,6 +412,10 @@ class NDArray(tr.HasTraits):
             "meta",
             "roi",
         ]
+        for item in removed:
+            if item in attrs:
+                attrs.remove(item)
+        return attrs
 
     def _compare_attribute(self, other, attr):
         equ = True
@@ -1057,12 +1062,14 @@ class NDArray(tr.HasTraits):
         """
         copy = cpy.deepcopy
         new = type(self)()
-        for attr in self._attributes():
+        if not keepname:
+            # remove name from the list of attributes to copy
+            removed = ["name"]
+        else:
+            removed = []
+        for attr in self._attributes(removed=removed):
             _attr = copy(getattr(self, f"_{attr}"))
             setattr(new, f"_{attr}", _attr)
-        # name must be changed
-        if not keepname:
-            new._name = self._id
         return new
 
     @property
@@ -1145,7 +1152,7 @@ class NDArray(tr.HasTraits):
         """
         Return whether the `data` array is not empty and size > 0.
         """
-        if (self.data is None) or (self.data.size == 0):
+        if (self._data is None) or (self._data.size == 0):
             return False
 
         return True
@@ -1710,7 +1717,7 @@ class NDArray(tr.HasTraits):
         """
         Return the actual quantity (data, units) contained in this object.
 
-        It is equivalent to urray property, except for single-element array which are
+        It is equivalent to uarray property, except for single-element array which are
         returned as scalar (or quantity)
         """
         if self.data is not None:

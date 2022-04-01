@@ -15,8 +15,8 @@ import pytest
 from quaternion import as_quat_array
 
 import spectrochempy
-from spectrochempy.core.dataset.ndarray import NDArray
-from spectrochempy.core.dataset.ndcomplexarray import NDComplexArray
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
+from spectrochempy.core.dataset.basearrays.ndcomplexarray import NDComplexArray
 from spectrochempy.core.common.exceptions import (
     CastingError,
     ShapeError,
@@ -68,10 +68,10 @@ def ndarrayquaternion():
 # test docstring
 def test_ndcomplexarray_docstring():
     td.PRIVATE_CLASSES = []  # override default to test private class docstring
-    module = "spectrochempy.core.dataset.ndcomplexarray"
+    module = "spectrochempy.core.dataset.basearrays.ndcomplexarray"
     td.check_docstrings(
         module,
-        obj=spectrochempy.core.dataset.ndcomplexarray.NDComplexArray,
+        obj=spectrochempy.core.dataset.basearrays.ndcomplexarray.NDComplexArray,
         exclude=["SA01", "EX01"],
     )
 

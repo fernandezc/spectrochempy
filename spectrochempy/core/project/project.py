@@ -18,7 +18,7 @@ from traitlets import Dict, Instance, Unicode, This, default
 
 from spectrochempy.core.dataset.nddataset import NDDataset, NDIO
 from spectrochempy.core.scripts.script import Script
-from spectrochempy.core.dataset.meta import Meta
+from spectrochempy.core.common.meta import Meta
 from spectrochempy.core.project.baseproject import AbstractProject
 
 
@@ -240,7 +240,7 @@ class Project(AbstractProject, NDIO):
 
         return _listproj(s, self, 0)
 
-    def _attributes(self):
+    def _attributes(self, removed=[]):
         return [
             "name",
             "meta",

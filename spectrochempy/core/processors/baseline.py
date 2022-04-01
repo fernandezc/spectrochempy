@@ -21,10 +21,10 @@ import matplotlib.pyplot as plt
 from spectrochempy.core.dataset.coord import trim_ranges
 from spectrochempy.core.plotters.multiplot import multiplot
 from spectrochempy.core.dataset.nddataset import NDDataset
-from spectrochempy.utils import TYPE_INTEGER, TYPE_FLOAT
+from spectrochempy.core.common.constants import TYPE_INTEGER, TYPE_FLOAT
 from spectrochempy.core import debug_, warning_
 from spectrochempy.core.processors.utils import _units_agnostic_method
-from .smooth import smooth
+from spectrochempy.core.processors.smooth import smooth
 
 
 class BaselineCorrection(HasTraits):

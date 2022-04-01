@@ -15,7 +15,7 @@ import io
 import numpy as np
 
 from brukeropusreader.opus_parser import parse_data, parse_meta
-from spectrochempy.core.dataset.coord import LinearCoord, Coord
+from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.readers.importer import Importer, _importer_method
 from spectrochempy.core import debug_
 from datetime import datetime, timedelta, timezone
@@ -192,7 +192,7 @@ def _read_opus(*args, **kwargs):
     fxv = opus_data["AB Data Parameter"]["FXV"]
     lxv = opus_data["AB Data Parameter"]["LXV"]
     # xdata = linspace(fxv, lxv, npt)
-    xaxis = LinearCoord.linspace(fxv, lxv, npt, title="wavenumbers", units="cm^-1")
+    xaxis = Coord.linspace(fxv, lxv, npt, title="wavenumbers", units="cm^-1")
 
     # yaxis
     name = opus_data["Sample"]["SNM"]

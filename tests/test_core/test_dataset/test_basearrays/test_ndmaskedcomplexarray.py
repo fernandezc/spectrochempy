@@ -12,8 +12,10 @@ import numpy as np
 import pytest
 
 import spectrochempy
-from spectrochempy.core.dataset.ndarray import NDArray
-from spectrochempy.core.dataset.ndmaskedcomplexarray import NDMaskedComplexArray
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
+from spectrochempy.core.dataset.basearrays.ndmaskedcomplexarray import (
+    NDMaskedComplexArray,
+)
 from spectrochempy.core.units import Quantity, ur
 from spectrochempy.core.common.constants import (
     MASKED,
@@ -57,10 +59,10 @@ def ndarraymask():
 # test docstring
 def test_ndmaskedcomplexarray_docstring():
     td.PRIVATE_CLASSES = []  # override default to test private class docstring
-    module = "spectrochempy.core.dataset.ndmaskedcomplexarray"
+    module = "spectrochempy.core.dataset.basearrays.ndmaskedcomplexarray"
     td.check_docstrings(
         module,
-        obj=spectrochempy.core.dataset.ndmaskedcomplexarray.NDMaskedComplexArray,
+        obj=spectrochempy.core.dataset.basearrays.ndmaskedcomplexarray.NDMaskedComplexArray,
         exclude=["SA01", "EX01"],
     )
 
