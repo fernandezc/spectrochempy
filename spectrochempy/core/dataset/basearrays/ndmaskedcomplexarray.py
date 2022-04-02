@@ -97,7 +97,7 @@ class NDMaskedComplexArray(NDComplexArray):
             if value is MASKED:
                 value = True
             if not np.any(self._mask):
-                self._mask = np.zeros(self.data.shape).astype(np.bool_)
+                self._mask = np.zeros(self._data.shape).astype(np.bool_)
             self._mask[keys] = value
             return
         # set data item case
@@ -111,7 +111,7 @@ class NDMaskedComplexArray(NDComplexArray):
 
     @tr.default("_mask")
     def __mask_default(self):
-        return NOMASK if self.data is None else np.zeros(self.data.shape).astype(bool)
+        return NOMASK if not self.has_data else np.zeros(self._data.shape).astype(bool)
 
     @tr.validate("_mask")
     def _mask_validate(self, proposal):
@@ -137,7 +137,7 @@ class NDMaskedComplexArray(NDComplexArray):
     def _str_formatted_array(self, data, sep="\n", prefix="", units=""):
         ds = data.copy()
         if self.is_masked:
-            dtype = self.data.dtype
+            dtype = self._data.dtype
             mask_string = f"--{dtype}"
             ds = insert_masked_print(ds, mask_string=mask_string)
         arraystr = np.array2string(ds, separator=" ", prefix=prefix)
@@ -216,7 +216,7 @@ class NDMaskedComplexArray(NDComplexArray):
         # finally, set the mask of the object
         if isinstance(mask, MaskedConstant):
             self._mask = (
-                NOMASK if self.data is None else np.ones(self.shape).astype(bool)
+                NOMASK if not self.has_data else np.ones(self.shape).astype(bool)
             )
         else:
             if np.any(self._mask):
@@ -239,8 +239,8 @@ class NDMaskedComplexArray(NDComplexArray):
         The actual masked `data` array .
         """
         if not self.is_empty:
-            return self._masked_data(self.data, self.mask)
-        return self.data
+            return self._masked_data(self._data, self.mask)
+        return self._data
 
     @property
     def real(self):
@@ -274,7 +274,7 @@ class NDMaskedComplexArray(NDComplexArray):
     @_docstring.dedent
     def uarray(self):
         """%(uarray)s"""
-        if self.data is not None:
+        if self._data is not None:
             return self._uarray(self.masked_data, self.units)
         return None
 

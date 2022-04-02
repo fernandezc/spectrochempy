@@ -87,7 +87,7 @@ def colored_output(out):
     subst = TBlack(r"\1")
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
-    regex = r"^(\W{0,12}\w+\W?\w+)(:\W{1}.*$)"
+    regex = r"^(\W{0,12}\w+\W?\w+(?:\[\d\])?)(:\W{1}.*$)"
     subst = TGreen(r"\1") + r"\2"
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
@@ -128,7 +128,7 @@ def convert_to_html(obj):
         )
 
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
-    regex = r"^(\W{0,12}\w+\W?\w+)(:\W{1}.*$)"  # r"^(\W*\w+\W?\w+)(:.*$)"
+    regex = r"^(\W{0,12}\w+\W?\w+(?:\[\d\])?)(:\W{1}.*$)"  # r"^(\W*\w+\W?\w+)(:.*$)"
     subst = r"<font color='green'>\1</font> \2"
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
     regex = r"^(.*(DIMENSION|DATA).*)$"

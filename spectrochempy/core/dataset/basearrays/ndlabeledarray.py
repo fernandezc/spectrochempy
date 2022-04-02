@@ -16,7 +16,7 @@ import traitlets as tr
 from traittypes import Array
 
 from spectrochempy.core import info_, warning_
-from spectrochempy.core.common.exceptions import LabelsError, LabelWarning
+from spectrochempy.core.common.exceptions import ShapeError, LabelsError, LabelWarning
 from spectrochempy.core.common.print import numpyprintoptions
 from spectrochempy.core.dataset.basearrays.ndarray import NDArray, _docstring
 from spectrochempy.core.units import Quantity
@@ -61,6 +61,10 @@ class NDLabeledArray(NDArray):
     # ----------------------------------------------------------------------------------
     def __init__(self, data=None, **kwargs):
         super().__init__(data, **kwargs)
+        if self._data is not None:
+            self._data = self._data.squeeze()
+            if self._data.ndim > 1:
+                raise ShapeError(self._data.shape, "Only 1D array can be labeled")
         self.labels = kwargs.pop("labels", None)
 
     # ----------------------------------------------------------------------------------
@@ -79,7 +83,7 @@ class NDLabeledArray(NDArray):
 
     def __str__(self):
         rep = super().__str__()
-        if "[object]" in rep and self.is_labeled:
+        if "empty" in rep and self.is_labeled:
             # no data but labels
             lab = self.get_labels(level=0)
             data = f" {lab}"
@@ -187,7 +191,7 @@ class NDLabeledArray(NDArray):
     @property
     def _squeeze_ndim(self):
         # The number of dimensions of the squeezed`data` array (Readonly property).
-        if self.data is None and self.is_labeled:
+        if not self.has_data and self.is_labeled:
             return 1
         return super()._squeeze_ndim
 
@@ -202,15 +206,18 @@ class NDLabeledArray(NDArray):
         return text
 
     def _str_value(
-        self, sep="\n", ufmt=" {:~K}", prefix="", header="         data: ... \n"
+        self, sep="\n", ufmt=" {:~P}", prefix="", header="         data: ... \n"
     ):
         text = super()._str_value(sep, ufmt, prefix, header)
         text += sep
 
         if self.is_labeled:
+            # if we do not have data labels are displayed in place of the data
+            # so we don't need to display them again, accept if we have several
+            # levels of labels.
             lab = self.labels
             idx = 0
-            if self.data is None:
+            if not self.has_data:
                 if lab.ndim > 1:
                     idx = 1
                 else:
@@ -234,7 +241,7 @@ class NDLabeledArray(NDArray):
 
         If there is no data but labels, then the labels are returned instead of data.
         """
-        if self._data is None and self.is_labeled:
+        if not self.has_data and self.is_labeled:
             return self.get_labels(level=0)
         return self._data
 
@@ -287,7 +294,7 @@ class NDLabeledArray(NDArray):
         """
         # label cannot exist for now for nD dataset - only 1D dataset, such
         # as Coord can be labeled.
-        if self._data is not None and self._squeeze_ndim > 1:
+        if self.has_data and self._squeeze_ndim > 1:
             return False
         return self._labels is not None and np.any(self.labels != "")
 
@@ -341,47 +348,34 @@ class NDLabeledArray(NDArray):
     @_docstring.dedent
     def ndim(self):
         """%(ndim)s"""
-        if self.data is None and self.is_labeled:
+        if not self.is_empty:
             return 1
-        return super().ndim
+        return 0
 
     @property
     @_docstring.dedent
     def shape(self):
-        """%(shape.summary)s
-
-        The number of `data` element on each dimension (possibly complex or
-        hypercomplex).
-        For only labeled array, there is no data, so it is the 1D and the size
-        is the size of the array of labels.
         """
-        if self.data is None and self.is_labeled:
-            # noinspection PyRedundantParentheses
-            return (self.labels.shape[0],)
-        if self.data is None:
-            return ()
-        return self.data.shape
+        Not relevant for labeled arrays, as it is always (1,) or ().
+        """
+        if not self.is_empty:
+            return self.data.shape
+        return ()
 
     @property
     def size(self):
         """
-        Size of the underlying `data` array - Readonly property (int).
-
-        The total number of data elements (possibly complex or hypercomplex
-        in the array).
+        Size of the underlying `data` array.
         """
-
-        if self.data is None and self.is_labeled:
-            return self.labels.shape[-1]
-        if self.data is None:
-            return 0
-        return self.data.size
+        if not self.is_empty:
+            return self.data.size
+        return 0
 
     @property
     @_docstring.dedent
     def values(self):
         """%(values)s"""
-        if self.data is not None:
+        if self._data is not None:
             return self.uarray.squeeze()[()]
         if self.is_labeled:
             if self.labels.size == 1:

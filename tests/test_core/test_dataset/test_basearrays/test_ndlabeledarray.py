@@ -14,9 +14,7 @@ import pytest
 import spectrochempy
 from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.dataset.basearrays.ndlabeledarray import NDLabeledArray
-from spectrochempy.core.common.exceptions import (
-    LabelsError,
-)
+from spectrochempy.core.common.exceptions import LabelsError, ShapeError
 from spectrochempy.utils.testing import (
     assert_array_equal,
 )
@@ -65,7 +63,7 @@ def test_ndlabeledarray_init():
     assert nd.shape == (10,)
 
     # 2D (not allowed)
-    with pytest.raises(LabelsError):
+    with pytest.raises(ShapeError):
         d = np.random.random((10, 10))
         NDLabeledArray(data=d, labels=list("abcdefghij"))
 
@@ -73,16 +71,16 @@ def test_ndlabeledarray_init():
     d = np.random.random((1, 10))
     nd = NDLabeledArray(data=d, labels=list("abcdefghij"))
     assert nd.is_labeled
-    assert nd.ndim == 2
-    assert nd.data.shape == (1, 10)
-    assert nd.shape == (1, 10)
+    assert nd.ndim == 1
+    assert nd.data.shape == (10,)
+    assert nd.shape == (10,)
 
     d = np.random.random((10, 1))
     nd = NDLabeledArray(data=d, labels=list("abcdefghij"))
     assert nd.is_labeled
-    assert nd.ndim == 2
-    assert nd.data.shape == (10, 1)
-    assert nd.shape == (10, 1)
+    assert nd.ndim == 1
+    assert nd.data.shape == (10,)
+    assert nd.shape == (10,)
 
     # multidimensional labels
     nd = NDLabeledArray(
@@ -118,7 +116,7 @@ def test_ndlabeledarray_getitem():
     assert nd[1].values == "b"
     assert nd["b"].values == "b"
     assert nd["c":"d"].shape == (2,)
-    assert nd.__getitem__("b", return_index=True) == "b", 1
+    assert nd.__getitem__("b", return_index=True)[-1] == (slice(1, 2, 1),)
 
     assert_array_equal(nd["c":"d"].values, np.array(["c", "d"]))
     assert_array_equal(nd["c":"j":2].values, np.array(["c", "e", "g", "i"]))
@@ -198,6 +196,21 @@ def test_ndlabeledarray_sort():
 
 
 def test_ndlabeledarray_str_repr_summary():
+
+    nd = NDLabeledArray(
+        name="toto",
+        data=np.arange("2020", "2030", dtype="<M8[Y]"),
+        labels=list("abcdefghij"),
+    )
+    assert repr(nd) == "NDLabeledArray toto(value): [datetime64[Y]] unitless (size: 10)"
+
+    # repr_html and summary
+    nd = NDLabeledArray([1, 2, 3], labels=list("abc"))
+    assert "data:" in nd._cstr()[2] and "labels:" in nd._cstr()[2]
+
+    nd = NDLabeledArray(labels=list("abc"))
+    assert "data:" in nd._cstr()[2] and "labels:" not in nd._cstr()[2]
+
     nd = NDLabeledArray(labels=list("abcdefghij"), name="z")
     assert nd.summary.startswith("\x1b[32m         name")
     assert (
@@ -210,13 +223,7 @@ def test_ndlabeledarray_str_repr_summary():
         labels=[list("abcdefghij"), list("0123456789"), list("lmnopqrstx")]
     )
     assert "labels[1]" in nd.summary
-
-    nd = NDLabeledArray(
-        name="toto",
-        data=np.arange("2020", "2030", dtype="<M8[Y]"),
-        labels=list("abcdefghij"),
-    )
-    assert repr(nd) == "NDLabeledArray toto(value): [datetime64[Y]] unitless (size: 10)"
+    assert "labels[1]" in nd._repr_html_()
 
 
 def test_ndlabeledarray_data():

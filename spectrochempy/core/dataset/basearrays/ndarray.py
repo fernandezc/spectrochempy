@@ -256,7 +256,7 @@ class NDArray(tr.HasTraits):
         self.name = kwargs.pop("name", self.name)
         self.meta = kwargs.pop("meta", self.meta)
 
-        super().__init__(**kwargs)
+        super().__init__()
 
     # ------------------------------------------------------------------------
     # Special methods
@@ -287,9 +287,9 @@ class NDArray(tr.HasTraits):
                 equ = False
             if equ:
                 if not self.has_units and not otherunits:
-                    equ = np.all(self.data == otherdata)
+                    equ = np.all(self._data == otherdata)
                 elif self.has_units and otherunits:
-                    equ = np.all(self.data * self.units == otherdata * otherunits)
+                    equ = np.all(self._data * self.units == otherdata * otherunits)
                 else:  # pragma: no cover
                     equ = False
         else:
@@ -381,7 +381,7 @@ class NDArray(tr.HasTraits):
                 return f" {units:~P}"
             return " dimensionless"
 
-        if not self.is_empty and self.data is not None:
+        if not self.is_empty and self.has_data:
             sizestr = f" ({self._str_shape().strip()})"
             dtype = self.dtype
             data = ""
@@ -397,7 +397,7 @@ class NDArray(tr.HasTraits):
 
     def _argsort(self, descend=False, **kwargs):
         # find the indices sorted by values
-        args = np.argsort(self.data)
+        args = np.argsort(self._data)
         if descend:
             args = args[::-1]
         return args
@@ -439,10 +439,10 @@ class NDArray(tr.HasTraits):
         # print(attr, eq)
         return equ
 
-    def _cstr(self):
+    def _cstr(self, **kwargs):
         str_name = f"         name: {self.name}"
         str_title = f"        title: {self.title}"
-        return str_name, str_title, self._str_value(), self._str_shape()
+        return str_name, str_title, self._str_value(**kwargs), self._str_shape()
 
     @staticmethod
     def _data_and_units_from_td64(data):
@@ -568,7 +568,7 @@ class NDArray(tr.HasTraits):
             return test
 
     def _value_to_index(self, value):
-        data = self.data
+        data = self._data
         error = None
         if np.all(value > data.max()) or np.all(value < data.min()):
             warning_(
@@ -806,7 +806,7 @@ class NDArray(tr.HasTraits):
                     # some attribute of NDDataset are missing in NDArray
                     pass
             if self._dtype is not None:
-                self._data = self.data.astype(
+                self._data = self._data.astype(
                     self._dtype, casting="unsafe", copy=self._copy
                 )
             # we do not keep name if the data array is not of the same type as self
@@ -859,9 +859,9 @@ class NDArray(tr.HasTraits):
     @property
     def _squeeze_ndim(self):
         # The number of dimensions of the squeezed`data` array (Readonly property).
-        if self.data is None:
+        if not self.has_data:
             return 0
-        return len([x for x in self.data.shape if x > 1])
+        return len([x for x in self._data.shape if x > 1])
 
     def _str_shape(self):
         if self.is_empty:
@@ -952,7 +952,7 @@ class NDArray(tr.HasTraits):
         return data, units
 
     def _str_value(
-        self, sep="\n", ufmt=" {:~K}", prefix="", header="         data: ... \n"
+        self, sep="\n", ufmt=" {:~P}", prefix="", header="         data: ... \n"
     ):
         #
         # Empty data case
@@ -1073,6 +1073,8 @@ class NDArray(tr.HasTraits):
         return new
 
     @property
+    @_docstring.get_docstring(base="data")
+    @_docstring.dedent
     def data(self):
         """
         Return or set the `data` array.
@@ -1145,14 +1147,14 @@ class NDArray(tr.HasTraits):
         """
         if self.is_empty:
             return None
-        return self.data.dtype
+        return self._data.dtype
 
     @property
     def has_data(self):
         """
         Return whether the `data` array is not empty and size > 0.
         """
-        if (self._data is None) or (self._data.size == 0):
+        if self._data is None or self._data.size == 0:
             return False
 
         return True
@@ -1214,7 +1216,7 @@ class NDArray(tr.HasTraits):
 
         `is_empty`is true if there is no data or the data array has a size=0.
         """
-        if self.data is None or self.data.size == 0:
+        if not self.has_data or self._data.size == 0:
             return True
         return False
 
@@ -1223,9 +1225,9 @@ class NDArray(tr.HasTraits):
         """
         Return whether the `data` are real float values.
         """
-        if self.data is None:
+        if not self.has_data:
             return False
-        return self.data.dtype.kind == "f"
+        return self._data.dtype.kind == "f"
 
     @property
     def is_real(self):
@@ -1241,9 +1243,9 @@ class NDArray(tr.HasTraits):
         """
         Return whether `data` are integer values.
         """
-        if self.data is None:
+        if not self.has_data:
             return False
-        return self.data.dtype.kind == "i"
+        return self._data.dtype.kind == "i"
 
     @_docstring.dedent
     def is_units_compatible(self, other):
@@ -1328,9 +1330,9 @@ class NDArray(tr.HasTraits):
         """
         Return the maximum range of the data.
         """
-        if self.data is None:
+        if not self.has_data:
             return None
-        return np.array([self.data.min(), self.data.max()])
+        return np.array([self._data.min(), self._data.max()])
 
     @property
     def local_timezone(self):
@@ -1358,14 +1360,14 @@ class NDArray(tr.HasTraits):
         """
         Alias for data.
         """
-        return self.data
+        return self._data
 
     @property
     def magnitude(self):
         """
         Alias for data.
         """
-        return self.data
+        return self._data
 
     @property
     def meta(self):
@@ -1400,7 +1402,7 @@ class NDArray(tr.HasTraits):
         """
         if not self.size:
             return 0
-        return self.data.ndim
+        return self._data.ndim
 
     @property
     def roi(self):
@@ -1433,9 +1435,9 @@ class NDArray(tr.HasTraits):
 
         The number of `data` element on each dimension.
         """
-        if self.data is None:
+        if not self.has_data:
             return ()
-        return self.data.shape
+        return self._data.shape
 
     @property
     def size(self):
@@ -1445,9 +1447,9 @@ class NDArray(tr.HasTraits):
         The total number of data elements (possibly complex or hypercomplex
         in the array).
         """
-        if self.data is None:
+        if not self.has_data:
             return 0
-        return self.data.size
+        return self._data.size
 
     @property
     def summary(self):
@@ -1707,8 +1709,8 @@ class NDArray(tr.HasTraits):
         values: Similar property but returning squeezed array.
         value: Alias of values.
         """
-        if self.data is not None:
-            return self._uarray(self.data, self.units)
+        if self.has_data:
+            return self._uarray(self._data, self.units)
         return None
 
     @property
@@ -1720,7 +1722,7 @@ class NDArray(tr.HasTraits):
         It is equivalent to uarray property, except for single-element array which are
         returned as scalar (or quantity)
         """
-        if self.data is not None:
+        if self.has_data:
             return self.uarray.squeeze()[()]
         return None
 

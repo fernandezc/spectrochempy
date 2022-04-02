@@ -143,7 +143,7 @@ def test_coord_init():
     b = a._sort(by="label", descend=True, inplace=True)
     assert_array_equal(b.data, a.data)
 
-    # actually y can also be data
+    # actually y can also be put in data
     c = Coord(y, title="time")
     assert c.title == "time"
     assert isinstance(c.data, np.ndarray)
@@ -169,6 +169,7 @@ def test_coord_init():
     )
     assert coord0.units is None
     assert coord0.data[0] == 4000.0
+    assert coord0.coordinates[0] == 4000.0
     assert repr(coord0) == "Coord (wavelength): [float64] unitless (size: 10)"
 
     # dimensionless coordinates
@@ -336,6 +337,35 @@ def test_coord_init():
     assert coord0.reversed
 
 
+def test_coord_str_repr_summary():
+
+    nd = Coord(
+        name="toto",
+        data=np.arange("2020", "2030", dtype="<M8[Y]"),
+        labels=list("abcdefghij"),
+    )
+    assert repr(nd) == "Coord toto(value): [datetime64[Y]] unitless (size: 10)"
+
+    # repr_html and summary
+    nd = Coord([1, 2, 3], labels=list("abc"))
+    assert "coordinates:" in nd._cstr()[2] and "labels:" in nd._cstr()[2]
+
+    nd = Coord(labels=list("abc"))
+    assert "coordinates:" in nd._cstr()[2] and "labels:" not in nd._cstr()[2]
+
+    nd = Coord(labels=list("abcdefghij"), name="z")
+    assert nd.summary.startswith("\x1b[32m         name")
+    assert (
+        str(nd)
+        == repr(nd)
+        == "Coord z(value): [labels] [  a   b ...   i   j] (size: 10)"
+    )
+
+    nd = Coord(labels=[list("abcdefghij"), list("0123456789"), list("lmnopqrstx")])
+    assert "labels[1]" in nd.summary
+    assert "labels[1]" in nd._repr_html_()
+
+
 def test_linearcoord_deprecated():
     from spectrochempy.core.dataset.coord import LinearCoord
 
@@ -382,6 +412,13 @@ def test_coord_slicing():
     assert a.name == "x"
     assert isinstance(a.labels, np.ndarray)
     assert_array_equal(a.values, a.labels)
+
+
+def test_coord_linearize():
+    from spectrochempy.utils.misc import spacings
+
+    arr = np.linspace(0.1, 99.9, 100) * 10 + np.random.rand(100) * 0.001
+    c = Coord(arr, linear=True, decimals=3)
 
 
 # TODO: Arithmetics

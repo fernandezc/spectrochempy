@@ -85,7 +85,7 @@ class NDComplexArray(NDArray):
         if self.is_hypercomplex and np.isscalar(value):
             # sometimes do not work directly : here is a work around
             keys = self._make_index(items)
-            self._data[keys] = np.full_like(self.data[keys], value).astype(
+            self._data[keys] = np.full_like(self._data[keys], value).astype(
                 np.dtype(np.quaternion)
             )
         else:
@@ -253,7 +253,7 @@ class NDComplexArray(NDArray):
         """
         Return whether at least one of the `data` array dimension is complex.
         """
-        if self.data is None:
+        if not self.has_data:
             return False
         return self.is_complex or self.is_hypercomplex
 
@@ -314,18 +314,18 @@ class NDComplexArray(NDArray):
         """
         Return whether the array is complex.
         """
-        if self.data is None:
+        if not self.has_data:
             return False
-        return self.data.dtype.kind == "c"
+        return self._data.dtype.kind == "c"
 
     @property
     def is_hypercomplex(self):
         """
         Return whether the array is hypercomplex.
         """
-        if self.data is None:
+        if not self.has_data:
             return False
-        return self.data.dtype.kind == "V"
+        return self._data.dtype.kind == "V"
 
     # #
     #
@@ -340,7 +340,7 @@ class NDComplexArray(NDArray):
     #     """
     #     Return whether the hypercomplex array has interleaved data.
     #     """
-    #     if self.data is None:
+    #     if not self.has_data:
     #         return False
     #     return self._interleaved
 
@@ -368,14 +368,14 @@ class NDComplexArray(NDArray):
         """
         Return the range of the data.
         """
-        if self.data is None:
+        if not self.has_data:
             return None
         if self.is_complex:
-            return [self.data.real.min(), self.data.real.max()]
+            return [self._data.real.min(), self._data.real.max()]
         if self.is_hypercomplex:
-            data = as_float_array(self.data)[..., 0]
+            data = as_float_array(self._data)[..., 0]
             return [data.min(), data.max()]
-        return [self.data.min(), self.data.max()]
+        return [self._data.min(), self._data.max()]
 
     @property
     def real(self):
