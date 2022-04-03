@@ -61,7 +61,7 @@ class NDLabeledArray(NDArray):
     # ----------------------------------------------------------------------------------
     def __init__(self, data=None, **kwargs):
         super().__init__(data, **kwargs)
-        if self._data is not None:
+        if self.has_data:
             self._data = self._data.squeeze()
             if self._data.ndim > 1:
                 raise ShapeError(self._data.shape, "Only 1D array can be labeled")

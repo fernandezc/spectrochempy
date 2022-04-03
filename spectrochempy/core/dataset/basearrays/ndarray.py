@@ -261,6 +261,9 @@ class NDArray(tr.HasTraits):
     # ------------------------------------------------------------------------
     # Special methods
     # ------------------------------------------------------------------------
+    #    def __array__(self, dtype=None):
+    #        # make NDArray, an array-like object
+    #        return self._data.astype(dtype)
 
     def __copy__(self):
         # in SpectroChemPy, copy is equivalent to deepcopy

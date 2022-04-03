@@ -163,8 +163,6 @@ def test_coord_init():
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
-        mask=None,
-        units=None,
         title="wavelength",
     )
     assert coord0.units is None
@@ -177,7 +175,6 @@ def test_coord_init():
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
-        mask=None,
         units=ur.dimensionless,
         title="wavelength",
         name="toto",
@@ -194,7 +191,6 @@ def test_coord_init():
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
-        mask=None,
         units="m/km",
         title="wavelength",
     )
@@ -210,7 +206,6 @@ def test_coord_init():
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
-        mask=None,
         units=ur.m / ur.km,
         title="wavelength",
     )
@@ -227,7 +222,6 @@ def test_coord_init():
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
-        mask=None,
         units="m^2/s",
         title="wavelength",
     )
@@ -241,25 +235,21 @@ def test_coord_init():
     coord0 = Coord(
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
-        mask=None,
         title="wavelength",
     )
     coord0b = Coord(
         data=np.linspace(4000, 1000, 10),
         labels="a b c d e f g h i j".split(),
-        mask=None,
         title="wavelength",
     )
     coord1 = Coord(
         data=np.linspace(4000, 1000, 10),
         labels="a b c d e f g h i j".split(),
-        mask=None,
         title="titi",
     )
     coord2 = Coord(
         data=np.linspace(4000, 1000, 10),
         labels="b c d e f g h i j a".split(),
-        mask=None,
         title="wavelength",
     )
     coord3 = Coord(
@@ -277,7 +267,6 @@ def test_coord_init():
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
         units="s",
-        mask=None,
         title="wavelength",
     )
 
@@ -295,7 +284,6 @@ def test_coord_init():
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
         units="s",
-        mask=None,
         title="wavelength",
     )
     assert coord0.is_labeled
@@ -312,7 +300,6 @@ def test_coord_init():
         data=np.linspace(4000, 1000, 10),
         labels=list("abcdefghij"),
         units="s",
-        mask=None,
         title="wavelength",
     )
 
@@ -331,10 +318,12 @@ def test_coord_init():
     assert coord2.units == coord0.units
 
     # automatic reversing for wavenumbers
-    coord0 = Coord(
-        data=np.linspace(4000, 1000, 10), units="cm^-1", mask=None, title="wavenumbers"
-    )
+    coord0 = Coord(data=np.linspace(4000, 1000, 10), units="cm^-1", title="wavenumbers")
     assert coord0.reversed
+
+    # invalid data shape
+    with pytest.raises(ShapeError):
+        _ = Coord([[1, 2, 3], [3, 4, 5]])
 
 
 def test_coord_str_repr_summary():
@@ -421,52 +410,48 @@ def test_coord_linearize():
     c = Coord(arr, linear=True, decimals=3)
 
 
-# TODO: Arithmetics
-#     coord5 = coord4.copy()
-#     coord5 += 1
-#     assert np.all(coord5.data == coord4.data + 1)
-#     assert coord5 is not None
-#     coord5.linear = True
-#
-#     coord6 = Coord(linear=True, offset=2.0, increment=2.0, size=10)
-#     assert np.all(coord6.data == (coord4.data + 1.0) * 2.0)
-#
-#     Coord(offset=2.0, increment=2.0, size=10)
-#
-#     coord0 = Coord.linspace(
-#         200.0,
-#         300.0,
-#         3,
-#         labels=["cold", "normal", "hot"],
-#         units="K",
-#         title="temperature",
-#     )
-#     coord1 = Coord.linspace(
-#         0.0, 60.0, 100, labels=None, units="minutes", title="time-on-stream"
-#     )
-#     coord2 = Coord.linspace(
-#         4000.0, 1000.0, 100, labels=None, units="cm^-1", title="wavenumber"
-#     )
-#
-#     assert coord0.size == 3
-#     assert coord1.size == 100
-#     assert coord2.size == 100
-#
-#     coordc = coord0.copy()
-#     assert coord0 == coordc
-#
-#     coordc = coord1.copy()
-#     assert coord1 == coordc
-#
-#     assert_approx_equal(coord1.spacing.m, 0.606060606)
-#
-#     assert coord1.author is None
-#     assert not coord1.history
-#
-#     assert not coord1.descendant
-#     assert coord2.descendant
-#
-#     assert coord1.is_1d
-#
-#     assert coord0.transpose() == coord0
-#     assert coord0.transpose() == coord0
+def test_coord_ufuncs():
+
+    coord = Coord(data=np.linspace(4000, 1000, 10), title="wavelength")
+    coord1 = coord + 1000.0
+    assert coord1[0].values == 5000.0
+    assert coord1.title == "wavelength"
+
+    # with units
+    coord0 = Coord(data=np.linspace(4000, 1000, 10), units="cm^-1")
+    coord1 = coord0 + 1000.0 * ur("cm^-1")
+    assert coord1[0].values == 5000.0 * ur("cm^-1")
+
+    # without units for the second operand
+    coord1 = coord0 + 1000.0
+    assert coord1[0].values == 5000.0 * ur("cm^-1")
+
+    coord2 = coord - 500.0
+    assert coord2[0].values == 3500.0
+
+    coord2 = np.subtract(coord0, 500.0)
+    assert coord2[0].values == 3500.0 * ur("cm^-1")
+
+    coord2 = 500.0 - coord0
+    assert coord2[0].values == -3500.0 * ur("cm^-1")
+
+    coord2 += 3000
+    assert coord2[0].values == -500.0 * ur("cm^-1")
+
+    # test_ufunc on coord
+    c = np.multiply(coord2, 2, coord2)
+    assert c is coord2
+    assert coord2[0].values == -1000.0 * ur("cm^-1")
+
+    with pytest.raises(NotImplementedError):
+        np.fmod(coord2, 2)
+
+    with pytest.raises(NotImplementedError):
+        np.multiply.accumulate(coord2)
+
+
+def test_coord_functions():
+
+    coord0 = Coord.linspace(200.0, 300.0, 3, units="K", title="temperature")
+    coord1 = Coord(np.linspace(200.0, 300.0, 3), units="K", title="temperature")
+    assert coord1 == coord0

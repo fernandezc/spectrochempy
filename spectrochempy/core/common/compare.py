@@ -1,4 +1,5 @@
 import numpy as np
+from numbers import Number
 
 
 def is_iterable(obj):
@@ -8,7 +9,7 @@ def is_iterable(obj):
     Parameters
     ----------
     obj : object
-     Object to check.
+        Object to check.
 
     Returns
     -------
@@ -24,19 +25,20 @@ def is_number(obj):
     Parameters
     ----------
     obj : object
-     Object to check.
+        Object to check.
 
     Returns
     -------
     bool
     """
-    try:
-        if is_numpy_array(obj) or is_duck_array(obj):
-            return False
-        obj + 1
-        return True
-    except TypeError:
-        return False
+    # try:
+    #     if is_numpy_array(obj) or is_duck_array(obj):
+    #         return False
+    #     obj + 1
+    #     return True
+    # except TypeError:
+    #     return False
+    return isinstance(obj, Number)
 
 
 def is_sequence(obj):
@@ -46,7 +48,7 @@ def is_sequence(obj):
     Parameters
     ----------
     obj : object
-     Object to check.
+        Object to check.
 
     Returns
     -------
@@ -62,7 +64,7 @@ def is_string(obj):
     Parameters
     ----------
     obj : object
-     Object to check.
+        Object to check.
 
     Returns
     -------
@@ -155,7 +157,7 @@ def is_array_like(obj):
     Parameters
     ----------
     obj : object
-     Object to check.
+        Object to check.
 
     Returns
     -------
@@ -188,11 +190,3 @@ def is_datetime64(obj):
         data = obj._data[0] if obj._data is not None else None
     else:
         data = obj
-    linear = obj._linear if hasattr(obj, "_linear") else False
-    res = False
-    if data is not None:
-        data = np.array(data, subok=True, copy=False)
-        res = data.dtype.kind == "M"
-    elif linear:
-        res = isinstance(obj._increment, dt64)
-    return res

@@ -13,6 +13,7 @@ This module implements the class |Coord|.
 __all__ = ["Coord"]
 
 import textwrap
+from numbers import Number
 
 import numpy as np
 import traitlets as tr
@@ -34,7 +35,9 @@ from spectrochempy.core.dataset.basearrays.ndlabeledarray import (
     NDLabeledArray,
     _docstring,
 )
-from spectrochempy.core.dataset.ndmath import NDMath
+from spectrochempy.core.dataset.mixins.numpymixins import NDArrayUfuncMixin
+from spectrochempy.core.dataset.mixins.numpymixins import NDArrayFunctionMixin
+from spectrochempy.core.dataset.mixins.function_base import NDArrayFunctionBaseMixin
 from spectrochempy.core.units import Quantity, encode_quantity, ur
 from spectrochempy.utils.misc import spacings
 from spectrochempy.utils.optional import import_optional_dependency
@@ -43,7 +46,9 @@ from spectrochempy.utils.optional import import_optional_dependency
 # ======================================================================================
 # Coord
 # ======================================================================================
-class Coord(NDMath, NDLabeledArray):
+class Coord(
+    NDLabeledArray, NDArrayUfuncMixin, NDArrayFunctionMixin, NDArrayFunctionBaseMixin
+):
     """
     Explicit coordinates for a dataset along a given axis.
 
@@ -136,15 +141,30 @@ class Coord(NDMath, NDLabeledArray):
     # ----------------------------------------------------------------------------------
     # initialization
     # ----------------------------------------------------------------------------------
+
+    # Handlers for arithmetic operations on Coord objects
+    _HANDLED_TYPES = (Quantity, np.ndarray, Number, list)
+
+    # Ufunc - Functions that operates element by element on whole arrays.
+    _HANDLED_UFUNCS = (
+        "add",
+        "subtract",
+        "multiply",
+        "true_divide",
+        "reciprocal",
+        "log",
+        "log2",
+        "log10",
+        "exp",
+        "exp2",
+        "sqrt",
+    )  # TODO: tune this list by adding useful ufuncs for coordinates
+
+    _HANDLED_FUNCTIONS = ()
+
     def __init__(self, data=None, **kwargs):
 
         super().__init__(data=data, **kwargs)
-
-        if len(self.shape) > 1:
-            raise ShapeError(
-                self.shape,
-                message="Only one 1D arrays can be used to " "define coordinates",
-            )
 
         # Linearization with rounding to the number of given decimals
         # If linear=True is passed in parameters
@@ -152,54 +172,6 @@ class Coord(NDMath, NDLabeledArray):
 
         if kwargs.get("linear", False):
             self.linearize(decimals)
-
-    # ----------------------------------------------------------------------------------
-    # Special methods
-    # ----------------------------------------------------------------------------------
-    # def __getitem__(self, items, **kwargs):
-    #
-    #     if isinstance(items, list):
-    #         # Special case of fancy indexing
-    #         items = (items,)
-    #
-    #     # choose, if we keep the same or create new object
-    #     inplace = False
-    #     if isinstance(items, tuple) and items[-1] == INPLACE:
-    #         items = items[:-1]
-    #         inplace = True
-    #
-    #     # Eventually get a better representation of the indexes
-    #     try:
-    #         keys = self._make_index(items)
-    #     except IndexError:
-    #         # maybe it is a metadata
-    #         if items in self.meta.keys():
-    #             return self.meta[items]
-    #         raise KeyError
-    #
-    #     # init returned object
-    #     new = self if inplace else self.copy()
-    #
-    #     # slicing by index of all internal array
-    #     if new.data is not None:
-    #         udata = new.data[keys]
-    #         new._data = np.asarray(udata)
-    #
-    #     if self.is_labeled:
-    #         # case only of 1D dataset such as Coord
-    #         new._labels = np.array(self._labels[keys])
-    #
-    #     if new.is_empty:
-    #         raise IndexError(
-    #             f"Empty array of shape {new._data.shape} resulted from slicing.\n"
-    #             f"Check the indexes and make sure to use floats for location slicing"
-    #         )
-    #         new = None
-    #
-    #     # we need to keep the names when copying coordinates to avoid later
-    #     # problems
-    #     new.name = self.name    # TODO: but this is done already in copy I think. Check!
-    #     return new
 
     # ----------------------------------------------------------------------------------
     # Private properties and methods
@@ -432,11 +404,6 @@ class LinearCoord(Coord):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-
-# ======================================================================================
-# Set the operators
-# ======================================================================================
-# set_operators(Coord, priority=50)
 
 # ======================================================================================
 if __name__ == "__main__":
