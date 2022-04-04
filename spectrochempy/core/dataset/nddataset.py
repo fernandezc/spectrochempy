@@ -37,29 +37,30 @@ from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.dataset.basearrays.ndmaskedcomplexarray import (
     NDMaskedComplexArray,
 )
-from spectrochempy.core.dataset.ndio import NDIO
-from spectrochempy.core.dataset.ndmath import (
-    NDManipulation,
-    NDMath,
-    _set_operators,
-    _set_ufuncs,
-)
-from spectrochempy.core.dataset.ndplot import NDPlot
+from spectrochempy.core.dataset.mixins.ndio import NDIO
+
+# from spectrochempy.core.dataset.ndmath import (
+#     NDManipulation,
+#     NDMath,
+#     _set_operators,
+#     _set_ufuncs,
+# )
+from spectrochempy.core.dataset.mixins.ndplot import NDPlot
 from spectrochempy.core.project.baseproject import AbstractProject
 from spectrochempy.utils.optional import import_optional_dependency
 from spectrochempy.utils.system import get_user_and_node
 from spectrochempy.core.units import Unit, encode_quantity
 
+
 # docstring substitution (docrep)
 # --------------------------------------------------------------------------------------
 _docstring = DocstringProcessor()
 
+
 # ======================================================================================
 # NDDataset class definition
 # ======================================================================================
-
-
-class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
+class NDDataset(NDIO, NDPlot, NDMaskedComplexArray):  # NDManipulation, NDMath,
     """
     The main N-dimensional dataset class used by |scpy|.
 
@@ -207,6 +208,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
     _description = tr.Unicode()
     _origin = tr.Unicode()
     _history = tr.List(tr.Tuple(), allow_none=True)
+    _meta = tr.Instance(Meta, allow_none=True)
 
     # coordinates
     _coordset = tr.Instance(CoordSet, allow_none=True)
@@ -681,23 +683,27 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
 
         return coord._loc2index(loc, units=units)
 
+    @tr.default("_meta")
+    def __meta_default(self):
+        return Meta()
+
     @tr.default("_modeldata")
-    def _modeldata_default(self):
+    def __modeldata_default(self):
         return None
 
     @tr.default("_processeddata")
-    def _processeddata_default(self):
+    def __processeddata_default(self):
         return None
 
     @tr.default("_ranges")
-    def _ranges_default(self):
+    def __ranges_default(self):
         ranges = Meta()
         for dim in self.dims:
             ranges[dim] = dict(masks={}, baselines={}, integrals={}, others={})
         return ranges
 
     @tr.default("_referencedata")
-    def _referencedata_default(self):
+    def __referencedata_default(self):
         return None
 
     def _str_dims(self):
@@ -719,7 +725,7 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
     _repr_dims = _str_dims
 
     @tr.default("_timezone")
-    def _timezone_default(self):
+    def __timezone_default(self):
         # Return the default timezone (UTC)
         return datetime.utcnow().astimezone().tzinfo
 
@@ -1149,6 +1155,18 @@ class NDDataset(NDIO, NDPlot, NDManipulation, NDMath, NDMaskedComplexArray):
         self._history.append((date, value))
 
     @property
+    def meta(self):
+        """
+        Return an additional metadata dictionary.
+        """
+        return self._meta
+
+    @meta.setter
+    def meta(self, meta):
+        if meta is not None:
+            self._meta.update(meta)
+
+    @property
     def modeldata(self):
         """
         |ndarray| - models data.
@@ -1499,5 +1517,5 @@ __all__ += ["load"]
 # Set the operators
 # ======================================================================================
 
-_set_operators(NDDataset, priority=100000)
-_set_ufuncs(NDDataset)
+# _set_operators(NDDataset, priority=100000)
+# _set_ufuncs(NDDataset)

@@ -24,7 +24,6 @@ from collections.abc import Iterable
 from scipy.optimize import minimize, differential_evolution, least_squares
 
 from spectrochempy.utils.optional import import_optional_dependency
-from spectrochempy.core import error_
 from spectrochempy.core.dataset.nddataset import NDDataset, Coord
 
 __all__ = [

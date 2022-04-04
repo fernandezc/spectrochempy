@@ -9,15 +9,10 @@ from __future__ import annotations
 import functools
 import operator
 import os
-import re
-import warnings
 from contextlib import contextmanager
-from typing import Sequence, Type, cast
 
 import numpy as np
 
-# import matplotlib.pyplot as plt
-# from matplotlib.testing.compare import calculate_rms, ImageAssertionError
 from numpy.testing import (
     assert_approx_equal,
     assert_array_almost_equal,

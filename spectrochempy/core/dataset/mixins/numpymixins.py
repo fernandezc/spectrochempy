@@ -3,85 +3,13 @@ from numbers import Number
 import numpy as np
 
 from spectrochempy.core.dataset.basearrays.ndarray import NDArray
-from spectrochempy.core.units import Quantity
-from spectrochempy.core.common.compare import is_quantity
+from spectrochempy.core.dataset.mixins.mixinutils import (
+    _REGISTERED_FUNCTIONS,
+    _op_result,
+)
 
 # see https://numpy.org/doc/stable/reference/generated/numpy.lib.mixins
 # .NDArrayUfuncMixin.html#numpy.lib.mixins.NDArrayUfuncMixin
-
-
-_keep_title = [
-    "negative",
-    "absolute",
-    "abs",
-    "fabs",
-    "rint",
-    "floor",
-    "ceil",
-    "trunc",
-    "add",
-    "subtract",
-]
-_remove_title = [
-    "multiply",
-    "divide",
-    "true_divide",
-    "floor_divide",
-    "mod",
-    "fmod",
-    "remainder",
-    "logaddexp",
-    "logaddexp2",
-]
-
-
-def _op_result(self, fname, value, history=None, out=None):
-    # make a new NDArray resulting of some operations fname
-
-    new = self.copy() if out is None else out
-
-    # set the new units
-    if hasattr(value, "units"):
-        new._units = value.units
-        value = value.magnitude
-
-    if hasattr(value, "mask"):
-        self._mask = value.mask
-        value = value.data
-
-    # set the data
-    new._data = value
-
-    # eventually add other attributes
-    if isinstance(new, NDArray):
-
-        if hasattr(new, "history") and history is not None:
-            # set history string
-            new.history = history.strip()
-
-        # Eventually make a new title depending on the operation
-        if fname in _remove_title:
-            new.title = f"<{fname}>"
-        elif fname not in _keep_title and isinstance(new, NDArray):
-            if hasattr(new, "title") and new.title is not None:
-                new.title = f"{fname}({new.title})"
-            else:
-                new.title = f"{fname}(value)"
-
-    return new
-
-
-def _register_implementation(numpy_function):
-    """
-    Register an __array_function__ implementation for NDArrayFunctionMixin
-    subclassed objects.
-    """
-
-    def decorator(func):
-        _REGISTERED_FUNCTIONS[numpy_function] = func
-        return func
-
-    return decorator
 
 
 class NDArrayUfuncMixin(np.lib.mixins.NDArrayOperatorsMixin):
@@ -158,9 +86,6 @@ class NDArrayUfuncMixin(np.lib.mixins.NDArrayOperatorsMixin):
             )
         else:
             return _op_result(self, fname, result, history, out=out[0])
-
-
-_REGISTERED_FUNCTIONS = {}
 
 
 class NDArrayFunctionMixin:

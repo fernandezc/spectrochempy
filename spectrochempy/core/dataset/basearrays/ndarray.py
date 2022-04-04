@@ -28,10 +28,6 @@ The most used ones:
 * `title`: The title of the data array, often a quantity name(e.g, `frequency`)
 * `units`: The units of the data array (for example, `Hz`).
 
-Useful additional attributes:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* `meta`: A dictionary of any additional metadata.
-
 Read-only attributes:
 ~~~~~~~~~~~~~~~~~~~~~
 * `dtype`: data type (see numpy definition of dtypes).
@@ -67,7 +63,7 @@ import pint
 import traitlets as tr
 from traittypes import Array
 
-from spectrochempy.core import info_, print_, warning_
+from spectrochempy.core import warning_
 from spectrochempy.core.common.compare import is_datetime64, is_number, is_sequence
 from spectrochempy.core.common.constants import (
     DEFAULT_DIM_NAME,
@@ -82,8 +78,6 @@ from spectrochempy.core.common.exceptions import (
     InvalidDimensionNameError,
     InvalidNameError,
     InvalidUnitsError,
-    # ShapeError,
-    UnitWarning,
     ValueWarning,
 )
 from spectrochempy.core.common.print import (
@@ -92,13 +86,11 @@ from spectrochempy.core.common.print import (
     numpyprintoptions,
     pstr,
 )
-from spectrochempy.core.common.meta import Meta
 from spectrochempy.core.units import (
     Quantity,
     Unit,
     get_units,
     remove_units,
-    set_nmr_context,
     ur,
 )
 
@@ -172,15 +164,9 @@ class NDArray(tr.HasTraits):
     title : str, optional
         The title of the array.
         It is optional but recommended giving a title to each array.
-    meta : dict-like object, optional
-        Additional metadata for this object. Must be dict-like but no
-        further restriction is placed on meta.
     name : str, optional
         A user-friendly name for this object. If not given, the automatic `id`
         given at the object creation will be used as a name.
-    timezone : datetime.tzinfo, optional
-        The timezone where the data were created. If not specified, the local
-        timezone is assumed.
     units : |Unit| instance or str, optional
         Units of the data. If data is a |Quantity| then `units` is set to the unit of
         the `data`; if a unit is also explicitly provided an error is raised.
@@ -199,7 +185,6 @@ class NDArray(tr.HasTraits):
     _dtype = tr.Instance(np.dtype, allow_none=True)
     _dims = tr.List(tr.Unicode(), allow_none=True)
     _units = tr.Instance(Unit, allow_none=True)
-    _meta = tr.Instance(Meta, allow_none=True)
 
     # Region of interest
     _roi = Array(allow_none=True)
@@ -254,7 +239,6 @@ class NDArray(tr.HasTraits):
             self.dims = kwargs.pop("dims")
         self.units = kwargs.pop("units", self.units)
         self.name = kwargs.pop("name", self.name)
-        self.meta = kwargs.pop("meta", self.meta)
 
         super().__init__()
 
@@ -412,7 +396,6 @@ class NDArray(tr.HasTraits):
             "name",
             "units",
             "title",
-            "meta",
             "roi",
         ]
         for item in removed:
@@ -445,7 +428,8 @@ class NDArray(tr.HasTraits):
     def _cstr(self, **kwargs):
         str_name = f"         name: {self.name}"
         str_title = f"        title: {self.title}"
-        return str_name, str_title, self._str_value(**kwargs), self._str_shape()
+        str_size = self._str_shape() if kwargs.pop("print_size", True) else ""
+        return str_name, str_title, self._str_value(**kwargs), str_size
 
     @staticmethod
     def _data_and_units_from_td64(data):
@@ -588,7 +572,7 @@ class NDArray(tr.HasTraits):
         try:
             key = np.datetime64(key)
         except ValueError as exc:
-            raise NotImplementedError
+            raise NotImplementedError from exc
 
         index, error = self._value_to_index(key)
         return index, error
@@ -690,6 +674,34 @@ class NDArray(tr.HasTraits):
         newkey = slice(start, stop, step)
         return newkey
 
+    @staticmethod
+    def _get_default_title_from_units(units):
+
+        # TODO: Here we make the assumption that we are working only with spectroscopic
+        # data but may be we should find a way to be more general in case other data are
+        # used, may be by setting some flag (origin?)
+
+        if units is None:
+            return "value"
+        if f"{units:P}" == "absorbance":
+            title = "absorbance"
+        elif f"{units:P}" in [
+            "transmittance",
+            "absolute_transmittance",
+        ]:
+            title = "transmittance"
+        elif units.dimensionality == "1/[time]":
+            title = "frequency"
+        elif units.dimensionality == "1/[length]":
+            title = "wavenumber"
+        elif units.dimensionality == "[length]":
+            title = "wavelength"
+        elif units.dimensionality == "[length] ** 2 * [mass] / [time] ** 2":
+            title = "energy"
+        else:
+            title = "value"
+        return title
+
     def _make_index(self, key):
 
         # Case where we can proceed directly with the provided key:
@@ -750,10 +762,6 @@ class NDArray(tr.HasTraits):
                 # allowing use of values for instances...
                 keys[axis] = self._get_slice(key_, dim)
         return tuple(keys)
-
-    @tr.default("_meta")
-    def __meta_default(self):
-        return Meta()
 
     @tr.default("_name")
     def __name_default(self):
@@ -983,6 +991,10 @@ class NDArray(tr.HasTraits):
     @staticmethod
     def _unittransform(new, units):
         oldunits = new.units
+        if oldunits is None:
+            oldunits = ur.dimensionless
+        if units is None:
+            units = ur.dimensionless
         udata = (new.data * oldunits).to(units)
         new._data = udata.m
         new._units = udata.units
@@ -1273,7 +1285,7 @@ class NDArray(tr.HasTraits):
             return False
         return True
 
-    def ito(self, other, force=False):
+    def ito(self, other, force=False, title=None):
         """
         Inplace scaling of the current object data to different units.
 
@@ -1285,6 +1297,10 @@ class NDArray(tr.HasTraits):
             Destination units.
         force : bool, optional, default=`False`
             If True the change of units is forced, even for incompatible units.
+        title : str, optional
+            Set a new title after the unit conversion. By default, the title will be
+            inferred from the units (e.g. "Hz" -> title="frequency"). If not
+            possible, title is set to "value".
 
         See Also
         --------
@@ -1294,7 +1310,7 @@ class NDArray(tr.HasTraits):
         to_reduced_units : Rescaling to reduced units.
         ito_reduced_units : Rescaling to reduced units.
         """
-        self.to(other, inplace=True, force=force)
+        self.to(other, inplace=True, force=force, title=title)
 
     def ito_base_units(self):
         """
@@ -1373,18 +1389,6 @@ class NDArray(tr.HasTraits):
         return self._data
 
     @property
-    def meta(self):
-        """
-        Return an additional metadata dictionary.
-        """
-        return self._meta
-
-    @meta.setter
-    def meta(self, meta):
-        if meta is not None:
-            self._meta.update(meta)
-
-    @property
     def name(self):
         """
         Return a user-friendly name.
@@ -1461,8 +1465,9 @@ class NDArray(tr.HasTraits):
         """
         return colored_output(pstr(self))
 
+    @_docstring.get_docstring(base="to")
     @_docstring.dedent
-    def to(self, other, inplace=False, force=False):
+    def to(self, other, inplace=False, force=False, title=None):
         """
         Return the object with data rescaled to different units.
 
@@ -1476,6 +1481,10 @@ class NDArray(tr.HasTraits):
         %(inplace)s
         force : bool, optional, default=False
             If True the change of units is forced, even for incompatible units.
+        title : str, optional
+            Set a new title after the unit conversion. By default, the title will be
+            inferred from the units (e.g. "Hz" -> title="frequency"). If not
+            possible, title is set to "value".
 
         Returns
         -------
@@ -1493,111 +1502,33 @@ class NDArray(tr.HasTraits):
             warning_("`to` method cannot be used with datetime object. Ignored!")
             return self
 
-        new = self.copy()
+        new = self if inplace else self.copy()
+
         if other is None:
             if self.units is None:
-                return new
-            if force:
-                new._units = None
-                if inplace:
-                    self._units = None
-            return new
+                return self
+
         units = get_units(other)
 
-        if self.has_units:
-            oldunits = self._units
-            try:
-                if new.meta.larmor:  # _origin in ['topspin', 'nmr']
-                    set_nmr_context(new.meta.larmor)
-                    with ur.context("nmr"):
-                        new = self._unittransform(new, units)
-
-                # particular case of dimensionless units: absorbance and transmittance
-                else:
-
-                    if f"{oldunits:P}" in ["transmittance", "absolute_transmittance"]:
-                        if f"{units:P}" == "absorbance":
-                            udata = (new.data * new.units).to(units)
-                            new._data = -np.log10(udata.m)
-                            new._units = units
-                            new._title = "absorbance"
-
-                        elif f"{units:P}" in [
-                            "transmittance",
-                            "absolute_transmittance",
-                        ]:
-                            new._data = (new.data * new.units).to(units)
-                            new._units = units
-                            new._title = "transmittance"
-
-                    elif f"{oldunits:P}" == "absorbance":
-                        if f"{units:P}" in ["transmittance", "absolute_transmittance"]:
-                            scale = Quantity(1.0, self._units).to(units).magnitude
-                            new._data = 10.0 ** -new.data * scale
-                            new._units = units
-                            new._title = "transmittance"
-                    else:
-                        new = self._unittransform(new, units)
-                        # change the title for spectroscopic units change
-                        if (
-                            oldunits.dimensionality
-                            in [
-                                "1/[length]",
-                                "[length]",
-                                "[length] ** 2 * [mass] / [time] ** 2",
-                            ]
-                            and new._units.dimensionality == "1/[time]"
-                        ):
-                            new._title = "frequency"
-                        elif (
-                            oldunits.dimensionality
-                            in ["1/[time]", "[length] ** 2 * [mass] / [time] ** 2"]
-                            and new._units.dimensionality == "1/[length]"
-                        ):
-                            new._title = "wavenumber"
-                        elif (
-                            oldunits.dimensionality
-                            in [
-                                "1/[time]",
-                                "1/[length]",
-                                "[length] ** 2 * [mass] / [time] ** 2",
-                            ]
-                            and new._units.dimensionality == "[length]"
-                        ):
-                            new._title = "wavelength"
-                        elif (
-                            oldunits.dimensionality
-                            in ["1/[time]", "1/[length]", "[length]"]
-                            and new._units.dimensionality == "[length] ** 2 * "
-                            "[mass] / [time] "
-                            "** 2"
-                        ):
-                            new._title = "energy"
-
-                if force:
-                    new._units = units
-            except pint.DimensionalityError as exc:
-                if force:
-                    new._units = units
-                    info_("units forced to change")
-                else:
-                    raise DimensionalityError(
-                        exc.dim1,
-                        exc.dim2,
-                        exc.units1,
-                        exc.units2,
-                        extra_msg=exc.extra_msg,
-                    )
-        elif force:
+        if force:
             new._units = units
-        else:
-            warning_("There is no units for this NDArray!", UnitWarning)
-        if inplace:
-            self._data = new._data
-            self._units = new._units
-            self._title = new._title
-            self._roi = new._roi
+            tit = self._get_default_title_from_units(new.units)
+            new._title = tit if title is None else title
+            return new
 
+        try:
+            new = self._unittransform(new, units)
+            tit = self._get_default_title_from_units(units)
+            new._title = tit if title is None else title
+
+        except pint.DimensionalityError as exc:
+            raise DimensionalityError(
+                exc.dim1,
+                exc.dim2,
+                exc.units1,
+                exc.units2,
+                extra_msg=exc.extra_msg,
+            )
         return new
 
     @_docstring.dedent
@@ -1695,7 +1626,7 @@ class NDArray(tr.HasTraits):
                     f"Provided units {units} does not match data units:"
                     f" {self.units}.\nTo force a change,"
                     f" use the to() method, with force flag set to True"
-                )
+                ) from err
         self._units = units
 
     @property

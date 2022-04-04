@@ -131,6 +131,7 @@ class SpectroChemPyDocstring(Validator):
                 error_messages.append(messages)
 
         for error_message in error_messages:
+            print(error_message)
             error_count, error_code, message = error_message.split(maxsplit=2)
             yield error_code, message, int(error_count)
 

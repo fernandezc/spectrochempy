@@ -18,7 +18,6 @@ from spectrochempy.core.common.complex import as_quaternion
 from spectrochempy.core.common.constants import (
     typequaternion,
 )
-from spectrochempy.core.common.docstrings import DocstringProcessor
 from spectrochempy.core.common.exceptions import (
     CastingError,
     ShapeError,

@@ -33,7 +33,7 @@ from spectrochempy.utils.testing import (
     assert_produces_log_warning,
     assert_units_equal,
 )
-from spectrochempy.utils.traits import Range
+from spectrochempy.utils import check_docstrings as td
 
 # ========
 # FIXTURES
@@ -74,6 +74,22 @@ def coord2():
 # Coord Test
 # ==========
 
+# test docstring
+def test_coord_docstring():
+    import spectrochempy
+
+    td.PRIVATE_CLASSES = []  # override default to test private class docstring
+    module = "spectrochempy.core.dataset.coord"
+    td.check_docstrings(
+        module,
+        obj=spectrochempy.core.dataset.coord.Coord,
+        exclude=[
+            "SA01",  # see also
+            "EX01",  # examples
+            "ES01",  # extended summary
+        ],
+    )
+
 
 def test_coord_init():
 
@@ -86,8 +102,6 @@ def test_coord_init():
     assert not a.is_labeled
     assert a.units is None
     assert a.is_unitless
-    debug_(a.meta)
-    assert not a.meta
     assert a.name == "x"
 
     # set properties
@@ -96,9 +110,6 @@ def test_coord_init():
     assert a.title == "xxxx"
     a.name = "y"
     assert a.name == "y"
-    a.meta = None
-    a.meta = {"val": 125}  # need to be an OrderedDic
-    assert a.meta["val"] == 125
 
     # now with labels
 
@@ -450,8 +461,21 @@ def test_coord_ufuncs():
         np.multiply.accumulate(coord2)
 
 
+def test_coord_default():
+    # gettting attribute default on a single coordinate should not give an error.
+
+    coord0 = Coord.linspace(200.0, 300.0, 3, units="K", title="temperature")
+
+    assert coord0.default is coord0
+
+    #
+
+
 def test_coord_functions():
 
     coord0 = Coord.linspace(200.0, 300.0, 3, units="K", title="temperature")
     coord1 = Coord(np.linspace(200.0, 300.0, 3), units="K", title="temperature")
     assert coord1 == coord0
+
+
+# coord3 = scp.linspace(200.0, 300.0, 3, units="K", title="temperature")

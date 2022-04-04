@@ -13,17 +13,19 @@ __all__ = [
     "Unit",
     "Quantity",
     "ur",
-    "set_nmr_context",
     "DimensionalityError",
     "remove_args_units",
     "get_units",
     "remove_units",
     "encode_quantity",
+    "set_nmr_context",
+    "set_optical_context",
 ]
 
 from warnings import warn
 from functools import wraps
 
+import numpy as np
 from pint import (
     set_application_registry,
     UnitRegistry,
@@ -233,10 +235,14 @@ def __format__(self, spec):
     if (
         "~" in spec or "K" in spec or "T" in spec or "L" in spec
     ):  # spectrochempy modified
-        if self.dimensionless and "absorbance" not in self._units:
+        if (
+            self.dimensionless
+            and "absorbance" not in self._units
+            and "transmittance" not in self._units
+        ):
             if self._units == "ppm":
                 units = UnitsContainer({"ppm": 1})
-            elif self._units in ["percent", "transmittance"]:
+            elif self._units in ["percent"]:
                 units = UnitsContainer({"%": 1})
             elif self._units == "weight_percent":
                 units = UnitsContainer({"wt.%": 1})
@@ -244,8 +250,6 @@ def __format__(self, spec):
                 units = UnitsContainer({"rad": 1})
             elif self._units == "degree":
                 units = UnitsContainer({"deg": 1})
-            # elif self._units == 'absorbance':
-            #    units = UnitsContainer({'a.u.': 1})
             elif abs(self.scaling - 1.0) < 1.0e-10:
                 units = UnitsContainer({"": 1})
             else:
@@ -275,21 +279,26 @@ setattr(Unit, "__format__", __format__)
 if globals().get("U_", None) is None:
 
     # filename = resource_filename(PKG, 'spectrochempy.txt')
-    U_ = UnitRegistry(on_redefinition="ignore")  # filename)
-
+    U_ = UnitRegistry(on_redefinition="ignore", autoconvert_offset_to_baseunit=True)
     U_.define(
         "__wrapped__ = 1"
     )  # <- hack to avoid an error with pytest (doctest activated)
     #  U_.define("@alias point = count")
-    U_.define("transmittance = 1. / 100.")
-    U_.define("absolute_transmittance = 1.")
-    U_.define("absorbance = 1. = a.u.")
+    U_.define("percent = 0.01 = %")
+    U_.define("weight_percent = 0.01 = wt.%")
+
+    # Logaritmic Unit Definition
+    #  Unit = scale; logbase; logfactor
+    #  x_dB = [logfactor] * log( x_lin / [scale] ) / log( [logbase] )
+
+    U_.define("transmittance = 0.01  = %")
+    U_.define("absolute_transmittance = 100 * transmittance = - ")
+    U_.define("absorbance = 100 * transmittance ; logbase: 10; logfactor: -1 = a.u.")
+    # A = -np.log10(T%)
+
     U_.define("Kubelka_Munk = 1. = K.M.")
 
-    U_.define("ppm = 1. = ppm")
-
-    U_.define(UnitDefinition("percent", "pct", (), ScaleConverter(1 / 100.0)))
-    U_.define(UnitDefinition("weight_percent", "wt_pct", (), ScaleConverter(1 / 100.0)))
+    U_.define("ppm = [ppm] = 1. = ppm")
 
     U_.default_format = "~P"
     Q_ = U_.Quantity
@@ -300,9 +309,6 @@ if globals().get("U_", None) is None:
 
 else:
     warn("Unit registry was already set up. Bypassed the new loading")
-
-U_.enable_contexts("spectroscopy", "boltzmann", "chemistry")
-
 
 # Context for NMR
 # ------------------------------------------------------------------
@@ -358,7 +364,7 @@ def set_nmr_context(larmor):
     if not isinstance(larmor, U_.Quantity):
         larmor = larmor * U_.MHz
 
-    if "nmr" not in list(U_._contexts.keys()):
+    if "nmr" not in U_._contexts:
         c = Context("nmr", defaults={"larmor": larmor})
 
         c.add_transformation(
@@ -379,14 +385,105 @@ def set_nmr_context(larmor):
         c.defaults["larmor"] = larmor
 
 
-# set alias for units and uncertainties
+# Context for optical spectroscopy (IR)
+# ------------------------------------------------------------------
+def set_optical_context():
+    """
+    Set a IR context for transformation between absorbance and transmittance units.
+    """
+
+    if "optical" not in U_._contexts:
+        c = Context("optical")
+
+        c.add_transformation(
+            "[transmittance]",
+            "[absorbance]",
+            lambda U_, x: -np.log10(x),
+        )
+        c.add_transformation(
+            "[absorbance]", "[transmittance]", lambda U_, x: 10.0 ** (-x)
+        )
+        U_.add_context(c)
+
+    else:
+        c = U_._contexts["optical"]
+
+    # if self.has_units:
+    #     oldunits = self._units
+    #     try:
+    #         # particular case of dimensionless units: absorbance and
+    #         # transmittance
+    #
+    #         if f"{oldunits:P}" in ["transmittance", "absolute_transmittance"]:
+    #             if f"{units:P}" == "absorbance":
+    #                 udata = (new.data * new.units).to(units)
+    #                 new._data = -np.log10(udata.m)
+    #                 new._units = units
+    #                 new._title = "absorbance"
+    #
+    #             elif f"{units:P}" in ["transmittance", "absolute_transmittance", ]:
+    #                 new._data = (new.data * new.units).to(units)
+    #                 new._units = units
+    #                 new._title = "transmittance"
+    #
+    #         elif f"{oldunits:P}" == "absorbance":
+    #             if f"{units:P}" in ["transmittance", "absolute_transmittance"]:
+    #                 scale = Quantity(1.0, self._units).to(units).magnitude
+    #                 new._data = 10.0 ** -new.data * scale
+    #                 new._units = units
+    #                 new._title = "transmittance"
+    #         else:
+    #             new = self._unittransform(new, units)
+    #             # change the title for spectroscopic units change
+    #             if (oldunits.dimensionality in ["1/[length]", "[length]",
+    #                 "[length] ** 2 * [mass] / [time] ** 2",
+    #                                             ] and new._units.dimensionality
+    #                 == "1/[time]"):
+    #                 new._title = "frequency"
+    #             elif (oldunits.dimensionality in ["1/[time]",
+    #                                               "[length] ** 2 * [mass] / ["
+    #                                               "time] ** 2"] and
+    #                   new._units.dimensionality == "1/[length]"):
+    #                 new._title = "wavenumber"
+    #             elif (oldunits.dimensionality in ["1/[time]", "1/[length]",
+    #                 "[length] ** 2 * [mass] / [time] ** 2",
+    #                                               ] and new._units.dimensionality
+    #                   == "[length]"):
+    #                 new._title = "wavelength"
+    #             elif (oldunits.dimensionality in ["1/[time]", "1/[length]",
+    #                                               "[length]"] and
+    #                   new._units.dimensionality == "[length] ** 2 * [mass] / ["
+    #                                                "time] ** 2"):
+    #                 new._title = "energy"
+    #
+    #     except pint.DimensionalityError as exc:
+    #         if force:
+    #             new._units = units
+    #             info_("units forced to change")
+    #         else:
+    #             raise DimensionalityError(exc.dim1, exc.dim2, exc.units1,
+    #                 exc.units2, extra_msg=exc.extra_msg, )
+    #
+    #
+    #
+    #
+
+
+# enabled useful contexts
+# --------------------------------------------------------------------------------------
+U_.enable_contexts("spectroscopy", "boltzmann", "chemistry")
+# we enable NMR context when needed as it depends on the parameter larmmor
+
+
+# set alias for units
 # --------------------------------------------------------------------------------------
 ur = U_
 Quantity = Q_
 
-
 # utilities
 # --------------------------------------------------------------------------------------
+
+
 def remove_units(items, return_units=True):
     # recursive function
     # assume homogeneous units for list, tuple or slices

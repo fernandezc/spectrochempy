@@ -12,33 +12,30 @@ This module implements the class |Coord|.
 
 __all__ = ["Coord"]
 
-import textwrap
 from numbers import Number
 
 import numpy as np
 import traitlets as tr
 
-from spectrochempy.core import debug_, print_, warning_
+from spectrochempy.core import warning_
 from spectrochempy.core.common.compare import is_number, is_sequence
-from spectrochempy.core.common.constants import INPLACE
 from spectrochempy.core.common.exceptions import (
-    InvalidCoordinatesSizeError,
-    InvalidCoordinatesTypeError,
-    InvalidDimensionNameError,
-    ShapeError,
-    SpectroChemPyWarning,
     deprecated,
 )
-from spectrochempy.core.common.print import colored_output, convert_to_html
-from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.dataset.basearrays.ndlabeledarray import (
     NDLabeledArray,
     _docstring,
 )
 from spectrochempy.core.dataset.mixins.numpymixins import NDArrayUfuncMixin
 from spectrochempy.core.dataset.mixins.numpymixins import NDArrayFunctionMixin
-from spectrochempy.core.dataset.mixins.function_base import NDArrayFunctionBaseMixin
-from spectrochempy.core.units import Quantity, encode_quantity, ur
+from spectrochempy.core.dataset.mixins.functionbasemixin import NDArrayFunctionBaseMixin
+from spectrochempy.core.units import (
+    Quantity,
+    encode_quantity,
+    ur,
+    set_nmr_context,
+    get_units,
+)
 from spectrochempy.utils.misc import spacings
 from spectrochempy.utils.optional import import_optional_dependency
 
@@ -49,7 +46,8 @@ from spectrochempy.utils.optional import import_optional_dependency
 class Coord(
     NDLabeledArray, NDArrayUfuncMixin, NDArrayFunctionMixin, NDArrayFunctionBaseMixin
 ):
-    """
+    __doc__ = _docstring.dedent(
+        """
     Explicit coordinates for a dataset along a given axis.
 
     The coordinates of a |NDDataset| can be created using the |Coord|
@@ -61,80 +59,49 @@ class Coord(
 
     Parameters
     ----------
-    data : ndarray, tuple or list
-        The actual data array contained in the |Coord| object.
-        The given array (with a single dimension) can be a list,
-        a tuple, a |ndarray|, or a |ndarray|-like object.
-        If an object is passed that contains labels, or units,
-        these elements will be used to accordingly set those of the
-        created object.
-        If possible, the provided data will not be copied for `data` input,
-        but will be passed by reference, so you should make a copy the
-        `data` before passing it in the object constructor if that's the
-        desired behavior or set the `copy` argument to True.
-    **kwargs
-        Optional keywords parameters. See other parameters.
+    %(NDArray.parameters)s
 
     Other Parameters
     ----------------
-    copy : bool, optional
-        Perform a copy of the passed object. Default is False.
     decimals : int, optional, default: 3
         The number of rounding decimals for coordinates values.
-    dtype : str or dtype, optional, default=np.float64
-        If specified, the data will be cast to this dtype, else the
-        type of the data will be used.
-    name : str, optional
-        A unique and user-friendly name for this object. If not given, it will be
-        automaticlly
-        attributed.
-    labels : array of objects, optional
-        Labels for the `data`. labels can be used only for 1D-datasets.
-        The labels array may have an additional dimension, meaning
-        several series of labels for the same data.
-        The given array can be a list, a tuple, a |ndarray|,
-        a ndarray-like, a |NDArray| or any subclass of
-        |NDArray|.
     linear : bool, optional
-        If set to True, the coordinate is linearized (equal spacings)
-    title : str, optional
-        The title of the dimension. It will later be used for instance
-        for labelling plots of the data.
-        It is optional but recommanded to give a title to each ndarray.
-    units : |Unit| instance or str, optional
-        Units of the data. If data is a |Quantity| then `units` is set
-        to the unit of the `data`; if a unit is also
-        explicitly provided an error is raised. Handling of units use
-        the `pint <https://pint.readthedocs.org/>`_
-        package.
+        If set to True, the coordinate is linearized (equal spacings).
+    larmor : float
+        For NMR context, specification of the larmor frequency allows conversion of
+        ppm units to frequency.
+    %(NDLabeledArray.other_parameters)s
 
     See Also
     --------
-    NDDataset : Main SpectroChemPy object: an array with masks, units and
-                coordinates.
-
-    Examples
-    --------
-
-    We create a numpy |ndarray| and use it as the numerical `data`
-    axis of our new |Coord| object.
-    >>> c0 = scp.Coord.arange(1., 12., 2., title='frequency', units='Hz')
-    >>> c0
-    Coord: [float64] Hz (size: 6)
-
-    We can take a series of str to create a non-numerical but labelled
-    axis :
-    >>> tarr = list('abcdef')
-    >>> tarr
-    ['a', 'b', 'c', 'd', 'e', 'f']
-
-    >>> c1 = scp.Coord(labels=tarr, title='mylabels')
-    >>> c1
-    Coord: [labels] [  a   b   c   d   e   f] (size: 6)
+    NDDataset : Main SpectroChemPy object: an array with masks, units and coordinates.
     """
-
+    )
+    # """
+    #     Examples
+    #     --------
+    #
+    #     We create a numpy |ndarray| and use it as the numerical `data`
+    #     axis of our new |Coord| object.
+    #     >>> c0 = scp.Coord.arange(1., 12., 2., title='frequency', units='Hz')
+    #     >>> c0
+    #     Coord: [float64] Hz (size: 6)
+    #
+    #     We can take a series of str to create a non-numerical but labelled
+    #     axis :
+    #     >>> tarr = list('abcdef')
+    #     >>> tarr
+    #     ['a', 'b', 'c', 'd', 'e', 'f']
+    #
+    #     >>> c1 = scp.Coord(labels=tarr, title='mylabels')
+    #     >>> c1
+    #     Coord: [labels] [  a   b   c   d   e   f] (size: 6)
+    #     """
     _linear = tr.Bool(False)
     _decimals = tr.Int(3)
+
+    # specific to NMR
+    _larmor = tr.Float(allow_none=True)
 
     _parent_dim = tr.Unicode(allow_none=True)
 
@@ -164,6 +131,10 @@ class Coord(
 
     def __init__(self, data=None, **kwargs):
 
+        # specific case of NMR (initialize unit context NMR)
+        if "larmor" in kwargs:
+            self.larmor = kwargs.pop("larmor")
+
         super().__init__(data=data, **kwargs)
 
         # Linearization with rounding to the number of given decimals
@@ -173,12 +144,21 @@ class Coord(
         if kwargs.get("linear", False):
             self.linearize(decimals)
 
+    def __getattr__(self, item):
+        if item == "default":
+            # this is in case default is called while it is not a cordset.
+            return self
+        raise AttributeError(f"`Coord` object has no attribute `{item}`")
+
     # ----------------------------------------------------------------------------------
     # Private properties and methods
     # ----------------------------------------------------------------------------------
     def _cstr(self, **kwargs):
         out = super()._cstr(header="  coordinates: ... \n", **kwargs)
         return out
+
+    def __larmor_default(self):
+        return None
 
     def _to_xarray(self):
         # to be used during conversion of NDarray-like to Xarray object
@@ -228,20 +208,34 @@ class Coord(
 
     @property
     def coordinates(self):
-        """Alias of data"""
+        """
+        Alias of data.
+        """
         return self.data
 
     @property
     def decimals(self):
+        """
+        Return the number of decimals set for rounding coordinate values.
+        """
         return self._decimals
 
     @property
-    def default(self):
-        # this is in case default is called on a coord, while it is a CoordSet property
-        return self
+    def larmor(self):
+        """
+        Return larmor frequency in NMR spectroscopy context.
+        """
+        return self._larmor
+
+    @larmor.setter
+    def larmor(self, val):
+        self._larmor = val
 
     @property
     def is_descendant(self):
+        """
+        Return whether the coordinate has a descendant order.
+        """
         return (self.data[-1] - self.data[0]) < 0
 
     def linearize(self, decimals=None):
@@ -257,6 +251,8 @@ class Coord(
         decimals :  Int, optional, default=3
             The number of rounding decimals for coordinates values.
         """
+        # TODO: write doc examples
+
         if not self.has_data or self.data.size < 3:
             return
 
@@ -276,27 +272,23 @@ class Coord(
         else:
             self._linear = False
 
-    def loc2index(self, loc, dim=None, *, units=None):
+    def loc2index(self, loc, *, units=None):
         """
-        Return the index corresponding to a given location .
+        Return the index corresponding to a given location.
 
         Parameters
         ----------
-        loc : float.
+        loc : int, float, label or str
             Value corresponding to a given location on the coordinate's axis.
+        units : Units
+            Units of the location.
 
         Returns
         -------
-        index : int.
+        int
             The corresponding index.
-
-        Examples
-        --------
-
-        >>> dataset = scp.NDDataset.read("irdata/nh4y-activation.spg")
-        >>> dataset.x.loc2index(1644.0)
-        4517
         """
+        # TODO: write doc examples
 
         # check units compatibility
         if (
@@ -320,7 +312,7 @@ class Coord(
             # get the index of a given values
             error = None
             if np.all(loc > data.max()) or np.all(loc < data.min()):
-                print_(
+                warning_(
                     f"This coordinate ({loc}) is outside the axis limits "
                     f"({data.min()}-{data.max()}).\nThe closest limit index is "
                     f"returned"
@@ -366,8 +358,8 @@ class Coord(
 
     @property
     def reversed(self):
-        """bool - Whether the axis is reversed (readonly
-        property).
+        """
+        Whether the axis is reversed.
         """
         if self.units == "ppm":
             return True
@@ -385,11 +377,25 @@ class Coord(
         Return coordinates spacing.
 
         It will be a scalar if the coordinates are uniformly spaced,
-        else an array of the different spacings
+        else an array of the different spacings.
         """
         if self.has_data:
             return spacings(self.data) * self.units
         return None
+
+    @_docstring.dedent
+    def to(self, other, inplace=False, force=False):
+        """%(to)s"""
+
+        units = get_units(other)
+        if self.larmor is None:
+            # no change
+            return super().to(units, inplace, force)
+        else:
+            # set context
+            set_nmr_context(self.larmor)
+            with ur.context("nmr"):
+                return super().to(units, inplace, force)
 
 
 # ======================================================================================

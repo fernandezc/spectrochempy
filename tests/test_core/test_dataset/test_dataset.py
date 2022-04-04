@@ -1842,3 +1842,20 @@ def test_issue_310():
     assert D.dims == ["y", "x"]
 
     assert str(D[:, 1]) == "NDDataset: [float64] unitless (shape: (y:10, x:1))"
+
+def test_ndarray_meta(ndarray):
+    nd = ndarray.copy()
+    nd.meta = {"essai": "un essai"}
+    assert nd.meta.essai == "un essai"
+    nd.meta = {"essai2": "un essai2"}
+    assert list(nd.meta.keys()) == ["essai", "essai2"]
+
+    # NMR
+    nd.meta = {"some_metadata": "toto"}
+    nd1.meta.some_metadata = "titi"
+    nd.meta.larmor = 100 * ur.MHz
+    nd.ito("ppm", force=True)
+    assert nd.units == ur.ppm
+    nd.ito("MHz")
+    assert nd.units == ur.MHz
+    nd.meta.larmor = None

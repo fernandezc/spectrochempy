@@ -13,27 +13,24 @@ This module implements the class |Coord|.
 __all__ = ["CoordSet"]
 
 import copy as cpy
-import textwrap
 import uuid
 import warnings
 
 import numpy as np
 import traitlets as tr
 
-from spectrochempy.core.dataset.coord import Coord
-from spectrochempy.core import error_, print_, warning_, debug_
-from spectrochempy.core.common.compare import is_number, is_sequence
-from spectrochempy.core.common.constants import DEFAULT_DIM_NAME, INPLACE, NOMASK
+from spectrochempy.core import warning_
+from spectrochempy.core.common.compare import is_sequence
+from spectrochempy.core.common.constants import DEFAULT_DIM_NAME
 from spectrochempy.core.common.exceptions import (
     InvalidCoordinatesSizeError,
     InvalidCoordinatesTypeError,
     InvalidDimensionNameError,
-    ShapeError,
     SpectroChemPyWarning,
-    deprecated,
 )
 from spectrochempy.core.common.print import colored_output, convert_to_html
 from spectrochempy.core.dataset.basearrays.ndarray import NDArray
+from spectrochempy.core.dataset.coord import Coord
 
 
 # ======================================================================================
@@ -496,7 +493,6 @@ class CoordSet(tr.HasTraits):
         return out
 
     def __setattr__(self, key, value):
-        print(key, value)
         keyb = key[1:] if key.startswith("_") else key
         if keyb in [
             "parent",
@@ -721,7 +717,7 @@ class CoordSet(tr.HasTraits):
                             txt += f"          ({dim_s}) ...\n"
                             c._html_output = self._html_output
                             sub = c._cstr(
-                                header="  coordinates: ... \n", print_size=False
+                                print_size=False
                             )  # , indent=4, first_indent=-6)
                             txt += f"{sub}\n"
 
@@ -729,7 +725,7 @@ class CoordSet(tr.HasTraits):
                     # coordinates if available
                     # txt += '        index: {}\n'.format(idx)
                     coord._html_output = self._html_output
-                    txt += f"{coord._cstr(header=header, print_size=print_size)}\n"
+                    txt += f"{coord._cstr(print_size=print_size)}\n"
 
         txt = txt.rstrip()  # remove the trailing '\n'
 

@@ -182,7 +182,7 @@ def is_datetime64(obj):
 
     Returns
     -------
-    is_dt64 : bool
+    bool
         Whether the obj or obj.data has a np.datetime64 dtype or not
     """
     dt64 = np.datetime64
@@ -190,3 +190,4 @@ def is_datetime64(obj):
         data = obj._data[0] if obj._data is not None else None
     else:
         data = obj
+    return isinstance(data, dt64)

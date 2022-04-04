@@ -138,7 +138,7 @@ class NDLabeledArray(NDArray):
         try:
             key = np.datetime64(key)
         except ValueError as exc:
-            raise KeyError
+            raise KeyError from exc
 
         index, error = self._value_to_index(key)
         return index, error
@@ -154,39 +154,6 @@ class NDLabeledArray(NDArray):
     @tr.default("_labels")
     def __labels_default(self):
         return None
-
-    # def _repr_shape(self):
-    #     if self.is_empty:
-    #         return "size: 0"
-    #     out = ""
-    #     shape_ = (
-    #         x for x in itertools.chain.from_iterable(list(zip(self.dims, self.shape)))
-    #     )
-    #     shape = (", ".join(["{}:{}"] * self.ndim)).format(*shape_)
-    #     size = self.size
-    #     out += f"size: {size}" if self.ndim < 2 else f"shape: ({shape})"
-    #     return out
-    #
-
-    # def _repr_value(self):
-    #     numpyprintoptions(precision=4, edgeitems=0, spc=1, linewidth=120)
-    #     prefix = f"{type(self).__name__} ({self.name}): "
-    #     units = ""
-    #     if not self.is_empty:
-    #         if self.data is not None:
-    #             dtype = self.dtype
-    #             data = ""
-    #             units = " {:~K}".format(self.units) if self.has_units else " unitless"
-    #         else:
-    #             # no data but labels
-    #             lab = self.get_labels()
-    #             data = f" {lab}"
-    #             dtype = "labels"
-    #         body = f"[{dtype}]{data}"
-    #     else:
-    #         body = "empty"
-    #     numpyprintoptions()
-    #     return "".join([prefix, body, units])
 
     @property
     def _squeeze_ndim(self):
@@ -389,3 +356,36 @@ class NDLabeledArray(NDArray):
 # ======================================================================================
 if __name__ == "__main__":
     """"""
+
+    # def _repr_shape(self):
+    #     if self.is_empty:
+    #         return "size: 0"
+    #     out = ""
+    #     shape_ = (
+    #         x for x in itertools.chain.from_iterable(list(zip(self.dims, self.shape)))
+    #     )
+    #     shape = (", ".join(["{}:{}"] * self.ndim)).format(*shape_)
+    #     size = self.size
+    #     out += f"size: {size}" if self.ndim < 2 else f"shape: ({shape})"
+    #     return out
+    #
+
+    # def _repr_value(self):
+    #     numpyprintoptions(precision=4, edgeitems=0, spc=1, linewidth=120)
+    #     prefix = f"{type(self).__name__} ({self.name}): "
+    #     units = ""
+    #     if not self.is_empty:
+    #         if self.data is not None:
+    #             dtype = self.dtype
+    #             data = ""
+    #             units = " {:~K}".format(self.units) if self.has_units else " unitless"
+    #         else:
+    #             # no data but labels
+    #             lab = self.get_labels()
+    #             data = f" {lab}"
+    #             dtype = "labels"
+    #         body = f"[{dtype}]{data}"
+    #     else:
+    #         body = "empty"
+    #     numpyprintoptions()
+    #     return "".join([prefix, body, units])

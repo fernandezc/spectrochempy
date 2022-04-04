@@ -264,7 +264,7 @@ from spectrochempy.core.common.plots import show  # noqa: E402
 __all__ += ["show", "MASKED", "NOMASK", "EPSILON", "INPLACE", "show_versions"]
 
 # TEMPO
-from spectrochempy.core.dataset.coord import Coord
+from spectrochempy.core.dataset.coord import Coord  # noqa: F401
 
 __all__.append("Coord")
 

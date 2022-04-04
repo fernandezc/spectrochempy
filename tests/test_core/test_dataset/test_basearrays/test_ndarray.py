@@ -84,11 +84,11 @@ def ndarrayunit():
 # ##############
 def test_ndarray_eq(ndarrayunit, ndarray):
     nd = ndarrayunit.copy()
-    nd.meta = {"some_metadata": "toto"}
     nd1 = ndarrayunit.copy()
     assert nd1 == nd
-    nd1.meta.some_metadata = "titi"
-    assert nd1 != nd
+    assert nd1.name == nd.name
+    nd1 = ndarrayunit.copy(keepname=False)
+    assert nd1.name != nd.name
     nd2 = ndarrayunit.copy()
     nd2._units = ur.km
     assert nd2 != nd
@@ -221,7 +221,6 @@ def test_ndarray_init(refarray, ndarray):
     assert nd.dtype is None
     assert nd.is_unitless
     assert not nd.dims
-    assert nd.meta == {}
     assert hash(nd) is not None
     assert repr(nd) == "NDArray (value): empty"
     # Passing attributes during initialisation.
@@ -418,9 +417,9 @@ def test_ndarray_dimensionless(ndarray):
     nd = ndarray.copy()
     assert nd.is_unitless  # no units
     assert not nd.is_dimensionless  # no unit so dimensionless has no sense
-    with assert_produces_log_warning(UnitWarning):
-        # try to change to an array with units
-        nd.to("m")  # should not change anything (but raise a warning)
+    # try to change to an array with units
+    with pytest.raises(DimensionalityError):
+        nd.to("m")
     nd._units = ur.absorbance
     assert not nd.is_unitless  # no units
     assert nd.is_dimensionless
@@ -565,54 +564,46 @@ def test_ndarray_ito_and_to(ndarrayunit):
     nd.ito("J/kg", force=True)
     nd.ito_reduced_units()
     assert nd.units == ur("m^2/s^2")
-    nd.ito(None)  # no change
+    with pytest.raises(DimensionalityError):
+        nd.ito(None)  # no change
     assert nd.units == ur("m^2/s^2")
     nd.ito(None, force=True)
     assert nd.is_unitless
-    # NMR
-    nd.meta.larmor = 100 * ur.MHz
-    nd.ito("ppm", force=True)
-    assert nd.units == ur.ppm
-    nd.ito("MHz")
-    assert nd.units == ur.MHz
-    # Transmittance/absorbance
-    nd.meta.larmor = None
-    nd.ito("absorbance", force=True)
-    nd.title = "absorbance"
-    nd1 = nd.to("transmittance")
-    nd1.ito("absolute_transmittance")
-    nd2 = nd1.to("absorbance")
-    assert_array_almost_equal(nd2.data, nd.data)
-    nd1.ito("1/s", force=True)
-    nd1.ito("1/cm")
-    assert nd1.title == "wavenumber"
-    nd1.ito("cm")
-    assert nd1.title == "wavelength"
-    nd1.ito("eV")
-    assert nd1.title == "energy"
-    nd1.ito("GHz")
-    assert nd1.title == "frequency"
+    nd.ito("km/hour", force=True)
+    assert nd.units == ur.km / ur.hour
+    nd = nd.to_base_units()
+    assert nd.units == ur("m/s")
+    nd = nd.to_reduced_units()
+    assert nd.units == ur("m/s")
 
-    nd1.ito("km/hour", force=True)
-    assert nd1.units == ur.km / ur.hour
-    nd2 = nd1.to_base_units()
-    assert nd2.units == ur("m/s")
-    nd3 = nd2.to_reduced_units()
-    assert nd3.units == ur("m/s")
+
+def test_ndarray_absorbance_conversions():
+
+    # Transmittance/absorbance
+    nd = NDArray([100, 50, 25, 1, 0.1], units="transmittance", title="transmittance")
+    assert nd.title == "transmittance"
+    nd2 = nd.to("absorbance")
+    nd3 = nd2.to("absolute_transmittance")
+    nd4 = nd3.to("transmittance")
+    assert_array_almost_equal(nd4.data, nd.data)
+
+
+def test_ndarray_spectroscopy_context():
+    nd = NDArray([1, 2, 3], units="1/s", title="frequency")
+    nd.ito("1/cm")
+    assert nd.title == "wavenumber"
+    nd.ito("cm")
+    assert nd.title == "wavelength"
+    nd.ito("eV")
+    assert nd.title == "energy"
+    nd.ito("GHz")
+    assert nd.title == "frequency"
 
 
 def test_ndarray_limits():
     nd = NDArray([4, 5, 6, 3, 2, 1])
     assert_array_equal(nd.limits, np.array([1, 6]))
     assert_array_equal(nd.limits, nd.roi)
-
-
-def test_ndarray_meta(ndarray):
-    nd = ndarray.copy()
-    nd.meta = {"essai": "un essai"}
-    assert nd.meta.essai == "un essai"
-    nd.meta = {"essai2": "un essai2"}
-    assert list(nd.meta.keys()) == ["essai", "essai2"]
 
 
 def test_ndarray_name():
