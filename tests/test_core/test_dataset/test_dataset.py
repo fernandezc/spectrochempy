@@ -1,17 +1,14 @@
-<<<<<<< HEAD
-from os import environ
-=======
 #  =====================================================================================
 #  Copyright (©) 2015-2022 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
 #  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
->>>>>>> release/0.4_initial_dev
 
 import numpy as np
 import pytest
 from pint.errors import UndefinedUnitError
 from quaternion import quaternion
+from os import environ
 
 import spectrochempy as scp
 from spectrochempy.core.common.complex import as_float_array, as_quat_array
@@ -28,29 +25,19 @@ from spectrochempy.utils.testing import (
     RandomSeedContext,
     assert_array_almost_equal,
     assert_array_equal,
-<<<<<<< HEAD
     assert_dataset_almost_equal,
     assert_dataset_equal,
     assert_equal,
-    raises,
-=======
-    RandomSeedContext,
->>>>>>> release/0.4_initial_dev
+    assert_produces_log_warning,
 )
+from spectrochempy.utils import optional
 
 typequaternion = np.dtype(np.quaternion)
 
-<<<<<<< HEAD
-
 # --------------------------------------------------------------------------------------
 # FIXTURES
 # --------------------------------------------------------------------------------------
 
-=======
-# ========
-# FIXTURES
-# ========
->>>>>>> release/0.4_initial_dev
 with RandomSeedContext(12345):
     ref_data = 10.0 * np.random.random((10, 8)) - 5.0
     ref3d_data = 10.0 * np.random.random((10, 100, 3)) - 5.0
@@ -202,14 +189,29 @@ def dsm():
     ).copy()
 
 
-<<<<<<< HEAD
 # --------------------------------------------------------------------------------------
-# Tests
+# TEST SUITE FOR nddataset
 # --------------------------------------------------------------------------------------
 
+# test docstring
+# but this is not intended to work with the debugger - use run instead of debug!
+@pytest.mark.skipif(
+    environ.get("PYDEVD_LOAD_VALUES_ASYNC", None),
+    reason="debug mode cause errors when checking docstrings",
+)
+def test_nddataset_docstring():
+    from spectrochempy.utils import check_docstrings as chd
 
-=======
->>>>>>> release/0.4_initial_dev
+    chd.PRIVATE_CLASSES = []  # do not test private class docstring
+    module = "spectrochempy.core.dataset.nddataset"
+    chd.check_docstrings(
+        module,
+        obj=NDDataset,
+        # exclude some errors - remove whatever you want to check
+        exclude=["SA01", "EX01", "ES01", "GL11", "GL08", "PR01"],
+    )
+
+
 # test minimal constructor and dtypes
 adata = (
     [],
@@ -221,19 +223,15 @@ adata = (
     [0.0 + 1j, np.nan + 3.0j],
 )
 
-############################
-# TEST SUITE FOR nddataset #
-############################
 
-
-##########
 @pytest.mark.parametrize("a", adata)
 def test_dataset_init_1D(a):
     # 1D
     for arr in [a, np.array(a)]:
         ds = NDDataset(arr)
         assert ds.size == len(arr)
-        assert ds.shape == (ds.size,)
+        shape = (ds.size,) if ds.size != 0 else ()
+        assert ds.shape == shape
         if ds.size == 0:
             assert ds.dtype is None
             assert ds.dims == []
@@ -241,7 +239,6 @@ def test_dataset_init_1D(a):
             assert ds.dtype in [np.int64, np.float64, np.complex128]
             assert ds.dims == ["x"]
         # force dtype
-<<<<<<< HEAD
         try:
             ds = NDDataset(arr, dtype=np.float32)
             if ds.size == 0:
@@ -255,19 +252,12 @@ def test_dataset_init_1D(a):
                 raise exc
 
         assert ds.title == "value"
-=======
-        ds = scp.NDDataset(arr, dtype=np.float32)
-        if ds.size == 0:
-            assert ds.dtype is None
-        else:
-            assert ds.dtype == np.float32
-        assert ds.title == "<untitled>"
->>>>>>> release/0.4_initial_dev
+
         assert ds.mask == scp.NOMASK
         assert ds.meta == {}
         assert ds.name.startswith("NDDataset")
         assert ds.author == get_user_and_node()
-        assert ds.comment == ""
+        assert ds.description == ""
         assert ds.history == []
 
 
@@ -290,11 +280,9 @@ def test_2D_NDDataset(arr):
     else:
         assert ds.dtype in [np.int64, np.float64]
         assert ds.dims == ["y", "x"][-ds.ndim :]
-<<<<<<< HEAD
+
     assert ds.title == "value"
-=======
-    assert ds.title == "<untitled>"
->>>>>>> release/0.4_initial_dev
+
     assert ds.mask == scp.NOMASK
     assert ds.meta == {}
     assert ds.name.startswith("NDDataset")
@@ -314,7 +302,7 @@ def test_2D_NDDataset(arr):
         else:
             assert ds.dtype == np.complex128
     else:
-<<<<<<< HEAD
+
         with pytest.raises(ShapeError):
             ds = NDDataset(arr, dtype=np.complex128)
     if (
@@ -323,24 +311,16 @@ def test_2D_NDDataset(arr):
         and (arr.shape[-2] % 2) == 0
     ):
         ds = NDDataset(arr, dtype=np.quaternion)
-=======
-        with pytest.raises(ValueError):
-            scp.NDDataset(arr, dtype=np.complex128)
-    if (arr.shape[-1] % 2) == 0 and (arr.shape[-2] % 2) == 0 and arr.ndim == 2:
-        ds = scp.NDDataset(arr, dtype=np.quaternion)
->>>>>>> release/0.4_initial_dev
+
         if ds.size == 0:
             assert ds.dtype is None
         else:
             assert ds.dtype == np.quaternion
     else:
-<<<<<<< HEAD
+
         with pytest.raises(ShapeError):
             ds = NDDataset(arr, dtype=np.quaternion)
-=======
-        with pytest.raises(ValueError):
-            scp.NDDataset(arr, dtype=np.quaternion)
->>>>>>> release/0.4_initial_dev
+
     # test units
     ds1 = NDDataset(arr * scp.ur.km)
     ds2 = NDDataset(arr, units=scp.ur.km)
@@ -362,25 +342,6 @@ def test_2D_NDDataset(arr):
     ds2 = NDDataset(arr, dims=["u", "w"])
     assert ds2.ndim == 2
     assert ds2.dims == ["u", "w"]
-
-
-# test docstring
-# but this is not intended to work with the debugger - use run instead of debug!
-@pytest.mark.skipif(
-    environ.get("PYDEVD_LOAD_VALUES_ASYNC", None),
-    reason="debug mode cause error when checking docstrings",
-)
-def test_nddataset_docstring():
-    from spectrochempy.utils import check_docstrings as chd
-
-    chd.PRIVATE_CLASSES = []  # do not test private class docstring
-    module = "spectrochempy.core.dataset.nddataset"
-    chd.check_docstrings(
-        module,
-        obj=NDDataset,
-        # exclude some errors - remove whatever you want to check
-        exclude=["SA01", "EX01", "ES01", "GL11", "GL08", "PR01"],
-    )
 
 
 def test_nddataset_squeeze(ndarray):
@@ -662,11 +623,8 @@ def test_nddataset_coords_indexer():
     coord1 = np.linspace(0, 60, 10)  # wrong length
     coord2 = np.linspace(20, 30, 10)
     with pytest.raises(ValueError):  # wrong length
-<<<<<<< HEAD
+
         da = NDDataset(
-=======
-        scp.NDDataset(
->>>>>>> release/0.4_initial_dev
             dx,
             coordset=[coord0, coord1, coord2],
             title="absorbance",
@@ -710,27 +668,21 @@ def test_nddataset_coords_indexer():
 # ======================================================================================================================
 # Methods
 # ======================================================================================================================
-<<<<<<< HEAD
+
+
 def test_nddataset_str():
     arr1d = NDDataset([1, 2, 3])
-=======
-def test_nddataset_str_repr_methods():
 
-    arr1d = scp.NDDataset([1, 2, 3])
->>>>>>> release/0.4_initial_dev
     assert "[float64]" in str(arr1d)
     arr2d = NDDataset(np.array([[1, 2], [3, 4]]))
     assert str(arr2d) == "NDDataset: [float64] unitless (shape: (y:2, x:2))"
-<<<<<<< HEAD
 
 
 def test_nddataset_str_repr(ds1):
     arr1d = NDDataset(np.array([1, 2, 3]))
     assert repr(arr1d).startswith("NDDataset")
     arr2d = NDDataset(np.array([[1, 2], [3, 4]]))
-=======
-    assert repr(arr1d).startswith("NDDataset")
->>>>>>> release/0.4_initial_dev
+
     assert repr(arr2d).startswith("NDDataset")
 
 
@@ -1142,21 +1094,12 @@ def test_nddataset_creationdate():
 
 
 def test_nddataset_title():
-<<<<<<< HEAD
     ndd = NDDataset([1.0, 2.0, 3.0], title="xxxx")
     assert ndd.title == "xxxx"
     ndd2 = NDDataset(ndd, title="yyyy")
     assert ndd2.title == "yyyy"
     ndd2.title = "zzzz"
     assert ndd2.title == "zzzz"
-=======
-    ndd = scp.NDDataset([1.0, 2.0, 3.0], title="xxxx")
-    assert ndd.title == "xxxx"
-    ndd2 = scp.NDDataset(ndd, title="yyyy")
-    assert ndd2.title == "yyyy"
-    ndd2.title = "zzzz"
-    assert ndd2.title == "zzzz"
->>>>>>> release/0.4_initial_dev
 
 
 def test_nddataset_real_imag():
@@ -1311,15 +1254,9 @@ def test_nddataset_use_of_mask(dsm):
 # additional tests made following some bug fixes
 # ------------------------------------------------------------------
 def test_nddataset_repr_html_bug_undesired_display_complex():
-<<<<<<< HEAD
     da = NDDataset([1, 2, 3])
     da.title = "intensity"
     da.description = "Some experimental measurements"
-=======
-    da = scp.NDDataset([1, 2, 3])
-    da.title = "intensity"
-    da.source = "Some experimental measurements"
->>>>>>> release/0.4_initial_dev
     da.units = "dimensionless"
     assert "(complex)" not in da._repr_html_()
     pass
@@ -1332,10 +1269,7 @@ def test_nddataset_bug_fixe_figopeninnotebookwithoutplot():
 
 
 def test_nddataset_bug_par_arnaud():
-<<<<<<< HEAD
     import numpy as np
-=======
->>>>>>> release/0.4_initial_dev
 
     import spectrochempy as scp
 
@@ -1702,6 +1636,7 @@ def test_nddataset_apply_funcs(dsm):
 def test_take(dsm):
     pass
 
+
 def test_datetime64_coordinates(IR_dataset_2D):
 
     X = IR_dataset_2D
@@ -1709,7 +1644,7 @@ def test_datetime64_coordinates(IR_dataset_2D):
     assert X.y.units is None
     # there is no units for this object as it is defined internally
 
-    with assert_produces_warning(
+    with assert_produces_log_warning(
         match="method `to` cannot be used with datetime object. Ignored!"
     ):
         X.y.to("tesla")
@@ -1727,11 +1662,12 @@ def test_datetime64_coordinates(IR_dataset_2D):
     assert X.y.units == ur.minute
     assert X.y[0].data == [2]
 
+
 # Conversion
 
 
 @pytest.mark.skipif(
-    scp.optional.import_optional_dependency("xarray", errors="ignore") is None,
+    optional.import_optional_dependency("xarray", errors="ignore") is None,
     reason="need xarray package to run",
 )
 def test_nddataset_to_xarray(IR_dataset_2D):
@@ -1808,6 +1744,7 @@ def test_squeeze_method():
 
     assert nd6.shape == (3, 1)
 
+
 def test_issue_310():
 
     import numpy as np
@@ -1843,6 +1780,7 @@ def test_issue_310():
 
     assert str(D[:, 1]) == "NDDataset: [float64] unitless (shape: (y:10, x:1))"
 
+
 def test_ndarray_meta(ndarray):
     nd = ndarray.copy()
     nd.meta = {"essai": "un essai"}
@@ -1852,7 +1790,7 @@ def test_ndarray_meta(ndarray):
 
     # NMR
     nd.meta = {"some_metadata": "toto"}
-    nd1.meta.some_metadata = "titi"
+    nd.meta.some_metadata = "titi"
     nd.meta.larmor = 100 * ur.MHz
     nd.ito("ppm", force=True)
     assert nd.units == ur.ppm

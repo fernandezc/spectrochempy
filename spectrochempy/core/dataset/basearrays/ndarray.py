@@ -5,6 +5,7 @@
 #  CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
+
 """
 This module implements the base class |NDArray| and several subclasses of |NDArray|.
 with (hyper)complexes related attributes, masks or labels .
@@ -71,7 +72,7 @@ from spectrochempy.core.common.constants import (
     TYPE_INTEGER,
 )
 from spectrochempy.core.common.datetimes import from_dt64_units
-from spectrochempy.core.common.docstrings import DocstringProcessor
+from spectrochempy.core.common.docstrings import _docstring
 from spectrochempy.core.common.exceptions import (
     CastingError,
     DimensionalityError,
@@ -100,11 +101,6 @@ from spectrochempy.core.units import (
 numpyprintoptions()
 
 
-# Docstring substitution (docrep)
-# --------------------------------------------------------------------------------------
-_docstring = DocstringProcessor()
-
-
 # Validators
 # --------------------------------------------------------------------------------------
 def _check_dtype():
@@ -127,7 +123,8 @@ def _check_dtype():
 # A simple NDArray class
 # ======================================================================================
 class NDArray(tr.HasTraits):
-    """
+    __doc__ = _docstring.dedent(
+        """
     The basic |NDArray| object.
 
     The |NDArray| class is an array (numpy |ndarray|-like) container, usually not
@@ -147,13 +144,11 @@ class NDArray(tr.HasTraits):
         input, but will be passed by reference, so you should make a copy of the
         `data` before passing them if that's the desired behavior or set the `copy`
         argument to True.
-    **kwargs
-        Optional keywords parameters. See Other Parameters.
+    %(kwargs)s
 
     Other Parameters
     ----------------
-    copy : bool, optional, Default:False
-        If True, a deep copy of the passed object is performed.
+    %(copy)s
     dtype : str or dtype, optional, default=np.float64
         If specified, the data will be cast to this dtype.
     dims : list of chars, optional
@@ -173,6 +168,7 @@ class NDArray(tr.HasTraits):
         Handling of units use the `pint <https://pint.readthedocs.org/>`__
         package.
     """
+    )
 
     _docstring.get_sections(_docstring.dedent(__doc__), base="NDArray")
 
@@ -1372,6 +1368,17 @@ class NDArray(tr.HasTraits):
 
     @title.setter
     def title(self, value):
+        self._title = value
+
+    @property
+    def long_name(self):
+        """
+        Alias for title
+        """
+        return self._title
+
+    @title.setter
+    def long_name(self, value):
         self._title = value
 
     @property

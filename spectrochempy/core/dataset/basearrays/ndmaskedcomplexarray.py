@@ -56,7 +56,7 @@ class NDMaskedComplexArray(NDComplexArray):
         where the data are *valid* and True when
         they are not (like in numpy masked arrays). If `data` is already a
         :class:`~numpy.ma.MaskedArray`, or any object providing a `mask`, the mask
-        diefined by this parameter and the mask from the mask from the data will be
+        defined by this parameter and the mask from the mask from the data will be
         combined (`mask` OR `data.mask`).
     """
     )

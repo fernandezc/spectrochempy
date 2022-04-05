@@ -57,6 +57,7 @@
 * `NDDataset.from_xarray`: Create a new dataset from a `xarray.DataArray` object.
 
 ### BUGS FIXED
+* SubCoordinate ordering fixed.
 * Coordinate _sort method
 * Add m and magnitude (properties)
   They are Alias of data but the previous definition was not working.
@@ -79,6 +80,9 @@
 ### DEPRECATED
 * `LinearCoord` object is now deprecated. Use `Coord` with the `linear` keywords set to True instead.
 * MCRALS: 'unimodMod' and 'unimodTol' attributes are now deprectated
+
+### For the developpers
+* Docstrings now use docrep
 
 ## Version 0.4.4 [2022-03-22]
 

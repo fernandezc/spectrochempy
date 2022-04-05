@@ -127,7 +127,7 @@ class SpectroChemPyDocstring(Validator):
             stdout = response.stdout
             stdout = stdout.replace(file.name, "")
             messages = stdout.strip("\n")
-            if messages:
+            if messages and messages != "0":
                 error_messages.append(messages)
 
         for error_message in error_messages:
@@ -282,7 +282,7 @@ class DocstringError(Exception):
         message += f"{' '*10}{'-'*26}\n"
         for err_code, err_desc in result["errors"]:
             if err_code == "EX02":  # Failing examples are printed at the end
-                message += "{' '*2}Examples do not pass tests\n"
+                message += f"{' '*10}Examples do not pass tests\n"
                 continue
             message += f"{' '*10}* {err_code}: {err_desc}\n"
         if result["examples_errs"]:

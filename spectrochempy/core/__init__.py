@@ -11,26 +11,25 @@ Package defining the *core* methods of the |scpy| API.
 Most the API methods such as plotting, processing, analysis, etc...
 """
 
+import inspect
+import logging
 import sys
 from os import environ
 
+from spectrochempy.core.common.exceptions import SpectroChemPyWarning
+from spectrochempy.core.common.print import colored_output, pstr  # noqa: E402
 
 # ======================================================================================
 # Tells here the methods or object we allow importing from this library
+# Methods will be added to __all__ in the following by inspecting api.py in each
+# packages
 # ======================================================================================
-
 __all__ = []
+
 
 # ======================================================================================
 # logging functions
 # ======================================================================================
-
-import inspect
-import logging
-
-from spectrochempy.core.common.print import pstr, colored_output  # noqa: E402
-
-
 def _get_class_function(stack, stacklevel=-1):
     mystack = []
     for s in stack[::-1]:
@@ -125,8 +124,6 @@ def warning_(*args, **kwargs):
     Formatted warning message.
     """
 
-    from .common.exceptions import SpectroChemPyWarning
-
     if len(args) > 1:
         kwargs["category"] = args[1]  # priority to arg
     category = kwargs.pop("category", SpectroChemPyWarning)
@@ -136,25 +133,25 @@ def warning_(*args, **kwargs):
 
 __all__ += ["info_", "debug_", "error_", "warning_", "print_"]
 
-
 # ======================================================================================
 # Progress bar
 # ======================================================================================
 PBAR_COUNT = 0
+
 # import time
 # start_ = time.time()
 
-USE_TQDM = (
+USE_TQDM = (  # We use the progress bar only if we are not building docs and
+    # environment variable USE_TQDM is not False
     environ.get("USE_TQDM", "Yes") == "Yes"
     and "DOC_BUILDING" not in environ
-    and "/bin/scpy" not in sys.argv[0]
 )
 
 if USE_TQDM:
     from tqdm import tqdm
 
     pbar = tqdm(total=100)
-    pbar.set_description("Loading SpectroChemPy API")
+    pbar.set_description("Loading SpectroChemPy API...")
     val_tqdm = [0.1, 3.9, 4.5, 5.3, 5.4, 7.5, 8.4, 8.4, 8.5, 8.6, 9.7, 9.8, 9.9, 10]
 
 
@@ -185,16 +182,21 @@ from spectrochempy.application import SpectroChemPy  # noqa: E402
 app = SpectroChemPy()
 __all__ += ["app"]
 
-# noinspection PyUnresolvedReferences
-from spectrochempy.application import CRITICAL, DEBUG, ERROR, INFO, WARNING
-from spectrochempy.application import __author__ as authors
-from spectrochempy.application import __contributor__ as contributors
-from spectrochempy.application import __copyright__ as copyright
-from spectrochempy.application import __license__ as license
-from spectrochempy.application import __release__ as release
-from spectrochempy.application import __release_date__ as release_date
-from spectrochempy.application import __url__ as url
-from spectrochempy.application import __version__ as version  # noqa: E402
+from spectrochempy.application import (
+    CRITICAL,
+    DEBUG,
+    ERROR,
+    INFO,
+    WARNING,
+    __author__ as authors,
+    __contributor__ as contributors,
+    __copyright__ as copyright,
+    __license__ as license,
+    __release__ as release,
+    __release_date__ as release_date,
+    __url__ as url,
+    __version__ as version,
+)  # noqa: E402
 
 preferences = app.preferences
 plot_preferences = app.plot_preferences
@@ -203,9 +205,6 @@ long_description = app.long_description
 config_manager = app.config_manager
 config_dir = app.config_dir
 reset_preferences = app.reset_preferences
-
-
-# datadir = app.datadir
 
 
 def set_loglevel(level=WARNING):
@@ -242,39 +241,33 @@ __all__ += [
     "description",
     "long_description",
 ]
-
-# IPython methods
-# ------------------------------------------------------------------
-# we put them before so that we can eventually overwrite them
-
 _pbar_update()
 
-from spectrochempy.utils.print_versions import show_versions  # noqa: E402
 
+# ======================================================================================
 # constants and utilities
-# ------------------------------------------------------------------
+# ======================================================================================
 from spectrochempy.core.common.constants import (
     EPSILON,
     INPLACE,
-    MASKED,
+    MASKED,  # noqa: E402
     NOMASK,
-)  # noqa: E402
+)
 from spectrochempy.core.common.plots import show  # noqa: E402
+from spectrochempy.utils.print_versions import show_versions  # noqa: E402
 
 __all__ += ["show", "MASKED", "NOMASK", "EPSILON", "INPLACE", "show_versions"]
+_pbar_update()
 
-# TEMPO
-from spectrochempy.core.dataset.coord import Coord  # noqa: F401
 
-__all__.append("Coord")
+# ======================================================================================
+# dataset
+# ======================================================================================
+from spectrochempy.core.dataset import api  # noqa: E402
+from spectrochempy.core.dataset.api import *  # noqa: E402,F403,F401
 
-# # dataset
-# # ------------------------------------------------------------------
-# _pbar_update()
-# from spectrochempy.core.dataset import api  # noqa: E402
-# from spectrochempy.core.dataset.api import *  # noqa: E402,F403,F401
-#
-# __all__ += api.__all__
+__all__ += api.__all__
+_pbar_update()
 #
 # # plotters
 # # ------------------------------------------------------------------
@@ -308,13 +301,13 @@ __all__.append("Coord")
 #
 # __all__ += api.__all__
 #
-# # units
-# # ------------------------------------------------------------------
-# _pbar_update()
-# from spectrochempy.core.units import api  # noqa: E402
-# from spectrochempy.core.units.api import *  # noqa: E402,F403,F401
-#
-# __all__ += api.__all__
+# units
+# ------------------------------------------------------------------
+from spectrochempy.core.units import api  # noqa: E402
+from spectrochempy.core.units.api import *  # noqa: E402,F403,F401
+
+__all__ += api.__all__
+_pbar_update()
 #
 # # databases
 # # ------------------------------------------------------------------

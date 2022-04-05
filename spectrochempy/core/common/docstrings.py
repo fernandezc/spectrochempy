@@ -1,25 +1,38 @@
 import textwrap
 import docrep
+import re
 
-__all__ = ["DocstringProcessor"]
+common_doc = """
+copy : bool, optional, Default: False
+    Perform a copy of the passed object.
+inplace : bool, optional, default: False
+    By default, the method returns a newly allocated object.
+    If `inplace` is set to True, the input object is returned.
+**kwargs : keyword parameters, optional
+    See Other Parameters.
+"""
 
 
 class DocstringProcessor(docrep.DocstringProcessor):
     def __init__(self, **kwargs):
-        object = kwargs.pop("object", "object")
+
         super().__init__(**kwargs)
+
+        regex = re.compile(r"(?=^[*]{0,2}\b\w+\b\s?:?\s?)", re.MULTILINE | re.DOTALL)
+        plist = regex.split(common_doc.strip())[1:]
         params = {
-            "inplace": "inplace : bool, optional, default: False"
-            f"\n    By default, the method returns a newly allocated {object}."
-            f"\n    If `inplace` is set to True, the input {object} is returned.",
-            "kwargs": "**kwargs"
-            "\n    Optional keyword parameters. See Other Parameters.",
-            "out": f"{object}"
-            f"\n    Input {object} or a newly allocated {object}"
-            "\n    depending on the `inplace` flag.",
-            "new": f"{object}\n    Newly allocated {object}.",
+            k.strip("*"): f"{k.strip()} : {v.strip()}"
+            for k, v in (re.split(r"\s?:\s?", p, maxsplit=1) for p in plist)
         }
         self.params.update(params)
+        self.params.update(
+            {
+                "out": "object\n"
+                "    Input object or a newly allocated object\n"
+                "    depending on the `inplace` flag.",
+                "new": "object\n" "    Newly allocated object.",
+            }
+        )
 
     def dedent(self, s, stacklevel=3):
         s_ = s
@@ -41,6 +54,12 @@ class DocstringProcessor(docrep.DocstringProcessor):
         return s_mod
 
 
+# Docstring substitution (docrep)
+# --------------------------------------------------------------------------------------
+_docstring = DocstringProcessor()
+
+
+# TODO replace this in module where it is used by docrep
 def add_docstring(*args):
     """
     Decorator which add a docstring to the actual func doctring.

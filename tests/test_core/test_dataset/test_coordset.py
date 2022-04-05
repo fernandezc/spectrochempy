@@ -12,6 +12,7 @@ Test coordset
 
 
 from copy import copy
+from os import environ
 
 import numpy as np
 import pytest
@@ -29,7 +30,6 @@ from spectrochempy.utils.testing import (
     assert_approx_equal,
     assert_array_equal,
 )
-
 
 # ========
 # FIXTURES
@@ -67,6 +67,25 @@ def coord2():
 # ======================================================================================
 # CoordSet Tests
 # ======================================================================================
+# test docstring
+# # but this is not intended to work with the debugger - use run instead of debug!
+# @pytest.mark.skipif(
+#     environ.get("PYDEVD_LOAD_VALUES_ASYNC", None),
+#     reason="debug mode cause errors when checking docstrings",
+# )
+def test_coordset_docstring():
+    import spectrochempy
+    from spectrochempy.utils import check_docstrings as td
+
+    td.PRIVATE_CLASSES = []  # override default to test private class docstring
+    module = "spectrochempy.core.dataset.coordset"
+    result = td.check_docstrings(
+        module,
+        obj=spectrochempy.core.dataset.coordset.CoordSet,
+        exclude=["SA01", "ES01", "EX01"],
+    )
+
+
 def test_coordset_init(coord0, coord1, coord2):
 
     coord3 = coord2.copy()
@@ -76,7 +95,7 @@ def test_coordset_init(coord0, coord1, coord2):
     # Coordinates are sorted in the coordset
     coordsa = CoordSet(coord0, coord3, coord2)
     # by convention if the names are not specified, then the coordinates follows the
-    # order of dims, so they are in reverse order with respect of the coorset where
+    # order of dims, so they are in reverse order with respect of the coordset where
     # the coords are ordered by names alphabetical order.
 
     assert coordsa.names == ["x", "y", "z"]
@@ -110,7 +129,11 @@ def test_coordset_init(coord0, coord1, coord2):
     coordsa1 = CoordSet([coord0[:3], coord3[:3], coord2[:3]])
     assert coordsa1.names == ["x"]
     assert coordsa1.x.names == ["_1", "_2", "_3"]
-
+    assert coordsa1.x.titles == [
+        "wavenumber (coord0)",
+        "My name is titi",
+        "temperature (coord2)",
+    ]
     # Third syntax
     coordsc = CoordSet(x=coord2, y=coord3, z=coord0)
     assert coordsc.names == ["x", "y", "z"]
@@ -129,8 +152,8 @@ def test_coordset_init(coord0, coord1, coord2):
 
     # coordset as coordinates
     coordse = CoordSet(x=(coord1[:3], coord2[:3]), y=coord3, z=coord0)
-    assert coordse["x"].titles == CoordSet(coord1, coord2).titles
-    assert coordse["x_1"] == coord2
+    assert coordse["x"].titles == CoordSet(coord1, coord2).titles[::-1]
+    assert coordse["x_1"] == coord1[:3]
     assert coordse["My name is titi"] == coord3
 
     # iteration
@@ -179,10 +202,24 @@ def test_coordset_init(coord0, coord1, coord2):
         _ = CoordSet(coord0, [coord1, coord2])
 
 
+def test_coordset_coordset_example():
+
+    coord0 = Coord.linspace(10.0, 100.0, 5, units="m", title="distance")
+    coord1 = Coord.linspace(20.0, 25.0, 4, units="K", title="temperature")
+    coord1b = Coord.linspace(1.0, 10.0, 4, units="millitesla", title="magnetic field")
+    coord2 = Coord.linspace(0.0, 1000.0, 6, units="hour", title="elapsed time")
+    cs = CoordSet(v=[coord1, coord1b])
+    cs = CoordSet([coord1, coord1b])
+    cs = CoordSet(t=coord0, u=coord2, v=[coord1, coord1b])
+    assert str(cs.u) == "Coord u(elapsed time): [float64] hr (size: 6)"
+    assert str(cs.v) == "CoordSet: [_1:temperature, _2:magnetic field]"
+    assert str(cs.v_1) == "Coord _1(temperature): [float64] K (size: 4)"
+
+
 def test_coordset_implements_method(coord0, coord1):
     c = CoordSet(coord0, coord1)
-    assert c.implements("CoordSet")
-    assert c.implements() == "CoordSet"
+    assert c._implements("CoordSet")
+    assert c._implements() == "CoordSet"
 
 
 # read_only properties
@@ -210,7 +247,7 @@ def test_coordset_has_defined_names_property(coord0, coord1, coord2):
 
 def test_coordset_is_empty_property():
     c = CoordSet()
-    assert c.implements("CoordSet")
+    assert c._implements("CoordSet")
     assert c.is_empty
 
 
@@ -254,7 +291,8 @@ def test_coordset_data_property(coord0, coord1):
     c = CoordSet([coord0, coord0.copy()], coord1)
     assert_array_equal(c.y.data, coord0.data)
     assert_array_equal(c.x.data, coord1.data)
-    assert c.data is None
+    with pytest.raises(AttributeError):
+        assert c.data is None
 
 
 def test_coordset_name_property(coord0):

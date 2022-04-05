@@ -10,6 +10,7 @@
 
 
 from copy import copy
+from os import environ
 
 import numpy as np
 import pytest
@@ -75,6 +76,11 @@ def coord2():
 # ==========
 
 # test docstring
+# but this is not intended to work with the debugger - use run instead of debug!
+@pytest.mark.skipif(
+    environ.get("PYDEVD_LOAD_VALUES_ASYNC", None),
+    reason="debug mode cause errors when checking docstrings",
+)
 def test_coord_docstring():
     import spectrochempy
 

@@ -384,7 +384,7 @@ class Coord(
         return None
 
     @_docstring.dedent
-    def to(self, other, inplace=False, force=False):
+    def to(self, other, inplace=False, force=False, title=None):
         """%(to)s"""
 
         units = get_units(other)

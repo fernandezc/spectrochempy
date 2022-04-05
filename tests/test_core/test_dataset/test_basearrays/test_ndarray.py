@@ -9,6 +9,7 @@
 # flake8: noqa
 
 from copy import copy, deepcopy
+from os import environ
 
 import numpy as np
 import pytest
@@ -82,6 +83,22 @@ def ndarrayunit():
 # ##############
 # TEST NDArray #
 # ##############
+# test docstring
+# but this is not intended to work with the debugger - use run instead of debug!
+@pytest.mark.skipif(
+    environ.get("PYDEVD_LOAD_VALUES_ASYNC", None),
+    reason="debug mode cause errors when checking docstrings",
+)
+def test_ndarray_docstring():
+    td.PRIVATE_CLASSES = []  # override default to test private class docstring
+    module = "spectrochempy.core.dataset.basearrays.ndarray"
+    result = td.check_docstrings(
+        module,
+        obj=spectrochempy.core.dataset.basearrays.ndarray.NDArray,
+        exclude=["SA01", "EX01"],
+    )
+
+
 def test_ndarray_eq(ndarrayunit, ndarray):
     nd = ndarrayunit.copy()
     nd1 = ndarrayunit.copy()
@@ -648,17 +665,6 @@ def test_ndarray_urray(ndarrayunit):
     assert nd.uarray is None
     assert (ndarrayunit.uarray == ndarrayunit.values).all()
     assert ndarrayunit[1, 1].uarray.squeeze()[()] == ndarrayunit[1, 1].values
-
-
-# test docstring
-def test_ndarray_docstring():
-    td.PRIVATE_CLASSES = []  # override default to test private class docstring
-    module = "spectrochempy.core.dataset.basearrays.ndarray"
-    result = td.check_docstrings(
-        module,
-        obj=spectrochempy.core.dataset.basearrays.ndarray.NDArray,
-        exclude=["SA01", "EX01"],
-    )
 
 
 # bug fix
