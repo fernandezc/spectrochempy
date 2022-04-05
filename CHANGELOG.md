@@ -57,7 +57,8 @@
 * `NDDataset.from_xarray`: Create a new dataset from a `xarray.DataArray` object.
 
 ### BUGS FIXED
-* SubCoordinate ordering fixed.
+* Docstrings in CoordSet
+* Coordset SubCoordinate ordering fixed.
 * Coordinate _sort method
 * Add m and magnitude (properties)
   They are Alias of data but the previous definition was not working.
