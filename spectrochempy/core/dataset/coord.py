@@ -26,8 +26,8 @@ from spectrochempy.core.dataset.basearrays.ndlabeledarray import (
     NDLabeledArray,
     _docstring,
 )
-from spectrochempy.core.dataset.mixins.numpymixins import NDArrayUfuncMixin
-from spectrochempy.core.dataset.mixins.numpymixins import NDArrayFunctionMixin
+from spectrochempy.core.dataset.mixins.numpymixin import NDArrayUfuncMixin
+from spectrochempy.core.dataset.mixins.numpymixin import NDArrayFunctionMixin
 from spectrochempy.core.dataset.mixins.functionbasemixin import NDArrayFunctionBaseMixin
 from spectrochempy.core.units import (
     Quantity,
@@ -145,8 +145,8 @@ class Coord(
             self.linearize(decimals)
 
     def __getattr__(self, item):
-        if item == "default":
-            # this is in case default is called while it is not a cordset.
+        if item in ("default", "coords"):
+            # this is in case these attributes are called while it is not a coordset.
             return self
         raise AttributeError(f"`Coord` object has no attribute `{item}`")
 
@@ -264,7 +264,7 @@ class Coord(
 
         inc = np.diff(data)
         variation = (inc.max() - inc.min()) / 2.0
-        if variation < 10 ** -decimals:
+        if variation < 10**-decimals:
             # we set the number with their full precision
             # rounding will be made if necessary when reading the data property
             self._data = np.linspace(data[0], data[-1], data.size)

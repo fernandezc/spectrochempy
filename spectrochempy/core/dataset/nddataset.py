@@ -37,7 +37,7 @@ from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.dataset.basearrays.ndmaskedcomplexarray import (
     NDMaskedComplexArray,
 )
-from spectrochempy.core.dataset.mixins.ndio import NDIO
+from spectrochempy.core.dataset.mixins.iomixin import NDIO
 
 # from spectrochempy.core.dataset.ndmath import (
 #     NDManipulation,
@@ -45,7 +45,7 @@ from spectrochempy.core.dataset.mixins.ndio import NDIO
 #     _set_operators,
 #     _set_ufuncs,
 # )
-from spectrochempy.core.dataset.mixins.ndplot import NDPlot
+from spectrochempy.core.dataset.mixins.plotmixin import NDPlot
 from spectrochempy.core.project.baseproject import AbstractProject
 from spectrochempy.utils.optional import import_optional_dependency
 from spectrochempy.utils.system import get_user_and_node
@@ -567,7 +567,6 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
             "mask",
             "units",
             "meta",
-            "preferences",
             "author",
             "description",
             "history",
@@ -581,7 +580,7 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
             "referencedata",
             "state",
             "ranges",
-        ] + NDIO()._attributes()
+        ]  # + NDIO()._attributes() + NDPLOT._attributes()
 
     def _cstr(self):
         # Display the metadata of the object and partially the data

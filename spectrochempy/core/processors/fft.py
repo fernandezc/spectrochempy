@@ -600,7 +600,7 @@ def mc(dataset):
 
     Calculates sqrt(real^2 + imag^2)
     """
-    return np.sqrt(dataset.real ** 2 + dataset.imag ** 2)
+    return np.sqrt(dataset.real**2 + dataset.imag**2)
 
 
 @_units_agnostic_method
@@ -610,7 +610,7 @@ def ps(dataset):
 
     Calculated real^2+imag^2
     """
-    return dataset.real ** 2 + dataset.imag ** 2
+    return dataset.real**2 + dataset.imag**2
 
 
 @_units_agnostic_method

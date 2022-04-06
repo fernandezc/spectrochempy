@@ -23,7 +23,7 @@ def test_nmr_fft_1D(NMR_dataset_1D):
     dataset1D = NMR_dataset_1D.copy()
     dataset1D /= dataset1D.real.data.max()  # normalize
     dataset1D.x.ito("s")
-    new = dataset1D.fft(tdeff=8192, size=2 ** 15)
+    new = dataset1D.fft(tdeff=8192, size=2**15)
     new2 = new.ifft()
 
 

@@ -128,7 +128,7 @@ def test_coordset_init(coord0, coord1, coord2):
     # A list means that it is a sub-coordset (different meaning)
     coordsa1 = CoordSet([coord0[:3], coord3[:3], coord2[:3]])
     assert coordsa1.names == ["x"]
-    assert coordsa1.x.names == ["_1", "_2", "_3"]
+    assert coordsa1.x.names == ["_0", "_1", "_2"]
     assert coordsa1.x.titles == [
         "wavenumber (coord0)",
         "My name is titi",
@@ -153,7 +153,7 @@ def test_coordset_init(coord0, coord1, coord2):
     # coordset as coordinates
     coordse = CoordSet(x=(coord1[:3], coord2[:3]), y=coord3, z=coord0)
     assert coordse["x"].titles == CoordSet(coord1, coord2).titles[::-1]
-    assert coordse["x_1"] == coord1[:3]
+    assert coordse["x_0"] == coord1[:3]
     assert coordse["My name is titi"] == coord3
 
     # iteration
@@ -212,8 +212,8 @@ def test_coordset_coordset_example():
     cs = CoordSet([coord1, coord1b])
     cs = CoordSet(t=coord0, u=coord2, v=[coord1, coord1b])
     assert str(cs.u) == "Coord u(elapsed time): [float64] hr (size: 6)"
-    assert str(cs.v) == "CoordSet: [_1:temperature, _2:magnetic field]"
-    assert str(cs.v_1) == "Coord _1(temperature): [float64] K (size: 4)"
+    assert str(cs.v) == "CoordSet: [_0:temperature, _1:magnetic field]"
+    assert str(cs.v_0) == "Coord _0(temperature): [float64] K (size: 4)"
 
 
 def test_coordset_implements_method(coord0, coord1):
@@ -236,6 +236,14 @@ def test_coordset_available_names_property(coord0, coord1, coord2):
 def test_coordset_coords_property(coord0, coord1, coord2):
     c = CoordSet(coord0, coord1, coord2)
     assert c.coords == [coord2, coord1, coord0]
+
+
+def test_coordset_cstr(coord0, coord1):
+    c = CoordSet(y=[coord0, coord0.copy()], x=coord1)
+    c.y.set_titles("temperature", "wavenumbers")
+    assert "(_0)*" in c._cstr()
+    c.y.select(1)
+    assert "(_1)*" in c._cstr()
 
 
 def test_coordset_has_defined_names_property(coord0, coord1, coord2):
@@ -279,12 +287,23 @@ def test_coordset_names_property(coord0, coord1, coord2):
 
 
 def test_coordset_default_property(coord0, coord1):
-    c = CoordSet([coord0, coord0.copy()], coord1)
+
+    c = CoordSet(y=[coord0, coord0.copy()], x=coord1)
     assert c.default is None
+
+    # single coordinate for dimension x
     cx = c.x
     assert cx.default is cx
+
+    # multiple coordinates for dimension y
     cy = c.y
+    assert cy.default.name == "_0"
+    cy.set_titles("temperature", "wavenumbers")
+    cy.select(1)
     assert cy.default.name == "_1"
+    assert cy.default.title == "wavenumbers"
+    cy.select(-2)
+    assert cy.default.name == "_0"
 
 
 def test_coordset_data_property(coord0, coord1):
@@ -292,7 +311,7 @@ def test_coordset_data_property(coord0, coord1):
     assert_array_equal(c.y.data, coord0.data)
     assert_array_equal(c.x.data, coord1.data)
     with pytest.raises(AttributeError):
-        assert c.data is None
+        c.data
 
 
 def test_coordset_name_property(coord0):
@@ -342,9 +361,9 @@ def test_coordset_keys_method(coord0, coord1, coord2):
 def test_coordset_select_method(coord0, coord1):
     c = CoordSet([coord0, coord0.copy()], coord1)
     cy = c.y
+    assert cy.default.name == "_0"
+    cy.select(1)
     assert cy.default.name == "_1"
-    cy.select(2)
-    assert cy.default.name == "_2"
 
 
 def test_coordset_set_method(coord0, coord1, coord2):
@@ -397,20 +416,20 @@ def test_coordset_set_titles_method(coord0, coord1, coord2):
 
     c.set_titles("time", "dddd", "celsius")
     assert (
-        str(c) == "CoordSet: [x:time, y:[_1:wavenumber (coord0), _2:bibi], z:celsius]"
+        str(c) == "CoordSet: [x:time, y:[_0:wavenumber (coord0), _1:bibi], z:celsius]"
     )
 
-    c.set_titles(x="time", z="celsius", y_1="length")
-    assert str(c) == repr(c) == "CoordSet: [x:time, y:[_1:length, _2:bibi], z:celsius]"
+    c.set_titles(x="time", z="celsius", y_0="length")
+    assert str(c) == repr(c) == "CoordSet: [x:time, y:[_0:length, _1:bibi], z:celsius]"
 
     c.set_titles("t", ("l", "g"), x="x")
-    assert str(c) == "CoordSet: [x:x, y:[_1:l, _2:g], z:celsius]"
+    assert str(c) == "CoordSet: [x:x, y:[_0:l, _1:g], z:celsius]"
 
     c.set_titles(("t", ("l", "g")), z="z")
-    assert str(c) == "CoordSet: [x:t, y:[_1:l, _2:g], z:z]"
+    assert str(c) == "CoordSet: [x:t, y:[_0:l, _1:g], z:z]"
 
     c.set_titles()  # nothing happens
-    assert str(c) == "CoordSet: [x:t, y:[_1:l, _2:g], z:z]"
+    assert str(c) == "CoordSet: [x:t, y:[_0:l, _1:g], z:z]"
 
 
 def test_coordset_set_units_method(coord0, coord1, coord2):
@@ -428,7 +447,7 @@ def test_coordset_set_units_method(coord0, coord1, coord2):
     )
 
     c.set_units(("km/s", ("m", "s")), z="radian", force=True)  # force change
-    assert c.y_1.units == ur("m")
+    assert c.y_0.units == ur("m")
 
 
 def test_coordset_update_method(coord0, coord1, coord2):
@@ -439,21 +458,21 @@ def test_coordset_update_method(coord0, coord1, coord2):
     assert c.names == ["x", "y", "z"]
     assert (
         str(c.coords) == "[Coord x(time-on-stream (coord1)): [float64] s (size: 100), "
-        "CoordSet: [_1:wavenumber (coord0), _2:bibi], "
+        "CoordSet: [_0:wavenumber (coord0), _1:bibi], "
         "Coord z(temperature (coord2)): [float64] K (size: 3)]"
     )
 
     c.update(x=coord2)
     assert (
         str(c.coords) == "[Coord x(temperature (coord2)): [float64] K (size: 3), "
-        "CoordSet: [_1:wavenumber (coord0), _2:bibi], "
+        "CoordSet: [_0:wavenumber (coord0), _1:bibi], "
         "Coord z(temperature (coord2)): [float64] K (size: 3)]"
     )
 
-    c.update(y_1=coord1)
+    c.update(y_0=coord1)
     assert (
         str(c.coords) == "[Coord x(temperature (coord2)): [float64] K (size: 3), "
-        "CoordSet: [_1:time-on-stream (coord1), _2:bibi], "
+        "CoordSet: [_0:time-on-stream (coord1), _1:bibi], "
         "Coord z(temperature (coord2)): [float64] K (size: 3)]"
     )
 
@@ -475,13 +494,13 @@ def test_coordset_loc2index_method(coord0, coord1, coord2):
 
     idx = c.y.loc2index(3000.0)
     assert idx == 3
-    assert c.y_1[idx].value == 3000 * ur("1/cm")
+    assert c.y_0[idx].value == 3000 * ur("1/cm")
 
     c.y.select(2)  # change default
     idx2 = c.y.loc2index(4.8)
-    assert_approx_equal(c.y_2[idx2].m, 4.848, significant=3)
+    assert_approx_equal(c.y_1[idx2].m, 4.848, significant=3)
 
-    assert c.y.loc2index(20) == c.y_2.loc2index(20.0)
+    assert c.y.loc2index(20) == c.y_1.loc2index(20.0)
 
 
 def test_coordset_call_method(coord0, coord1):
@@ -519,13 +538,13 @@ def test_coordset_get_item_method(coord0, coord1, coord2):
     assert coord.name == "z"
 
     coord = c["wavenumber (coord0)"]
+    assert coord.name == "_0"
+
+    coord = c["y_1"]
     assert coord.name == "_1"
 
-    coord = c["y_2"]
-    assert coord.name == "_2"
-
-    coord = c["_1"]
-    assert coord.name == "_1"
+    coord = c["_0"]
+    assert coord.name == "_0"
 
     with pytest.raises(TypeError):
         c[3000.0]
@@ -544,36 +563,27 @@ def test_coordset_del_item_method(coord0, coord1, coord2):
     assert (
         str(c)
         == repr(c)
-        == "CoordSet: [x:time-on-stream (coord1), y:[_1:wavenumber (coord0), _"
-        "2:wavenumber (coord0)], z:temperature (coord2)]"
+        == "CoordSet: [x:time-on-stream (coord1), y:[_0:wavenumber (coord0), _"
+        "1:wavenumber (coord0)], z:temperature (coord2)]"
     )
 
     del c["temperature (coord2)"]
     assert (
         str(c)
         == repr(c)
-        == "CoordSet: [x:time-on-stream (coord1), y:[_1:wavenumber (coord0), _"
-        "2:wavenumber (coord0)]]"
+        == "CoordSet: [x:time-on-stream (coord1), y:[_0:wavenumber (coord0), _"
+        "1:wavenumber (coord0)]]"
     )
 
     del c.y["wavenumber (coord0)"]
     assert (
         str(c)
         == repr(c)
-        == "CoordSet: [x:time-on-stream (coord1), y:[_2:wavenumber (coord0)]]"
+        == "CoordSet: [x:time-on-stream (coord1), y:[_1:wavenumber (coord0)]]"
     )
 
     c = CoordSet(coord2, [coord0, coord0.copy()], coord1)
     del c["wavenumber (coord0)"]
-    assert (
-        str(c)
-        == repr(c)
-        == "CoordSet: [x:time-on-stream (coord1), y:[_2:wavenumber (coord0)], "
-        "z:temperature (coord2)]"
-    )
-
-    c = CoordSet(coord2, [coord0, coord0.copy()], coord1)
-    del c.y_2
     assert (
         str(c)
         == repr(c)
@@ -582,11 +592,20 @@ def test_coordset_del_item_method(coord0, coord1, coord2):
     )
 
     c = CoordSet(coord2, [coord0, coord0.copy()], coord1)
-    del c.y._1
+    del c.y_1
     assert (
         str(c)
         == repr(c)
-        == "CoordSet: [x:time-on-stream (coord1), y:[_2:wavenumber (coord0)], "
+        == "CoordSet: [x:time-on-stream (coord1), y:[_0:wavenumber (coord0)], "
+        "z:temperature (coord2)]"
+    )
+
+    c = CoordSet(coord2, [coord0, coord0.copy()], coord1)
+    del c.y._0
+    assert (
+        str(c)
+        == repr(c)
+        == "CoordSet: [x:time-on-stream (coord1), y:[_1:wavenumber (coord0)], "
         "z:temperature (coord2)]"
     )
 
@@ -632,8 +651,8 @@ def test_coordset_str_repr_method(coord0, coord1, coord2):
     assert (
         str(coords)
         == repr(coords)
-        == "CoordSet: [x:time-on-stream (coord1), y:[_1:wavenumber (coord0), _"
-        "2:wavenumber (coord0)], z:temperature (coord2)]"
+        == "CoordSet: [x:time-on-stream (coord1), y:[_0:wavenumber (coord0), _"
+        "1:wavenumber (coord0)], z:temperature (coord2)]"
     )
     assert repr(coords) == str(coords)
 
@@ -646,8 +665,8 @@ def test_coordset_set_item_method(coord0, coord1, coord2):
     assert (
         str(coords)
         == repr(coords)
-        == "CoordSet: [x:time-on-stream (coord1), y:[_1:wavenumber (coord0), _"
-        "2:wavenumber (coord0)], z:temperature (coord2)]"
+        == "CoordSet: [x:time-on-stream (coord1), y:[_0:wavenumber (coord0), _"
+        "1:wavenumber (coord0)], z:temperature (coord2)]"
     )
     coords.set_titles("time-on-stream", ("wavenumber", "wavenumber"), "temperature")
 
@@ -655,7 +674,7 @@ def test_coordset_set_item_method(coord0, coord1, coord2):
 
     coords["z"] = coord2
     assert (
-        str(coords) == "CoordSet: [x:time-on-stream, y:[_1:wavenumber, _2:wavenumber], "
+        str(coords) == "CoordSet: [x:time-on-stream, y:[_0:wavenumber, _1:wavenumber], "
         "z:temperature (coord2)]"
     )
 
@@ -664,40 +683,40 @@ def test_coordset_set_item_method(coord0, coord1, coord2):
 
     coords["temperature (coord2)"] = coord1
     assert (
-        str(coords) == "CoordSet: [x:time-on-stream, y:[_1:wavenumber, _2:wavenumber], "
+        str(coords) == "CoordSet: [x:time-on-stream, y:[_0:wavenumber, _1:wavenumber], "
         "z:time-on-stream (coord1)]"
     )
 
-    coords["y_2"] = coord2
+    coords["y_1"] = coord2
     assert (
         str(coords)
-        == "CoordSet: [x:time-on-stream, y:[_1:wavenumber, _2:temperature (coord2)], "
+        == "CoordSet: [x:time-on-stream, y:[_0:wavenumber, _1:temperature (coord2)], "
         "z:time-on-stream (coord1)]"
     )
 
-    coords["_1"] = coord2
+    coords["_0"] = coord2
     assert (
-        str(coords) == "CoordSet: [x:time-on-stream, y:[_1:temperature (coord2), _"
-        "2:temperature (coord2)], z:time-on-stream (coord1)]"
+        str(coords) == "CoordSet: [x:time-on-stream, y:[_0:temperature (coord2), _"
+        "1:temperature (coord2)], z:time-on-stream (coord1)]"
     )
 
     coords["t"] = coord2
     assert (
-        str(coords) == "CoordSet: [x:time-on-stream, y:[_1:temperature (coord2), _"
-        "2:temperature (coord2)], z:time-on-stream (coord1), t:temperature (coord2)]"
+        str(coords) == "CoordSet: [x:time-on-stream, y:[_0:temperature (coord2), _"
+        "1:temperature (coord2)], z:time-on-stream (coord1), t:temperature (coord2)]"
     )
 
     coord2.title = "zaza"
     coords["temperature (coord2)"] = coord2
     assert (
-        str(coords) == "CoordSet: [x:time-on-stream, y:[_1:temperature (coord2), _"
-        "2:temperature (coord2)], z:time-on-stream (coord1), t:zaza]"
+        str(coords) == "CoordSet: [x:time-on-stream, y:[_0:temperature (coord2), _"
+        "1:temperature (coord2)], z:time-on-stream (coord1), t:zaza]"
     )
 
     coords["temperature (coord2)"] = coord2
     assert (
         str(coords)
-        == "CoordSet: [x:time-on-stream, y:[_1:zaza, _2:temperature (coord2)], "
+        == "CoordSet: [x:time-on-stream, y:[_0:zaza, _1:temperature (coord2)], "
         "z:time-on-stream (coord1), t:zaza]"
     )
 

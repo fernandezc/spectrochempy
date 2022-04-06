@@ -868,11 +868,11 @@ class NDArrayMathMixin(object):
             )  # not a complex, return fabs should be faster
 
         elif not cls.is_quaternion:
-            data = np.ma.sqrt(dataset.real ** 2 + dataset.imag ** 2)
+            data = np.ma.sqrt(dataset.real**2 + dataset.imag**2)
 
         else:
             data = np.ma.sqrt(
-                dataset.real ** 2
+                dataset.real**2
                 + dataset.part("IR") ** 2
                 + dataset.part("RI") ** 2
                 + dataset.part("II") ** 2,

@@ -96,10 +96,10 @@ class CoordSet(tr.HasTraits):
     Coord u(elapsed time): [float64] hr (size: 6)
 
     >>> cs.v
-    CoordSet: [_1:temperature, _2:magnetic field]
+    CoordSet: [_0:temperature, _1:magnetic field]
 
-    >>> cs.v_1
-    Coord _1(temperature): [float64] K (size: 4)
+    >>> cs.v_0
+    Coord _0(temperature): [float64] K (size: 4)
     """
     )
 
@@ -121,7 +121,7 @@ class CoordSet(tr.HasTraits):
     _html_output = tr.Bool(False)
 
     # default coord index
-    _default = tr.Int(0)
+    _selected = tr.Int(0)
 
     # ------------------------------------------------------------------------
     # initialization
@@ -307,17 +307,11 @@ class CoordSet(tr.HasTraits):
         coords.name = self.name
         # and is_same_dim and default for coordset
         coords._is_same_dim = self._is_same_dim
-        coords._default = self._default
+        coords._selected = self._selected
         return coords
 
     def __deepcopy__(self, memo):
-        coords = self.__class__(
-            tuple(cpy.deepcopy(ax, memo=memo) for ax in self), keepnames=True
-        )
-        coords.name = self.name
-        coords._is_same_dim = self._is_same_dim
-        coords._default = self._default
-        return coords
+        return self.__copy__()
 
     def __delattr__(self, item):
         if "notify_change" in item:
@@ -589,7 +583,7 @@ class CoordSet(tr.HasTraits):
             if index in self.available_names or (
                 len(index) == 2
                 and index.startswith("_")
-                and index[1] in list("123456789")
+                and index[1] in list("0123456789")
             ):
                 coord.name = index
                 self._coords.append(coord)
@@ -633,7 +627,7 @@ class CoordSet(tr.HasTraits):
             self._coords = (*coord,)
 
     def _attributes(self, removed=[]):
-        return ["coords", "references", "is_same_dim", "name"]
+        return ["coords", "references", "is_same_dim", "name", "selected"]
 
     def _coords_update(self, change=None):
         # when notified that a coord name have been updated
@@ -669,10 +663,10 @@ class CoordSet(tr.HasTraits):
 
                 # change the internal names
                 n = len(coord)
-                coord._set_names(
-                    [f"_{i + 1}" for i in range(n)]
-                )  # we must have  _1 for the first coordinates,
-                # _2 the second, etc...
+                coord._set_names([f"_{i}" for i in range(n)])
+                #     [f"_{i + 1}" for i in range(n)]
+                # )  # we must have  _1 for the first coordinates,
+                # # _2 the second, etc...
                 coord._set_parent_dim(coord.name)
 
         # last check and sorting
@@ -718,7 +712,8 @@ class CoordSet(tr.HasTraits):
                         coord._html_output = self._html_output
                         for idx_s, dim_s in enumerate(coord.names):
                             c = getattr(coord, dim_s)
-                            txt += f"          ({dim_s}) ...\n"
+                            sel = "*" if idx_s == coord.selected else ""
+                            txt += f"          ({dim_s}{sel}) ...\n"
                             c._html_output = self._html_output
                             sub = c._cstr(
                                 print_size=False
@@ -803,6 +798,13 @@ class CoordSet(tr.HasTraits):
         return self._id
 
     @property
+    def selected(self):
+        """
+        Return index of the selected coordinates for multicoordinates.
+        """
+        return self._selected
+
+    @property
     def is_empty(self):
         """
         Return whether there is no coords defined.
@@ -876,7 +878,7 @@ class CoordSet(tr.HasTraits):
         """
         if hasattr(self, "is_same_dim") and self.is_same_dim:
             # valid only for multi-coordinate CoordSet
-            default = self[self._default]
+            default = self[self._selected]
             return default
         # warning_('There is no multi-coordinate in this CoordSet. Return None')
 
@@ -1001,7 +1003,9 @@ class CoordSet(tr.HasTraits):
         index : int
             Index of the default coordinate for multiple coordinates.
         """
-        self._default = min(max(0, int(index) - 1), len(self.names))
+        if index < 0:  # handle negative indexing
+            index = len(self.names) + index - 1
+        self._selected = min(max(0, int(index)), len(self.names) - 1)
 
     @_docstring.dedent
     def set(self, *coords, **kwargs):

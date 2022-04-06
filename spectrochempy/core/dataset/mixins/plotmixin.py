@@ -719,7 +719,7 @@ class NDPlot(HasTraits):
     # ------------------------------------------------------------------------
 
     def _attributes(self, removed=[]):
-        return ["fignum", "ndaxes", "divider"]
+        return ["preferences"]  # "fignum", "ndaxes", "divider",
 
     # ------------------------------------------------------------------------
     # Properties

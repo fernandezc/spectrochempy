@@ -1079,6 +1079,7 @@ class NDArray(tr.HasTraits):
         else:
             removed = []
         for attr in self._attributes(removed=removed):
+            # print("copy", attr)
             _attr = copy(getattr(self, f"_{attr}"))
             setattr(new, f"_{attr}", _attr)
         return new

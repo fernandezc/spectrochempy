@@ -60,7 +60,7 @@ coord0_ = scp.Coord(
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord0():
     return coord0_.copy()
 
@@ -68,7 +68,7 @@ def coord0():
 coord1_ = scp.Coord(data=np.linspace(0.0, 60.0, 100), units="s", title="time-on-stream")
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord1():
     return coord1_.copy()
 
@@ -81,7 +81,7 @@ coord2_ = scp.Coord(
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord2():
     return coord2_.copy()
 
@@ -94,7 +94,7 @@ coord2b_ = scp.Coord(
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord2b():
     return coord2b_.copy()
 
@@ -107,7 +107,7 @@ coord0_2_ = scp.Coord(
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord0_2():
     return coord0_2_.copy()
 
@@ -117,7 +117,7 @@ coord1_2_ = scp.Coord(
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord1_2():
     return coord1_2_.copy()
 
@@ -130,30 +130,30 @@ coord2_2_ = scp.Coord(
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def coord2_2():
     return coord2_2_.copy()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def nd1d():
     # a simple ddataset
     return scp.NDDataset(ref_data[:, 1].squeeze()).copy()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def nd2d():
     # a simple 2D ndarrays
     return scp.NDDataset(ref_data).copy()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def ref_ds():
     # a dataset with coordinates
     return ref3d_data.copy()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def ds1():
     # a dataset with coordinates
     return scp.NDDataset(
@@ -164,7 +164,7 @@ def ds1():
     ).copy()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def ds2():
     # another dataset
     return scp.NDDataset(
@@ -175,7 +175,7 @@ def ds2():
     ).copy()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def dsm():
     # dataset with coords containing several axis and a mask
 
@@ -184,6 +184,21 @@ def dsm():
         ref3d_data,
         coordset=[coord0_, coord1_, coordmultiple],
         mask=ref3d_mask,
+        title="absorbance",
+        units="absorbance",
+    ).copy()
+
+
+@pytest.fixture(scope="module")
+def dsdt64():
+    # dataset with coords containing datetime
+    dates = scp.Coord(["2000", "2005", "2010"], title="date", dtype="datetime64[Y]")
+    pressures = scp.Coord(np.arange(3), title="pressure")
+    coordmultiple = scp.CoordSet([dates, pressures])
+
+    return scp.NDDataset(
+        np.ones((3,)),
+        coordset=coordmultiple,
         title="absorbance",
         units="absorbance",
     ).copy()
@@ -269,7 +284,7 @@ arrdata = (
 
 
 @pytest.mark.parametrize("arr", arrdata)
-def test_2D_NDDataset(arr):
+def test_nddataset_init_2D(arr):
     # 2D
     ds = NDDataset(arr)
     assert ds.size == arr.size
@@ -718,44 +733,14 @@ def test_nddataset_units(nd1d):
     nd2 = np.sqrt(nd)
     assert isinstance(nd2, type(nd))
     assert nd2.data[1] == np.sqrt(nd.data[1])
-    assert nd2.units == ur.m ** 0.5
+    assert nd2.units == ur.m**0.5
     nd.units = "cm"
     _ = np.sqrt(nd)
     nd.ito("m")
     nd2 = np.sqrt(nd)
     assert isinstance(nd2, type(nd))
     assert nd2.data[1] == np.sqrt(nd.data[1])
-    assert nd2.units == ur.m ** 0.5
-
-
-def test_bugs_units_change():
-    # check for bug on transmittance conversion
-    X = NDDataset([0.0, 0.3, 1.3, 5.0], units="absorbance")
-
-    # A to T
-    X1 = X.to("transmittance")
-    assert_array_equal(X1.data, 10 ** -np.array([0.0, 0.3, 1.3, 5.0]) * 100)
-    assert X1.title == "transmittance"
-    # T to abs T
-    X2 = X1.to("absolute_transmittance")
-    assert_array_equal(X2.data, 10 ** -np.array([0.0, 0.3, 1.3, 5.0]))
-    assert X2.title == "transmittance"
-    # A to abs T
-    X2b = X.to("absolute_transmittance")
-    assert_array_equal(X2b.data, X2.data)
-    assert X2b.title == "transmittance"
-    # abs T to T
-    X3 = X2.to("transmittance")
-    assert_array_equal(X3.data, X1.data)
-    assert X3.title == "transmittance"
-    # T to A
-    X4 = X3.to("absorbance")
-    assert_array_almost_equal(X.data, X.data)
-    assert X4.title == "absorbance"
-    # abs T to A
-    X5 = X2.to("absorbance")
-    assert_array_almost_equal(X5.data, X.data)
-    assert X5.title == "absorbance"
+    assert nd2.units == ur.m**0.5
 
 
 def test_nddataset_masked_array_input():
@@ -1264,7 +1249,7 @@ def test_nddataset_repr_html_bug_undesired_display_complex():
 
 def test_nddataset_bug_fixe_figopeninnotebookwithoutplot():
     da = NDDataset([1, 2, 3])
-    da2 = np.sqrt(da ** 3)
+    da2 = np.sqrt(da**3)
     assert da2._fig is None  # no figure should open
 
 
@@ -1637,11 +1622,11 @@ def test_take(dsm):
     pass
 
 
-def test_datetime64_coordinates(IR_dataset_2D):
+def test_datetime64_coordinates(dsdt64):
 
-    X = IR_dataset_2D
-    assert X.y.dtype == np.dtype("datetime64[s]")
-    assert X.y.units is None
+    X = dsdt64.copy()
+    assert X.x_1.dtype == np.dtype("datetime64[Y]")
+    assert X.x.units is None
     # there is no units for this object as it is defined internally
 
     with assert_produces_log_warning(
