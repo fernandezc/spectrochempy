@@ -3,8 +3,6 @@
 ## Unreleased
 
 ### NEW FEATURES
-* Documentation improvement and major refactoring of the code.
-* Add spectra unimodality constraint on MCRALS
 * History:
   Its behavior have been improved.
   Dates for entries are set automatically and are timezone-aware.
@@ -84,6 +82,16 @@
 
 ### For the developpers
 * Docstrings now use docrep
+
+## Version 0.4.5 
+
+### NEW FEATURES
+* Documentation improvement and major refactoring of the code.
+* Add spectra unimodality constraint on MCRALS
+unimodMod and unimodTol now deprectated
+
+### BUG FIXED
+* Compatibility with pint=0.19
 
 ## Version 0.4.4 [2022-03-22]
 
