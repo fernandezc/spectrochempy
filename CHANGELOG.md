@@ -81,17 +81,20 @@
 * MCRALS: 'unimodMod' and 'unimodTol' attributes are now deprectated
 
 ### For the developpers
-* Docstrings now use docrep
+* Docstrings now use docrep.
+* Major refactoring of the code.
 
 ## Version 0.4.5 
 
 ### NEW FEATURES
-* Documentation improvement and major refactoring of the code.
+* Documentation improvement.
 * Add spectra unimodality constraint on MCRALS
-unimodMod and unimodTol now deprectated
+  unimodMod and unimodTol now deprectated 
+* Add `plotmerit()` method
 
 ### BUG FIXED
 * Compatibility with pint=0.19
+
 
 ## Version 0.4.4 [2022-03-22]
 

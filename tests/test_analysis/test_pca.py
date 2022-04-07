@@ -66,6 +66,8 @@ def test_pca():
 
     pca.scoreplot(1, 2, 3)
 
+    pca.plotmerit
+
     show()
 
 
