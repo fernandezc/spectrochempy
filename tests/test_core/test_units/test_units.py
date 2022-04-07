@@ -9,7 +9,7 @@
 # flake8: noqa
 
 
-from spectrochempy import ur, set_nmr_context, Quantity
+from spectrochempy.core.units import ur, set_nmr_context, Quantity
 
 
 def test_ppm():

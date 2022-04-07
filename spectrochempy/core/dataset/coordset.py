@@ -713,7 +713,7 @@ class CoordSet(tr.HasTraits):
                         for idx_s, dim_s in enumerate(coord.names):
                             c = getattr(coord, dim_s)
                             sel = "*" if idx_s == coord.selected else ""
-                            txt += f"          ({dim_s}{sel}) ...\n"
+                            txt += f"          ({dim_s}){sel} ...\n"
                             c._html_output = self._html_output
                             sub = c._cstr(
                                 print_size=False

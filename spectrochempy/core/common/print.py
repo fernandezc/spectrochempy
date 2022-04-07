@@ -79,7 +79,7 @@ def colored_output(out):
     subst = TBold(r"\1")
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
-    regex = r"^(\W{10}\(_\d{1}\))"
+    regex = r"^(\W{10}\(_\d{1}\)\*?)"
     subst = TBold(r"\1")
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 

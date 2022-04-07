@@ -19,7 +19,6 @@ __all__ = [
     "remove_units",
     "encode_quantity",
     "set_nmr_context",
-    "set_optical_context",
 ]
 
 from warnings import warn
@@ -221,7 +220,7 @@ if globals().get("U_", None) is None:
     U_.define(
         "__wrapped__ = 1"
     )  # <- hack to avoid an error with pytest (doctest activated)
-    #  U_.define("@alias point = count")
+    U_.define("@alias point = count")
     U_.define("percent = 0.01 = %")
     U_.define("weight_percent = 0.01 = wt.%")
 
@@ -236,7 +235,7 @@ if globals().get("U_", None) is None:
 
     U_.define("Kubelka_Munk = 1. = K.M.")
 
-    U_.define("ppm = [ppm] = 1. = ppm")
+    U_.define("ppm = 1. = ppm")
 
     U_.default_format = "~P"
     Q_ = U_.Quantity
@@ -322,90 +321,6 @@ def set_nmr_context(larmor):
 
         c = U_._contexts["nmr"]
         c.defaults["larmor"] = larmor
-
-
-# Context for optical spectroscopy (IR)
-# ------------------------------------------------------------------
-def set_optical_context():
-    """
-    Set a IR context for transformation between absorbance and transmittance units.
-    """
-
-    if "optical" not in U_._contexts:
-        c = Context("optical")
-
-        c.add_transformation(
-            "[transmittance]",
-            "[absorbance]",
-            lambda U_, x: -np.log10(x),
-        )
-        c.add_transformation(
-            "[absorbance]", "[transmittance]", lambda U_, x: 10.0 ** (-x)
-        )
-        U_.add_context(c)
-
-    else:
-        c = U_._contexts["optical"]
-
-    # if self.has_units:
-    #     oldunits = self._units
-    #     try:
-    #         # particular case of dimensionless units: absorbance and
-    #         # transmittance
-    #
-    #         if f"{oldunits:P}" in ["transmittance", "absolute_transmittance"]:
-    #             if f"{units:P}" == "absorbance":
-    #                 udata = (new.data * new.units).to(units)
-    #                 new._data = -np.log10(udata.m)
-    #                 new._units = units
-    #                 new._title = "absorbance"
-    #
-    #             elif f"{units:P}" in ["transmittance", "absolute_transmittance", ]:
-    #                 new._data = (new.data * new.units).to(units)
-    #                 new._units = units
-    #                 new._title = "transmittance"
-    #
-    #         elif f"{oldunits:P}" == "absorbance":
-    #             if f"{units:P}" in ["transmittance", "absolute_transmittance"]:
-    #                 scale = Quantity(1.0, self._units).to(units).magnitude
-    #                 new._data = 10.0 ** -new.data * scale
-    #                 new._units = units
-    #                 new._title = "transmittance"
-    #         else:
-    #             new = self._unittransform(new, units)
-    #             # change the title for spectroscopic units change
-    #             if (oldunits.dimensionality in ["1/[length]", "[length]",
-    #                 "[length] ** 2 * [mass] / [time] ** 2",
-    #                                             ] and new._units.dimensionality
-    #                 == "1/[time]"):
-    #                 new._title = "frequency"
-    #             elif (oldunits.dimensionality in ["1/[time]",
-    #                                               "[length] ** 2 * [mass] / ["
-    #                                               "time] ** 2"] and
-    #                   new._units.dimensionality == "1/[length]"):
-    #                 new._title = "wavenumber"
-    #             elif (oldunits.dimensionality in ["1/[time]", "1/[length]",
-    #                 "[length] ** 2 * [mass] / [time] ** 2",
-    #                                               ] and new._units.dimensionality
-    #                   == "[length]"):
-    #                 new._title = "wavelength"
-    #             elif (oldunits.dimensionality in ["1/[time]", "1/[length]",
-    #                                               "[length]"] and
-    #                   new._units.dimensionality == "[length] ** 2 * [mass] / ["
-    #                                                "time] ** 2"):
-    #                 new._title = "energy"
-    #
-    #     except pint.DimensionalityError as exc:
-    #         if force:
-    #             new._units = units
-    #             info_("units forced to change")
-    #         else:
-    #             raise DimensionalityError(exc.dim1, exc.dim2, exc.units1,
-    #                 exc.units2, extra_msg=exc.extra_msg, )
-    #
-    #
-    #
-    #
 
 
 # enabled useful contexts

@@ -344,7 +344,7 @@ class NDArray(tr.HasTraits):
             except pint.DimensionalityError as exc:
                 raise DimensionalityError(
                     exc.dim1, exc.dim2, exc.units1, exc.units2, extra_msg=exc.extra_msg
-                )
+                ) from exc
 
             # self._data[keys] = np.array(value.magnitude, subok=True, copy=self._copy)
             value = np.array(value.magnitude, subok=True, copy=self._copy)
@@ -385,7 +385,7 @@ class NDArray(tr.HasTraits):
             args = args[::-1]
         return args
 
-    def _attributes(self, removed=[]):
+    def _attributes(self, removed=None):
         attrs = [
             "dims",
             "data",
@@ -394,6 +394,9 @@ class NDArray(tr.HasTraits):
             "title",
             "roi",
         ]
+        if removed is None:
+            return attrs
+
         for item in removed:
             if item in attrs:
                 attrs.remove(item)
@@ -432,7 +435,7 @@ class NDArray(tr.HasTraits):
         if data.dtype.kind != "m":  # pragma: no cover
             raise CastingError(data.dtype, "Not a timedelta array")
         newdata = data.astype(float)
-        dt64unit = re.findall(r"^<m\d\[(\w+)\]$", data.dtype.str)[0]
+        dt64unit = re.findall(r"^<m\d\[(\w+)]$", data.dtype.str)[0]
         newunits = from_dt64_units(dt64unit)
         return newdata, newunits
 
@@ -898,7 +901,8 @@ class NDArray(tr.HasTraits):
         # """
         # Helper function to determine an axis index.
         #
-        # It is designed to work whatever the syntax used: axis index or dimension names.
+        # It is designed to work whatever the syntax used: axis index or dimension
+        # names.
         #
         # Parameters
         # ----------
@@ -985,7 +989,7 @@ class NDArray(tr.HasTraits):
         return out
 
     @staticmethod
-    def _unittransform(new, units):
+    def _units_transform(new, units):
         oldunits = new.units
         if oldunits is None:
             oldunits = ur.dimensionless
@@ -1435,7 +1439,7 @@ class NDArray(tr.HasTraits):
     @property
     def roi_values(self):
         """
-        Return the values correcponding to the region of interest (ROI) limits.
+        Return the values corresponding to the region of interest (ROI) limits.
         """
         if self.units is None:
             return self.roi
@@ -1469,7 +1473,7 @@ class NDArray(tr.HasTraits):
     @property
     def summary(self):
         """
-        Return a detailled summary of the object content.
+        Return a detailed summary of the object content.
         """
         return colored_output(pstr(self))
 
@@ -1525,7 +1529,7 @@ class NDArray(tr.HasTraits):
             return new
 
         try:
-            new = self._unittransform(new, units)
+            new = self._units_transform(new, units)
             tit = self._get_default_title_from_units(units)
             new._title = tit if title is None else title
 

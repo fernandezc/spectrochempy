@@ -310,15 +310,7 @@ class Coord(
 
         if is_number(loc):
             # get the index of a given values
-            error = None
-            if np.all(loc > data.max()) or np.all(loc < data.min()):
-                warning_(
-                    f"This coordinate ({loc}) is outside the axis limits "
-                    f"({data.min()}-{data.max()}).\nThe closest limit index is "
-                    f"returned"
-                )
-                error = "out_of_limits"
-            index = (np.abs(data - loc)).argmin()
+            index, error = self._value_to_index(loc)
             # TODO: add some precision to this result
             if not error:
                 return index
@@ -391,11 +383,10 @@ class Coord(
         if self.larmor is None:
             # no change
             return super().to(units, inplace, force)
-        else:
-            # set context
-            set_nmr_context(self.larmor)
-            with ur.context("nmr"):
-                return super().to(units, inplace, force)
+        # set context
+        set_nmr_context(self.larmor)
+        with ur.context("nmr"):
+            return super().to(units, inplace, force)
 
 
 # ======================================================================================
