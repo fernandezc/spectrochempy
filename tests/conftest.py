@@ -10,6 +10,34 @@
 import pathlib
 import pytest
 
+try:
+    # work only if spectrochempy is installed
+    import spectrochempy
+except ModuleNotFoundError:  # pragma: no cover
+    raise ModuleNotFoundError(
+        "You must install spectrochempy and its dependencies before executing tests!"
+    )
+
+import spectrochempy as scp
+from spectrochempy import preferences as prefs
+
+from spectrochempy.utils import pathclean
+from spectrochempy.utils.testing import RandomSeedContext
+
+# first download missing data
+datadir = pathclean(prefs.datadir)
+print("DATADIR: ", datadir)
+
+# this process is relatively long, so we do not want to do it several time:
+downloaded = datadir / "__downloaded__"
+if not downloaded.exists():
+    scp.read_remote(datadir, download_only=True)
+    downloaded.write_text("")
+
+# ======================================================================================================================
+# FIXTURES
+# ======================================================================================================================
+
 # initialize a ipython session before calling spectrochempy
 # ---------------------------------------------------------
 
