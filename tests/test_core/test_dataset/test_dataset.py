@@ -189,12 +189,16 @@ def dsm():
     ).copy()
 
 
+coord_dates = scp.Coord(["2000", "2005", "2010"], title="date", dtype="datetime64[Y]")
+
+
+coord_pressures = scp.Coord(np.arange(3), title="pressure")
+
+
 @pytest.fixture(scope="module")
 def dsdt64():
     # dataset with coords containing datetime
-    dates = scp.Coord(["2000", "2005", "2010"], title="date", dtype="datetime64[Y]")
-    pressures = scp.Coord(np.arange(3), title="pressure")
-    coordmultiple = scp.CoordSet([dates, pressures])
+    coordmultiple = scp.CoordSet([coord_dates, coord_pressures])
 
     return scp.NDDataset(
         np.ones((3,)),
@@ -1625,6 +1629,7 @@ def test_take(dsm):
 def test_datetime64_coordinates(dsdt64):
 
     X = dsdt64.copy()
+    # assert X.x ==
     assert X.x_0.dtype == np.dtype("datetime64[ns]")
     assert X.x.units is None
     # there is no units for this object as it is defined internally

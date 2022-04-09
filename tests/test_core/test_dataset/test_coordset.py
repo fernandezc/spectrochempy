@@ -307,7 +307,7 @@ def test_coordset_default_property(coord0, coord1):
 
 
 def test_coordset_data_property(coord0, coord1):
-    c = CoordSet([coord0, coord0.copy()], coord1)
+    c = CoordSet([coord0, coord0.copy() * 2], coord1)
     assert_array_equal(c.y.data, coord0.data)
     assert_array_equal(c.x.data, coord1.data)
     with pytest.raises(AttributeError):

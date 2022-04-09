@@ -283,24 +283,23 @@ class CoordSet(tr.HasTraits):
     # special methods
     # ------------------------------------------------------------------------
 
-    # def __call__(self, *args, **kwargs):     # NOT sure this is necessary (getitem
-    # seems enougth)
-    #     # allow the following syntax: coords(), coords(0,2) or
-    #     coords = []
-    #     axis = kwargs.get("axis", None)
-    #     if args:
-    #         for idx in args:
-    #             coords.append(self[idx])
-    #     elif axis is not None:
-    #         if not is_sequence(axis):
-    #             axis = [axis]
-    #         for i in axis:
-    #             coords.append(self[i])
-    #     else:
-    #         coords = self._coords
-    #     if len(coords) == 1:
-    #         return coords[0]
-    #     return CoordSet(*coords)
+    def __call__(self, *args, **kwargs):
+        # allow the following syntax: coords(), coords(0,2) or
+        coords = []
+        axis = kwargs.get("axis", None)
+        if args:
+            for idx in args:
+                coords.append(self[idx])
+        elif axis is not None:
+            if not is_sequence(axis):
+                axis = [axis]
+            for i in axis:
+                coords.append(self[i])
+        else:
+            coords = self._coords
+        if len(coords) == 1:
+            return coords[0]
+        return CoordSet(*coords)
 
     def __copy__(self):
         coords = self.__class__(tuple(cpy.copy(ax) for ax in self), keepnames=True)
