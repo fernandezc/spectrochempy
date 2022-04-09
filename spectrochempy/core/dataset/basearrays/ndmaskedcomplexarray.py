@@ -106,8 +106,11 @@ class NDMaskedComplexArray(NDComplexArray):
     # ----------------------------------------------------------------------------------
     # Private methods
     # ----------------------------------------------------------------------------------
-    def _attributes(self, removed=[]):
-        return super()._attributes(removed) + ["mask"]
+    def _attributes(self, removed=None, added=None):
+        if added is None:
+            added = []
+        added.append("mask")
+        return super()._attributes(removed=removed, added=added)
 
     @tr.default("_mask")
     def __mask_default(self):

@@ -552,7 +552,7 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
         self._modified = datetime.utcnow()
         return
 
-    def _attributes(self, removed=[]):
+    def _attributes(self, removed=None, added=None):
         # Only these attributes are used for saving dataset
         # WARNING: be careful to keep the present order of the three first elements!
         # Needed for save/load operations

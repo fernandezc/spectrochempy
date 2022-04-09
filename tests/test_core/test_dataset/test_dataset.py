@@ -1625,7 +1625,7 @@ def test_take(dsm):
 def test_datetime64_coordinates(dsdt64):
 
     X = dsdt64.copy()
-    assert X.x_0.dtype == np.dtype("datetime64[Y]")
+    assert X.x_0.dtype == np.dtype("datetime64[ns]")
     assert X.x.units is None
     # there is no units for this object as it is defined internally
 

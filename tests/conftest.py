@@ -21,8 +21,7 @@ except ModuleNotFoundError:  # pragma: no cover
 import spectrochempy as scp
 from spectrochempy import preferences as prefs
 
-from spectrochempy.utils import pathclean
-from spectrochempy.utils.testing import RandomSeedContext
+from spectrochempy.utils.paths import pathclean
 
 # first download missing data
 datadir = pathclean(prefs.datadir)

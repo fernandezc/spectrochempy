@@ -120,8 +120,11 @@ class NDLabeledArray(NDArray):
             args = args[::-1]
         return args
 
-    def _attributes(self, removed=[]):
-        return super()._attributes(removed) + ["labels"]
+    def _attributes(self, removed=None, added=None):
+        if added is None:
+            added = []
+        added.append("labels")
+        return super()._attributes(removed=removed, added=added)
 
     def _is_labels_allowed(self):
         return self._squeeze_ndim <= 1
@@ -355,37 +358,4 @@ class NDLabeledArray(NDArray):
 
 # ======================================================================================
 if __name__ == "__main__":
-    """"""
-
-    # def _repr_shape(self):
-    #     if self.is_empty:
-    #         return "size: 0"
-    #     out = ""
-    #     shape_ = (
-    #         x for x in itertools.chain.from_iterable(list(zip(self.dims, self.shape)))
-    #     )
-    #     shape = (", ".join(["{}:{}"] * self.ndim)).format(*shape_)
-    #     size = self.size
-    #     out += f"size: {size}" if self.ndim < 2 else f"shape: ({shape})"
-    #     return out
-    #
-
-    # def _repr_value(self):
-    #     numpyprintoptions(precision=4, edgeitems=0, spc=1, linewidth=120)
-    #     prefix = f"{type(self).__name__} ({self.name}): "
-    #     units = ""
-    #     if not self.is_empty:
-    #         if self.data is not None:
-    #             dtype = self.dtype
-    #             data = ""
-    #             units = " {:~K}".format(self.units) if self.has_units else " unitless"
-    #         else:
-    #             # no data but labels
-    #             lab = self.get_labels()
-    #             data = f" {lab}"
-    #             dtype = "labels"
-    #         body = f"[{dtype}]{data}"
-    #     else:
-    #         body = "empty"
-    #     numpyprintoptions()
-    #     return "".join([prefix, body, units])
+    pass

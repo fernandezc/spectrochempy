@@ -277,8 +277,7 @@ class NDArray(tr.HasTraits):
                     equ = False
         else:
             if attrs is None:
-                attrs = self._attributes()
-                attrs.remove("name")  # name are uniques, so should not be compared
+                attrs = self._attributes(removed=["name"])
             for attr in attrs:
                 equ &= self._compare_attribute(other, attr)
                 if not equ:
@@ -385,7 +384,7 @@ class NDArray(tr.HasTraits):
             args = args[::-1]
         return args
 
-    def _attributes(self, removed=None):
+    def _attributes(self, removed=None, added=None):
         attrs = [
             "dims",
             "data",
@@ -394,12 +393,15 @@ class NDArray(tr.HasTraits):
             "title",
             "roi",
         ]
-        if removed is None:
-            return attrs
+        if added is not None:
+            for item in added:
+                attrs.append(item)
 
-        for item in removed:
-            if item in attrs:
-                attrs.remove(item)
+        if removed is not None:
+            for item in removed:
+                if item in attrs:
+                    attrs.remove(item)
+
         return attrs
 
     def _compare_attribute(self, other, attr):

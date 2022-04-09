@@ -7,8 +7,28 @@
 # ======================================================================================
 
 """
-This module implements the class |Coord|.
+This module implements the class |Coord|, a subclasses of |NDLabeledArray|.
+
+This class is intended to be used for coordinates axis definitions in [NDDataset|.
+
+
+What are the basic attributes of the |Coord| class?
+---------------------------------------------------
+
+The most used ones:
+~~~~~~~~~~~~~~~~~~~
+* `data`: A 1D array of data contained in the object (default: None)
+* `name`: A friendly name for the object (default: id)
+* `title`: The title of the data array, often a quantity name(e.g, `frequency`)
+* `units`: The units of the data array (for example, `Hz`).
+* `labels`: An array of labels to describe or completely replace the data array.
+
+Read-only attributes:
+~~~~~~~~~~~~~~~~~~~~~
+* `dtype`: data type (see numpy definition of dtypes).
+
 """
+
 
 __all__ = ["Coord"]
 
@@ -153,6 +173,12 @@ class Coord(
     # ----------------------------------------------------------------------------------
     # Private properties and methods
     # ----------------------------------------------------------------------------------
+    def _attributes(self, removed=None, added=None):
+        if added is None:
+            added = []
+        added.extend(["linear", "decimals", "larmor"])
+        return super()._attributes(removed=removed, added=added)
+
     def _cstr(self, **kwargs):
         out = super()._cstr(header="  coordinates: ... \n", **kwargs)
         return out
