@@ -118,6 +118,9 @@ jobs:
         run: |
           conda install conda-build conda-verify
           conda-build .conda --output-folder out
+          echo "event_name: ${{ github.event_name }}""
+          echo "event_action: ${{ github.event.action }}""
+          echo "repository: ${{ github.repository }}""
 
       - name: Publish package for release
         if: (github.event_name == 'release' && github.event.action == 'published' && github.repository == 'spectrochempy/spectrochempy')
