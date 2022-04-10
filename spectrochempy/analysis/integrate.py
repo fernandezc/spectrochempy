@@ -15,7 +15,7 @@ __dataset_methods__ = ["simps", "trapz", "simpson", "trapezoid"]
 
 import functools
 import scipy.integrate
-from spectrochempy.utils import deprecated
+from spectrochempy.core.common.exceptions import deprecated
 
 
 def _integrate_method(method):
@@ -63,8 +63,13 @@ def _integrate_method(method):
             del new._coordset.coords[idx]
 
         new.title = "area"
-        new._units = new._units * coord.units
-        new.history = (
+        if dataset.units is not None and dataset.coord(dim).units is not None:
+            new._units = dataset.units * dataset.coord(dim).units
+        elif dataset.units is not None:
+            new._units = dataset.units
+        elif dataset.coord(dim).units is not None:
+            new._units = dataset.coord(dim).units
+        new._history = (
             f"Dataset resulting from application of `{method.__name__}` method"
         )
 

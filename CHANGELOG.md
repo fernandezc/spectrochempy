@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+
 ### NEW FEATURES
 * History:
   Its behavior have been improved.
@@ -84,17 +85,17 @@
 * Docstrings now use docrep.
 * Major refactoring of the code.
 
-## Version 0.4.5
+## Version 0.4.5 [2022-04-09]
 
 ### NEW FEATURES
 * Documentation improvement.
-* MCRALS: add spectra unimodality constraint on MCRALS, `unimodMod` and `unimodTol now deprectated.
-* PCA: add `plotmerit()` method in PCA
+* MCRALS: add spectra unimodality constraint on MCRALS, `unimodMod` and `unimodTol now deprecated.
+* PCA: add `plotmerit()` method in PCA.
 * Readers: add Surface Optics Corp. reader.
 * SIMPLISMA: `verbose` parameter now deprecated.
 
 ### BUG FIXED
-* Compatibility with pint=0.19
+* Compatibility with pint=0.19.
 
 ## Version 0.4.4 [2022-03-22]
 
