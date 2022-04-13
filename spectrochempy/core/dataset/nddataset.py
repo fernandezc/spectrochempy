@@ -30,8 +30,7 @@ from spectrochempy.core.common.exceptions import (
 )
 from spectrochempy.core.common.compare import is_datetime64
 from spectrochempy.core.common.print import colored_output
-from spectrochempy.core.dataset.coord import Coord
-from spectrochempy.core.dataset.coordset import CoordSet
+from spectrochempy.core.dataset.coord import Coord, CoordSet
 from spectrochempy.core.common.meta import Meta
 from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.dataset.basearrays.ndmaskedcomplexarray import (
@@ -409,7 +408,7 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
                             newc.append(c[item])
                         new_coords[idx] = CoordSet(*newc[::-1], name=name)
                         # we reverse to be sure
-                        # the order will be  kept for internal coordinates
+                        # the order will be kept for internal coordinates
                         new_coords[idx]._default = self._coordset[
                             idx
                         ]._default  # set the same default coord

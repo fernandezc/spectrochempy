@@ -10,7 +10,8 @@ from pathlib import Path
 from matplotlib import cycler
 
 from traitlets.config.configurable import Configurable
-from traitlets import All, List, TraitError, observe, Undefined
+from traitlets import All, List, TraitError, observe, Instance, Type, Undefined
+from traitlets.utils.importstring import import_item
 
 __all__ = ["MetaConfigurable", "Range"]
 
@@ -88,8 +89,6 @@ class MetaConfigurable(Configurable):
 # ======================================================================================
 # Range trait type
 # ======================================================================================
-
-
 class Range(List):
     """
     The trait-type Range.

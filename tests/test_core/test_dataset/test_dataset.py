@@ -19,6 +19,7 @@ from spectrochempy.core.common.exceptions import (
     MissingCoordinatesError,
 )
 from spectrochempy.core.dataset.nddataset import NDDataset
+from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.units import ur
 from spectrochempy.utils.system import get_user_and_node
 from spectrochempy.utils.testing import (
@@ -894,6 +895,14 @@ def test_nddataset_slicing_by_values(ds1):
     # slicing by values should also work using reverse order
     da[2000.0:3000.0, :, 210.0]
 
+    x = Coord(data=np.linspace(1000.0, 4000.0, num=6000), title="x")
+    y = Coord(data=np.linspace(0.0, 10, num=5), title="y")
+    data = np.random.rand(x.size, y.size)
+    ds = NDDataset(data, coordset=[x, y])
+    ds2 = ds[2000.0:3200.0, :]
+    assert ds2.coordset.y.data.shape[0] == 2400, "taille axe 0 doit être 2400"
+    assert ds2.data.shape[0] == 2400, "taille dimension 0 doit être 2400"
+
 
 def test_nddataset_slicing_out_limits(caplog, ds1):
     import logging
@@ -995,7 +1004,7 @@ def test_nddataset_slicing_with_coords(ds1):
     assert da00.coordset["x"] == da.coordset[0]
 
 
-def test_slicing_with_quantities(ds1):
+def test_nddataset_slicing_with_quantities(ds1):
     da = ds1.copy()
 
     da00 = da[1000.0 * ur("cm^-1"), 0]
@@ -1255,20 +1264,6 @@ def test_nddataset_bug_fixe_figopeninnotebookwithoutplot():
     da = scp.NDDataset([1, 2, 3])
     da2 = np.sqrt(da**3)
     assert da2._fig is None  # no figure should open
-
-
-def test_nddataset_bug_par_arnaud():
-    import numpy as np
-
-    import spectrochempy as scp
-
-    x = scp.Coord(data=np.linspace(1000.0, 4000.0, num=6000), title="x")
-    y = scp.Coord(data=np.linspace(0.0, 10, num=5), title="y")
-    data = np.random.rand(x.size, y.size)
-    ds = NDDataset(data, coordset=[x, y])
-    ds2 = ds[2000.0:3200.0, :]
-    assert ds2.coordset.y.data.shape[0] == 2400, "taille axe 0 doit être 2400"
-    assert ds2.data.shape[0] == 2400, "taille dimension 0 doit être 2400"
 
 
 # ################ Complex and Quaternion, and NMR ##################
@@ -1622,11 +1617,11 @@ def test_nddataset_apply_funcs(dsm):
     np.array(dsm)
 
 
-def test_take(dsm):
+def test_nddataset_take(dsm):
     pass
 
 
-def test_datetime64_coordinates(dsdt64):
+def test_nddataset_with_datetime64_coordinates(dsdt64):
 
     X = dsdt64.copy()
     # assert X.x ==
@@ -1701,7 +1696,7 @@ def test_nddataset_to_xarray(IR_dataset_2D):
 
 
 ####
-def test_squeeze_method():
+def test_nddataset_squeeze_method():
 
     c1 = scp.Coord([2], units="m")
     c2 = scp.Coord.arange(3, units="m^2")
@@ -1735,7 +1730,7 @@ def test_squeeze_method():
     assert nd6.shape == (3, 1)
 
 
-def test_issue_310():
+def test_nddataset_issue_310():
 
     import numpy as np
 
@@ -1771,7 +1766,7 @@ def test_issue_310():
     assert str(D[:, 1]) == "NDDataset: [float64] unitless (shape: (y:10, x:1))"
 
 
-def test_ndarray_meta(ndarray):
+def test_nddataset_meta(ndarray):
     nd = ndarray.copy()
     nd.meta = {"essai": "un essai"}
     assert nd.meta.essai == "un essai"
