@@ -2,7 +2,6 @@
 
 ## Unreleased
 
-
 ### NEW FEATURES
 * History:
   Its behavior have been improved.
@@ -56,6 +55,7 @@
 * `NDDataset.from_xarray`: Create a new dataset from a `xarray.DataArray` object.
 
 ### BUGS FIXED
+* Issue #462, correct load and dump of multicoordinates in scp format.
 * Docstrings in CoordSet
 * Coordset SubCoordinate ordering fixed.
 * Coordinate _sort method

@@ -79,7 +79,7 @@ def json_serialiser(byte_obj, encoding=None):
     elif hasattr(byte_obj, "implements"):
 
         objnames = byte_obj._attributes()
-        # particular case of Linear Coordinates
+
         dic = {}
         for name in objnames:
 

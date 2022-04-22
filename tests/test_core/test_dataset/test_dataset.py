@@ -1782,3 +1782,21 @@ def test_nddataset_meta(ndarray):
     nd.ito("MHz")
     assert nd.units == ur.MHz
     nd.meta.larmor = None
+
+
+def test_nddataset_issue_462():
+
+    A = scp.random((10, 100))
+    A.x = scp.Coord(np.arange(0.0, 100.0, 1), title="coord1")
+    A.write("A.scp", confirm=False)
+    B = scp.read("A.scp")
+    assert B.x == A.x, "incorrect encoding/decoding"
+
+    C = scp.random((10, 100))
+    C.x = [
+        scp.Coord(np.arange(0.0, 100.0, 1), title="coord1"),
+        scp.Coord(np.arange(0.0, 1000.0, 10), title="coord2"),
+    ]
+    C.write("C.scp", confirm=False)
+    D = scp.read("C.scp")
+    assert len(D.x) == 2, "incorrect encoding/decoding"
