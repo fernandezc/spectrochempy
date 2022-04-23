@@ -15,7 +15,6 @@ __dataset_methods__ = __all__
 
 import io
 import struct
-from datetime import datetime, timezone, timedelta
 
 import numpy as np
 

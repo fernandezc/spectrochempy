@@ -338,6 +338,22 @@ def test_coord_init():
         _ = Coord([[1, 2, 3], [3, 4, 5]])
 
 
+def test_coord_larmor():
+    c = Coord([1, 2, 3], name="x")
+    assert c.larmor is None
+    c.larmor = 100 * ur("MHz")
+    assert c.larmor == 100 * ur("MHz")
+    c = Coord([1, 2, 3], name="x", larmor=150 * ur("MHz"))
+    assert c.larmor == 150 * ur("MHz")
+
+
+def test_coord_is_descendant():
+    c = Coord([1, 2, 3], name="x")
+    assert not c.is_descendant
+    c = Coord([3, 2, 1], name="x")
+    assert c.is_descendant
+
+
 def test_coord_str_repr_summary():
 
     nd = Coord(
@@ -365,6 +381,22 @@ def test_coord_str_repr_summary():
     nd = Coord(labels=[list("abcdefghij"), list("0123456789"), list("lmnopqrstx")])
     assert "labels[1]" in nd.summary
     assert "labels[1]" in nd._repr_html_()
+
+
+def test_coord_to_xarray():
+    xarray = pytest.importorskip("xarray")
+    x = Coord([1, 2, 3], name="x")
+    cx = x._to_xarray()
+    assert isinstance(cx["x"], xarray.Variable)
+    y = Coord(labels=["a", "b", "c"], name="y")
+    cy = y._to_xarray()
+    assert isinstance(cy["y"], xarray.Variable)
+    y = Coord(labels=[["a", "b", "c"]], name="y")
+    cy = y._to_xarray()
+    assert isinstance(cy["y"], xarray.Variable)
+    z = Coord(labels=[["a", "b", "c"], ["i", "j", "k"]], name="z")
+    cz = z._to_xarray()
+    assert isinstance(cz["z"], xarray.Variable)
 
 
 def test_linearcoord_deprecated():

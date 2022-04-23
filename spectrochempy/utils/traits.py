@@ -10,8 +10,7 @@ from pathlib import Path
 from matplotlib import cycler
 
 from traitlets.config.configurable import Configurable
-from traitlets import All, List, TraitError, observe, Instance, Type, Undefined
-from traitlets.utils.importstring import import_item
+from traitlets import All, List, TraitError, observe, Undefined
 
 __all__ = ["MetaConfigurable", "Range"]
 

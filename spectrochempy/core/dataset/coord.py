@@ -40,7 +40,6 @@ from numbers import Number
 import numpy as np
 import traitlets as tr
 
-from spectrochempy.core import debug_, warning_
 from spectrochempy.core.common.compare import is_number, is_sequence
 from spectrochempy.core.common.constants import DEFAULT_DIM_NAME
 from spectrochempy.core.common.exceptions import (
@@ -51,7 +50,7 @@ from spectrochempy.core.common.exceptions import (
     deprecated,
 )
 from spectrochempy.core.common.print import colored_output, convert_to_html
-from spectrochempy.core.dataset.basearrays.ndarray import NDArray, _docstring
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.dataset.basearrays.ndlabeledarray import (
     NDLabeledArray,
     _docstring,
@@ -133,7 +132,7 @@ class Coord(
     _decimals = tr.Int(3)
 
     # specific to NMR
-    _larmor = tr.Float(allow_none=True)
+    _larmor = tr.Instance(Quantity, allow_none=True)
 
     _parent_dim = tr.Unicode(allow_none=True)
     _parent = tr.ForwardDeclaredInstance("CoordSet", allow_none=True)
@@ -200,6 +199,7 @@ class Coord(
         out = super()._cstr(header="  coordinates: ... \n", **kwargs)
         return out
 
+    @tr.default("_larmor")
     def __larmor_default(self):
         return None
 
@@ -212,7 +212,7 @@ class Coord(
 
         xr = import_optional_dependency("xarray")
 
-        var = xr.Variable(dims=self.name, data=np.array(self.data))
+        var = xr.Variable(dims=self.name, data=np.array(self.data.squeeze()))
         # dtype=np.float64))
 
         var.attrs["name"] = self.name
@@ -221,22 +221,28 @@ class Coord(
         # To not override a builtin xarray units attribute.
         var.attrs["title"] = self.title
         var.attrs["roi"] = self.roi
-        for k, v in self.meta.items():
-            var.attrs[f"meta_{k}"] = v
-
         var.attrs = encode_quantity(var.attrs)
 
         coordinates = {self.name: var}
 
         # auxiliary coordinates
-        if self.is_labeled:
-            for level in range(self.labels.shape[-1]):
-                label = self.labels[:, level]
-                label = list(map(str, label.tolist()))
-                label = xr.Variable(dims=self.name, data=label)
-                coordinates[f"{self.name}_labels_{level}"] = label
+        def fromlabel(coordinates, level, label):
+            label = list(map(str, label.tolist()))
+            label = xr.Variable(dims=self.name, data=label)
+            level = f"_{level}" if level is not None else ""
+            coordinates[f"{self.name}_labels{level}"] = label
+            return coordinates
 
-        return coordinates  # TODO: add multiple coordinates
+        if self.is_labeled:
+            self.labels = self.labels.squeeze()
+            if self.labels.ndim > 1:
+                for level in range(self.labels.shape[0]):
+                    label = self.labels[level]
+                    coordinates = fromlabel(coordinates, level, label)
+            else:
+                coordinates = fromlabel(coordinates, None, self.labels)
+
+        return coordinates
 
     # ----------------------------------------------------------------------------------
     # Public methods and properties

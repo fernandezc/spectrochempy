@@ -9,7 +9,8 @@
 SpectroChemPy specific exceptions
 """
 import warnings
-import sys, logging
+import sys
+import logging
 from pathlib import Path
 
 from contextlib import contextmanager
@@ -314,12 +315,11 @@ def handle_exception(*args):
 
 
 def send_warnings_to_log(*args, **kwargs):
-    import inspect
-    from spectrochempy.core import warning_, _format_args, app, _get_class_function
+    from spectrochempy.core import _format_args, app
 
     if len(args) > 1:
         kwargs["category"] = args[1]  # priority to arg
     category = kwargs.pop("category", SpectroChemPyWarning)
-    stack = inspect.stack()
+    # stack = inspect.stack()
     stg = _format_args(f"{category.__name__}: ", str(args[0]), stacklevel=-3)
     app.logs.warning(stg)

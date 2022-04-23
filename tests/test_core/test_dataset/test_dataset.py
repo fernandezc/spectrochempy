@@ -587,7 +587,7 @@ def test_nddataset_coordset():
     assert da.shape == (10, 7, 3)
     assert da.coordset.titles == ["temperature", "time-on-stream", "wavelength"]
     assert da.coordset.names == ["x", "y", "z"]
-    assert da.coordunits == [ur.Unit("K"), ur.Unit("s"), ur.Unit("cm^-1")]
+    assert da.coordunits == ["K", "s", "cm⁻¹"]
     # order of dims follow data shape, but not necessarily the coord list (
     # which is ordered by name)
     assert da.dims == ["z", "y", "x"]
@@ -1782,6 +1782,36 @@ def test_nddataset_meta(ndarray):
     nd.ito("MHz")
     assert nd.units == ur.MHz
     nd.meta.larmor = None
+
+
+def test_nddataset_issue_20():
+    # Description of bug #20
+    # -----------------------
+    # X = read_omnic(os.path.join('irdata', 'CO@Mo_Al2O3.SPG'))
+    #
+    # # slicing a NDDataset with an integer is OK for the coord:
+    # X[:,100].x
+    # Out[4]: Coord: [float64] cm^-1
+    #
+    # # but not with an integer array :
+    # X[:,[100, 120]].x
+    # Out[5]: Coord: [int32] unitless
+    #
+    # # on the other hand, the explicit slicing of the coord is OK !
+    # X.x[[100,120]]
+    # Out[6]: Coord: [float64] cm^-1
+
+    X = scp.read_omnic("CO@Mo_Al2O3.SPG")
+    assert X.__str__() == "NDDataset: [float64] a.u. (shape: (y:19, x:3112))"
+
+    # slicing a NDDataset with an integer is OK for the coord:
+    assert X[:, 100].x.__str__() == "Coord: [float64] cm⁻¹ (size: 1)"
+
+    # The explicit slicing of the coord is OK !
+    assert X.x[[100, 120]].__str__() == "Coord: [float64] cm⁻¹ (size: 2)"
+
+    # slicing the NDDataset with an integer array is also OK (fixed #20)
+    assert X[:, [100, 120]].x.__str__() == X.x[[100, 120]].__str__()
 
 
 def test_nddataset_issue_462():

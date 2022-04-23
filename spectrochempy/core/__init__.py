@@ -13,7 +13,6 @@ Most the API methods such as plotting, processing, analysis, etc...
 
 import inspect
 import logging
-import sys
 from os import environ
 
 from spectrochempy.core.common.exceptions import SpectroChemPyWarning
