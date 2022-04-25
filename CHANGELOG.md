@@ -55,7 +55,6 @@
 * `NDDataset.from_xarray`: Create a new dataset from a `xarray.DataArray` object.
 
 ### BUGS FIXED
-* Issue #462, correct load and dump of multicoordinates in scp format.
 * Docstrings in CoordSet
 * Coordset SubCoordinate ordering fixed.
 * Coordinate _sort method
@@ -79,23 +78,34 @@
 
 ### DEPRECATED
 * `LinearCoord` object is now deprecated. Use `Coord` with the `linear` keywords set to True instead.
-* MCRALS: 'unimodMod' and 'unimodTol' attributes are now deprectated
 
 ### For the developpers
 * Docstrings now use docrep.
 * Major refactoring of the code.
 
+## Version 0.4.6 
+
+### BUG FIXED
+* Issue #462, correct load and dump of multicoordinates in scp format.
+* MCRALS: handling of `nonnegSpec=[]` or `None` 
+
+### DEPRECATED
+* MCRALS: 'logs' attribute now replaced by `log`.
+
 ## Version 0.4.5 [2022-04-09]
 
 ### NEW FEATURES
 * Documentation improvement.
-* MCRALS: add spectra unimodality constraint on MCRALS, `unimodMod` and `unimodTol now deprecated.
+* MCRALS: add spectra unimodality constraint on MCRALS
 * PCA: add `plotmerit()` method in PCA.
 * Readers: add Surface Optics Corp. reader.
 * SIMPLISMA: `verbose` parameter now deprecated.
 
 ### BUG FIXED
 * Compatibility with pint=0.19.
+
+### DEPRECATED
+* MCRALS: 'unimodMod' and 'unimodTol' attributes are now deprectated
 
 ## Version 0.4.4 [2022-03-22]
 
