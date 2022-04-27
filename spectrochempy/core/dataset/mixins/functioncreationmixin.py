@@ -6,22 +6,22 @@
 #  See full LICENSE agreement in the root directory.
 #  =====================================================================================
 
-import sys
 import numpy as np
 from spectrochempy.core.units.units import Quantity
 from spectrochempy.core.dataset.mixins.mixinutils import _from_numpy_method
-from spectrochempy.core.dataset.basearrays.ndarray import _docstring
 
 __all__ = []
 
 
-class NDArrayFunctionBaseMixin:
-    # creation functions suitable for coordinates and datasets
+class NDArraySeriesCreationMixin:
+    # creation function that generate series suitable for coordinates
 
     @_from_numpy_method
     def arange(cls, start=0, stop=None, step=None, dtype=None, **kwargs):
         """
-        Return evenly spaced values within a given interval.
+        Returns evenly spaced values within a given interval.
+
+        It can be used as a class or an instance method (see examples).
 
         Values are generated within the half-open interval [start, stop).
 
@@ -52,20 +52,215 @@ class NDArrayFunctionBaseMixin:
         Returns
         -------
         object
-            Array of evenly spaced values.
 
         See Also
         --------
         linspace : Evenly spaced numbers with careful handling of endpoints.
+        logscale : Evenly spaced numbers on a log scale.
 
         Examples
         --------
 
-        >>> scp.arange(1, 20.0001, 1, units='s', name='mycoord')
-        NDDataset: [float64] s (size: 20)
+        >>> scp.Coord.arange(1, 20.0001, 1, units='K', title="temperature")
+        Coord (temperature): [float64] K (size: 20)
+
+        >>> scp.Coord().arange(1, 20.0001, 1, units='K', title="temperature")
+        Coord (temperature): [float64] K (size: 20)
         """
 
         return cls(np.arange(start, stop, step, dtype), **kwargs)
+
+    @_from_numpy_method
+    def fromiter(cls, iterable, dtype=np.float64, count=-1, **kwargs):
+        """
+        Create a new 1-dimensional array from an iterable object.
+
+        Parameters
+        ----------
+        iterable : iterable object
+            An iterable object providing data for the array.
+        dtype : data-type
+            The data-type of the returned array.
+        count : int, optional
+            The number of items to read from iterable. The default is -1, which means
+            all data is read.
+        **kwargs
+            Other kwargs are passed to the final object constructor.
+
+        Returns
+        -------
+        object
+
+        See Also
+        --------
+        fromfunction : Construct an array by executing a function.
+
+        Notes
+        -----
+            Specify count to improve performance. It allows fromiter to pre-allocate
+            the output array, instead of resizing it on demand.
+
+        Examples
+        --------
+
+        >>> iterable = (x * x for x in range(5))
+        >>> d = scp.Coord.fromiter(iterable, float, units='km')
+        >>> d
+        NDDataset: [float64] km (size: 5)
+        >>> d.data
+        array([       0,        1,        4,        9,       16])
+        """
+
+        return cls(np.fromiter(iterable, dtype=dtype, count=count), **kwargs)
+
+    @_from_numpy_method
+    def geomspace(cls, start, stop, num=50, endpoint=True, dtype=None, **kwargs):
+        """
+        Return numbers spaced evenly on a log scale (a geometric progression).
+
+        This is similar to `logspace`, but with endpoints specified directly.
+        Each output sample is a constant multiple of the previous.
+
+        Parameters
+        ----------
+        start : number
+            The starting value of the sequence.
+        stop : number
+            The final value of the sequence, unless `endpoint` is False.
+            In that case, ``num + 1`` values are spaced over the
+            interval in log-space, of which all but the last (a sequence of
+            length `num`) are returned.
+        num : int, optional
+            Number of samples to generate.  Default is 50.
+        endpoint : bool, optional
+            If true, `stop` is the last sample. Otherwise, it is not included.
+            Default is True.
+        dtype : dtype
+            The type of the output array.  If `dtype` is not given, infer the data
+            type from the other input arguments.
+        **kwargs
+            Keywords argument used when creating the returned object, such as units,
+            name, title, ...
+
+        Returns
+        -------
+        geomspace
+            `num` samples, equally spaced on a log scale.
+
+        See Also
+        --------
+        logspace : Similar to geomspace, but with endpoints specified using log
+                   and base.
+        linspace : Similar to geomspace, but with arithmetic instead of geometric
+                   progression.
+        arange : Similar to linspace, with the step size specified instead of the
+                 number of samples.
+        """
+
+        return cls(np.geomspace(start, stop, num, endpoint, dtype), **kwargs)
+
+    @_from_numpy_method
+    def linspace(
+        cls, start, stop, num=50, endpoint=True, retstep=False, dtype=None, **kwargs
+    ):
+        """
+        Return evenly spaced numbers over a specified interval.
+
+        Returns num evenly spaced samples, calculated over the interval [start,
+        stop]. The endpoint of the interval
+        can optionally be excluded.
+
+        Parameters
+        ----------
+        start : array_like
+            The starting value of the sequence.
+        stop : array_like
+            The end value of the sequence, unless endpoint is set to False.
+            In that case, the sequence consists of all but the last of num + 1 evenly
+            spaced samples, so that stop is
+            excluded. Note that the step size changes when endpoint is False.
+        num : int, optional
+            Number of samples to generate. Default is 50. Must be non-negative.
+        endpoint : bool, optional
+            If True, stop is the last sample. Otherwise, it is not included. Default
+            is True.
+        retstep : bool, optional
+            If True, return (samples, step), where step is the spacing between samples.
+        dtype : dtype, optional
+            The type of the array. If dtype is not given, infer the data type from
+            the other input arguments.
+        **kwargs
+            Keywords argument used when creating the returned object, such as units,
+            name, title, ...
+
+        Returns
+        -------
+        object
+            There are num equally spaced samples in the closed interval [start,
+            stop] or the half-open interval
+            [start, stop) (depending on whether endpoint is True or False).
+        step : float, optional
+            Only returned if retstep is True
+            Size of spacing between samples.
+        """
+
+        return cls(np.linspace(start, stop, num, endpoint, retstep, dtype), **kwargs)
+
+    @_from_numpy_method
+    def logspace(
+        cls, start, stop, num=50, endpoint=True, base=10.0, dtype=None, **kwargs
+    ):
+        """
+        Return numbers spaced evenly on a log scale.
+
+        In linear space, the sequence starts at ``base ** start``
+        (`base` to the power of `start`) and ends with ``base ** stop``
+        (see `endpoint` below).
+
+        Parameters
+        ----------
+        start : array_like
+            ``base ** start`` is the starting value of the sequence.
+        stop : array_like
+            ``base ** stop`` is the final value of the sequence, unless `endpoint`
+            is False.  In that case, ``num + 1`` values are spaced over the
+            interval in log-space, of which all but the last (a sequence of
+            length `num`) are returned.
+        num : int, optional
+            Number of samples to generate.  Default is 50.
+        endpoint : bool, optional
+            If true, `stop` is the last sample. Otherwise, it is not included.
+            Default is True.
+        base : float, optional
+            The base of the log space. The step size between the elements in
+            ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
+            Default is 10.0.
+        dtype : dtype
+            The type of the output array.  If `dtype` is not given, infer the data
+            type from the other input arguments.
+        **kwargs
+            Keywords argument used when creating the returned object, such as units,
+            name, title, ...
+
+        Returns
+        -------
+        object
+
+        See Also
+        --------
+        arange : Similar to linspace, with the step size specified instead of the
+                 number of samples. Note that, when used with a float endpoint, the
+                 endpoint may or may not be included.
+        linspace : Similar to logspace, but with the samples uniformly distributed
+                   in linear space, instead of log space.
+        geomspace : Similar to logspace, but with endpoints specified directly.
+        """
+
+        return cls(np.logspace(start, stop, num, endpoint, base, dtype), **kwargs)
+
+
+class NDArrayCreationMixin(NDArraySeriesCreationMixin):
+    # creation functions suitable for coordinates and datasets
 
     @_from_numpy_method
     def empty(cls, shape, dtype=None, **kwargs):
@@ -224,133 +419,6 @@ class NDArrayFunctionBaseMixin:
         return cls(np.eye(N, M, k, dtype), **kwargs)
 
     @_from_numpy_method
-    def fromfunction(
-        cls, function, shape=None, dtype=float, units=None, coordset=None, **kwargs
-    ):
-        """
-        Construct a nddataset by executing a function over each coordinate.
-
-        The resulting array therefore has a value ``fn(x, y, z)`` at coordinate ``(x,
-        y, z)`` .
-
-        Parameters
-        ----------
-        function : callable
-            The function is called with N parameters, where N is the rank of
-            `shape` or from the provided `coordset`.
-        shape : (N,) tuple of ints, optional
-            Shape of the output array, which also determines the shape of
-            the coordinate arrays passed to `function`. It is optional only if
-            `coordset` is None.
-        dtype : data-type, optional
-            Data-type of the coordinate arrays passed to `function`.
-            By default, `dtype` is float.
-        units : str, optional
-            Dataset units.
-            When None, units will be determined from the function results.
-        coordset : |Coordset| instance, optional
-            If provided, this determine the shape and coordinates of each dimension of
-            the returned |NDDataset|. If shape is also passed it will be ignored.
-        **kwargs
-            Other kwargs are passed to the final object constructor.
-
-        Returns
-        -------
-        fromfunction
-            The result of the call to `function` is passed back directly.
-            Therefore the shape of `fromfunction` is completely determined by
-            `function`.
-
-        See Also
-        --------
-        fromiter : Make a dataset from an iterable.
-
-        Examples
-        --------
-        Create a 1D NDDataset from a function
-
-        >>> func1 = lambda t, v: v * t
-        >>> time = scp.Coord.arange(0, 60, 10, units='min')
-        >>> d = scp.fromfunction(func1, v=scp.Quantity(134, 'km/hour'),
-        coordset=scp.CoordSet(t=time))
-        >>> d.dims
-        ['t']
-        >>> d
-        NDDataset: [float64] km (size: 6)
-        """
-
-        from spectrochempy.core.dataset.coordset import CoordSet
-
-        if coordset is not None:
-            if not isinstance(coordset, CoordSet):
-                coordset = CoordSet(*coordset)
-            shape = coordset.sizes
-
-        idx = np.indices(shape)
-
-        args = [0] * len(shape)
-        if coordset is not None:
-            for i, co in enumerate(coordset):
-                args[i] = co.data[idx[i]]
-                if units is None and co.has_units:
-                    args[i] = Quantity(args[i], co.units)
-
-        kw = kwargs.pop("kw", {})
-        data = function(*args, **kw)
-
-        data = data.T
-        dims = coordset.names[::-1]
-        new = cls(data, coordset=coordset, dims=dims, units=units, **kwargs)
-        new.ito_reduced_units()
-        return new
-
-    @_from_numpy_method
-    def fromiter(cls, iterable, dtype=np.float64, count=-1, **kwargs):
-        """
-        Create a new 1-dimensional array from an iterable object.
-
-        Parameters
-        ----------
-        iterable : iterable object
-            An iterable object providing data for the array.
-        dtype : data-type
-            The data-type of the returned array.
-        count : int, optional
-            The number of items to read from iterable. The default is -1, which means
-            all data is read.
-        **kwargs
-            Other kwargs are passed to the final object constructor.
-
-        Returns
-        -------
-        fromiter
-            The output nddataset.
-
-        See Also
-        --------
-        fromfunction : Construct a nddataset by executing a function over each
-        coordinate.
-
-        Notes
-        -----
-            Specify count to improve performance. It allows fromiter to pre-allocate
-            the output array,
-            instead of resizing it on demand.
-
-        Examples
-        --------
-
-        >>> iterable = (x * x for x in range(5))
-        >>> d = scp.fromiter(iterable, float, units='km')
-        >>> d
-        NDDataset: [float64] km (size: 5)
-        >>> d.data
-        array([       0,        1,        4,        9,       16])
-        """
-
-        return cls(np.fromiter(iterable, dtype=dtype, count=count), **kwargs)
-
-    @_from_numpy_method
     def full(cls, shape, fill_value=0.0, dtype=None, **kwargs):
         """
         Return a new |NDDataset| of given shape and type, filled with `fill_value`.
@@ -474,52 +542,6 @@ class NDArrayFunctionBaseMixin:
         return cls
 
     @_from_numpy_method
-    def geomspace(cls, start, stop, num=50, endpoint=True, dtype=None, **kwargs):
-        """
-        Return numbers spaced evenly on a log scale (a geometric progression).
-
-        This is similar to `logspace`, but with endpoints specified directly.
-        Each output sample is a constant multiple of the previous.
-
-        Parameters
-        ----------
-        start : number
-            The starting value of the sequence.
-        stop : number
-            The final value of the sequence, unless `endpoint` is False.
-            In that case, ``num + 1`` values are spaced over the
-            interval in log-space, of which all but the last (a sequence of
-            length `num`) are returned.
-        num : int, optional
-            Number of samples to generate.  Default is 50.
-        endpoint : bool, optional
-            If true, `stop` is the last sample. Otherwise, it is not included.
-            Default is True.
-        dtype : dtype
-            The type of the output array.  If `dtype` is not given, infer the data
-            type from the other input arguments.
-        **kwargs
-            Keywords argument used when creating the returned object, such as units,
-            name, title, ...
-
-        Returns
-        -------
-        geomspace
-            `num` samples, equally spaced on a log scale.
-
-        See Also
-        --------
-        logspace : Similar to geomspace, but with endpoints specified using log
-                   and base.
-        linspace : Similar to geomspace, but with arithmetic instead of geometric
-                   progression.
-        arange : Similar to linspace, with the step size specified instead of the
-                 number of samples.
-        """
-
-        return cls(np.geomspace(start, stop, num, endpoint, dtype), **kwargs)
-
-    @_from_numpy_method
     def identity(cls, n, dtype=None, **kwargs):
         """
         Return the identity |NDDataset| of a given shape.
@@ -558,106 +580,6 @@ class NDArrayFunctionBaseMixin:
         """
 
         return cls(np.identity(n, dtype), **kwargs)
-
-    @_from_numpy_method
-    def linspace(
-        cls, start, stop, num=50, endpoint=True, retstep=False, dtype=None, **kwargs
-    ):
-        """
-        Return evenly spaced numbers over a specified interval.
-
-        Returns num evenly spaced samples, calculated over the interval [start,
-        stop]. The endpoint of the interval
-        can optionally be excluded.
-
-        Parameters
-        ----------
-        start : array_like
-            The starting value of the sequence.
-        stop : array_like
-            The end value of the sequence, unless endpoint is set to False.
-            In that case, the sequence consists of all but the last of num + 1 evenly
-            spaced samples, so that stop is
-            excluded. Note that the step size changes when endpoint is False.
-        num : int, optional
-            Number of samples to generate. Default is 50. Must be non-negative.
-        endpoint : bool, optional
-            If True, stop is the last sample. Otherwise, it is not included. Default
-            is True.
-        retstep : bool, optional
-            If True, return (samples, step), where step is the spacing between samples.
-        dtype : dtype, optional
-            The type of the array. If dtype is not given, infer the data type from
-            the other input arguments.
-        **kwargs
-            Keywords argument used when creating the returned object, such as units,
-            name, title, ...
-
-        Returns
-        -------
-        linspace : ndarray
-            There are num equally spaced samples in the closed interval [start,
-            stop] or the half-open interval
-            [start, stop) (depending on whether endpoint is True or False).
-        step : float, optional
-            Only returned if retstep is True
-            Size of spacing between samples.
-        """
-
-        return cls(np.linspace(start, stop, num, endpoint, retstep, dtype), **kwargs)
-
-    @_from_numpy_method
-    def logspace(
-        cls, start, stop, num=50, endpoint=True, base=10.0, dtype=None, **kwargs
-    ):
-        """
-        Return numbers spaced evenly on a log scale.
-
-        In linear space, the sequence starts at ``base ** start``
-        (`base` to the power of `start`) and ends with ``base ** stop``
-        (see `endpoint` below).
-
-        Parameters
-        ----------
-        start : array_like
-            ``base ** start`` is the starting value of the sequence.
-        stop : array_like
-            ``base ** stop`` is the final value of the sequence, unless `endpoint`
-            is False.  In that case, ``num + 1`` values are spaced over the
-            interval in log-space, of which all but the last (a sequence of
-            length `num`) are returned.
-        num : int, optional
-            Number of samples to generate.  Default is 50.
-        endpoint : bool, optional
-            If true, `stop` is the last sample. Otherwise, it is not included.
-            Default is True.
-        base : float, optional
-            The base of the log space. The step size between the elements in
-            ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
-            Default is 10.0.
-        dtype : dtype
-            The type of the output array.  If `dtype` is not given, infer the data
-            type from the other input arguments.
-        **kwargs
-            Keywords argument used when creating the returned object, such as units,
-            name, title, ...
-
-        Returns
-        -------
-        logspace
-            `num` samples, equally spaced on a log scale.
-
-        See Also
-        --------
-        arange : Similar to linspace, with the step size specified instead of the
-                 number of samples. Note that, when used with a float endpoint, the
-                 endpoint may or may not be included.
-        linspace : Similar to logspace, but with the samples uniformly distributed
-                   in linear space, instead of log space.
-        geomspace : Similar to logspace, but with endpoints specified directly.
-        """
-
-        return cls(np.logspace(start, stop, num, endpoint, base, dtype), **kwargs)
 
     @_from_numpy_method
     def ones(cls, shape, dtype=None, **kwargs):
@@ -910,30 +832,112 @@ class NDArrayFunctionBaseMixin:
 
         return cls
 
+    @_from_numpy_method
+    def fromfunction(
+        cls, function, shape=None, dtype=np.float64, units=None, coordset=None, **kwargs
+    ):
+        """
+        Construct a nddataset by executing a function over each coordinate.
 
-# ------------------------------------------------------------------
-# module functions
-# ------------------------------------------------------------------
-# make API functions
-api_funcs = [  # creation functions
-    "arange",
-    "empty",
-    "empty_like",
-    "eye",
-    "fromfunction",
-    "fromiter",
-    "full",
-    "full_like",
-    "geomspace",
-    "identity",
-    "linspace",
-    "logspace",
-    "ones",
-    "ones_like",
-    "zeros",
-    "zeros_like",
-]
-thismodule = sys.modules[__name__]
-for funcname in api_funcs:
-    setattr(thismodule, funcname, getattr(NDArrayFunctionBaseMixin, funcname))
-    thismodule.__all__.append(funcname)
+        The resulting array therefore has a value ``fn(x, y, z)`` at coordinate ``(x,
+        y, z)`` .
+
+        Parameters
+        ----------
+        function : callable
+            The function is called with N parameters, where N is the rank of
+            `shape` or from the provided `coordset`.
+        shape : (N,) tuple of ints, optional
+            Shape of the output array, which also determines the shape of
+            the coordinate arrays passed to `function`. It is optional only if
+            `coordset` is None.
+        dtype : data-type, optional
+            Data-type of the coordinate arrays passed to `function`.
+            By default, `dtype` is float.
+        units : str, optional
+            Dataset units.
+            When None, units will be determined from the function results.
+        coordset : |Coordset| instance, optional
+            If provided, this determine the shape and coordinates of each dimension of
+            the returned |NDDataset|. If shape is also passed it will be ignored.
+        **kwargs
+            Other kwargs are passed to the final object constructor.
+
+        Returns
+        -------
+        fromfunction
+            The result of the call to `function` is passed back directly.
+            Therefore the shape of `fromfunction` is completely determined by
+            `function`.
+
+        See Also
+        --------
+        fromiter : Make a dataset from an iterable.
+
+        Examples
+        --------
+        Create a 1D NDDataset from a function
+
+        >>> func1 = lambda t, v: v * t
+        >>> time = scp.Coord.arange(0, 60, 10, units='min')
+        >>> d = scp.fromfunction(func1, v=scp.Quantity(134, 'km/hour'),
+        coordset=scp.CoordSet(t=time))
+        >>> d.dims
+        ['t']
+        >>> d
+        NDDataset: [float64] km (size: 6)
+        """
+
+        from spectrochempy.core.dataset.coordset import CoordSet
+
+        if coordset is not None:
+            if not isinstance(coordset, CoordSet):
+                coordset = CoordSet(*coordset)
+            shape = coordset.sizes
+
+        idx = np.indices(shape)
+
+        args = [0] * len(shape)
+        if coordset is not None:
+            for i, co in enumerate(coordset):
+                args[i] = co.data[idx[i]]
+                if units is None and co.has_units:
+                    args[i] = Quantity(args[i], co.units)
+
+        kw = kwargs.pop("kw", {})
+        data = function(*args, **kw)
+
+        data = data.T
+        dims = coordset.names[::-1]
+        new = cls(data, coordset=coordset, dims=dims, units=units, **kwargs)
+        new.ito_reduced_units()
+        return new
+
+
+# # ------------------------------------------------------------------
+# # module functions  (probably not very intuitive to use thiese function as API
+# function ... it is better to reserve them to Class or instance method .
+# # ------------------------------------------------------------------
+# # make API functions
+# api_funcs = [  # creation functions
+#     "arange",
+#     "empty",
+#     "empty_like",
+#     "eye",
+#     "fromfunction",
+#     "fromiter",
+#     "full",
+#     "full_like",
+#     "geomspace",
+#     "identity",
+#     "linspace",
+#     "logspace",
+#     "ones",
+#     "ones_like",
+#     "zeros",
+#     "zeros_like",
+# ]
+# thismodule = sys.modules[__name__]
+# for funcname in api_funcs:
+#     setattr(thismodule, funcname, getattr(NDArrayFunctionBaseMixin, funcname))
+#     thismodule.__all__.append(funcname)

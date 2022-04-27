@@ -399,13 +399,6 @@ def test_coord_to_xarray():
     assert isinstance(cz["z"], xarray.Variable)
 
 
-def test_linearcoord_deprecated():
-    from spectrochempy.core.dataset.coord import LinearCoord
-
-    with assert_produces_log_warning(DeprecationWarning):
-        _ = LinearCoord(title="z")
-
-
 def test_coord_slicing():
     # slicing by index
 
@@ -506,12 +499,37 @@ def test_coord_default():
 
 def test_coord_functions():
 
-    coord0 = Coord.linspace(200.0, 300.0, 3, units="K", title="temperature")
-    coord1 = Coord(np.linspace(200.0, 300.0, 3), units="K", title="temperature")
-    assert coord1 == coord0
+    # class method
+    c = Coord.arange(1, 20.0001, 1, units="K", title="temperature")
+    assert str(c) == "Coord (temperature): [float64] K (size: 20)"
+
+    # instance method
+    c = Coord().arange(1, 20.0001, 1, units="K", title="temperature")
+    assert str(c) == "Coord (temperature): [float64] K (size: 20)"
+
+    c = Coord.linspace(200.0, 300.0, 3, units="K", title="temperature")
+    assert c == Coord(np.linspace(200.0, 300.0, 3), units="K", title="temperature")
+
+    c = Coord.logspace(200.0, 300.0, 3, units="K", title="temperature")
+    assert str(c) == "Coord (temperature): [float64] K (size: 3)"
+
+    c = Coord.geomspace(200.0, 300.0, 3, units="K", title="temperature")
+    assert str(c) == "Coord (temperature): [float64] K (size: 3)"
+
+    iterable = (x * x for x in range(5))
+    d = Coord.fromiter(iterable, float, units="km")
+    assert str(d) == "Coord (value): [float64] km (size: 5)"
+
+    iterable = (x * x for x in range(5))
+    d = Coord.fromiter(iterable, count=4, dtype=float, units="km")
+    assert str(d) == "Coord (value): [float64] km (size: 4)"
 
 
-# coord3 = scp.linspace(200.0, 300.0, 3, units="K", title="temperature")
+def test_linearcoord_deprecated():
+    from spectrochempy.core.dataset.coord import LinearCoord
+
+    with assert_produces_log_warning(DeprecationWarning):
+        _ = LinearCoord(title="z")
 
 
 # ======================================================================================
@@ -803,9 +821,6 @@ def test_coordset_unit_property(coord0, coord1, coord2):
     c = CoordSet(coord2, [coord0, coord0.copy()], coord1)
     assert c.units == ["s", ["cm⁻¹", "cm⁻¹"], "K"]
     assert c.y.units == ur("cm⁻¹")
-
-
-# public methods
 
 
 def test_coordset_keys_method(coord0, coord1, coord2):

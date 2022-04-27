@@ -55,7 +55,9 @@ from spectrochempy.core.dataset.basearrays.ndlabeledarray import (
     NDLabeledArray,
     _docstring,
 )
-from spectrochempy.core.dataset.mixins.functionbasemixin import NDArrayFunctionBaseMixin
+from spectrochempy.core.dataset.mixins.functioncreationmixin import (
+    NDArraySeriesCreationMixin,
+)
 from spectrochempy.core.dataset.mixins.numpymixin import (
     NDArrayFunctionMixin,
     NDArrayUfuncMixin,
@@ -75,7 +77,7 @@ from spectrochempy.utils.optional import import_optional_dependency
 # Coord
 # ======================================================================================
 class Coord(
-    NDLabeledArray, NDArrayUfuncMixin, NDArrayFunctionMixin, NDArrayFunctionBaseMixin
+    NDLabeledArray, NDArrayUfuncMixin, NDArrayFunctionMixin, NDArraySeriesCreationMixin
 ):
     __doc__ = _docstring.dedent(
         """

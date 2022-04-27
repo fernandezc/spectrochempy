@@ -50,6 +50,7 @@ from spectrochempy.utils.optional import import_optional_dependency
 from spectrochempy.utils.system import get_user_and_node
 from spectrochempy.core.units import Unit, encode_quantity
 
+
 # ======================================================================================
 # NDDataset class definition
 # ======================================================================================

@@ -8,7 +8,6 @@
 """
 SpectroChemPy specific exceptions
 """
-import warnings
 import sys
 import logging
 from pathlib import Path
@@ -309,7 +308,7 @@ def handle_exception(*args):
 
     stg = _get_trace_info(*args)
     app.logs.handlers[0].setFormatter(logging.Formatter("%(message)s"))
-    app.logs.handlers[1].setFormatter(logging.Formatter(f"[%(asctime)s - %(message)s"))
+    app.logs.handlers[1].setFormatter(logging.Formatter("[%(asctime)s - %(message)s]"))
     app.logs.error(stg)
     sys.exit(1)
 

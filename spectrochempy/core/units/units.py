@@ -24,7 +24,6 @@ __all__ = [
 from warnings import warn
 from functools import wraps
 
-import numpy as np
 from pint import (
     set_application_registry,
     UnitRegistry,

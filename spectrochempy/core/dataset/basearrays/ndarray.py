@@ -1384,7 +1384,7 @@ class NDArray(tr.HasTraits):
         """
         return self._title
 
-    @title.setter
+    @long_name.setter
     def long_name(self, value):
         self._title = value
 
