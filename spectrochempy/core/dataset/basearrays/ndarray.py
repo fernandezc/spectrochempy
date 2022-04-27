@@ -1380,7 +1380,7 @@ class NDArray(tr.HasTraits):
     @property
     def long_name(self):
         """
-        Alias for title
+        Alias for title.
         """
         return self._title
 

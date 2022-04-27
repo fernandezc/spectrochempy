@@ -447,46 +447,6 @@ def test_coord_linearize():
     c = Coord(arr, linear=True, decimals=3)
 
 
-def test_coord_ufuncs():
-
-    coord = Coord(data=np.linspace(4000, 1000, 10), title="wavelength")
-    coord1 = coord + 1000.0
-    assert coord1[0].values == 5000.0
-    assert coord1.title == "wavelength"
-
-    # with units
-    coord0 = Coord(data=np.linspace(4000, 1000, 10), units="cm^-1")
-    coord1 = coord0 + 1000.0 * ur("cm^-1")
-    assert coord1[0].values == 5000.0 * ur("cm^-1")
-
-    # without units for the second operand
-    coord1 = coord0 + 1000.0
-    assert coord1[0].values == 5000.0 * ur("cm^-1")
-
-    coord2 = coord - 500.0
-    assert coord2[0].values == 3500.0
-
-    coord2 = np.subtract(coord0, 500.0)
-    assert coord2[0].values == 3500.0 * ur("cm^-1")
-
-    coord2 = 500.0 - coord0
-    assert coord2[0].values == -3500.0 * ur("cm^-1")
-
-    coord2 += 3000
-    assert coord2[0].values == -500.0 * ur("cm^-1")
-
-    # test_ufunc on coord
-    c = np.multiply(coord2, 2, coord2)
-    assert c is coord2
-    assert coord2[0].values == -1000.0 * ur("cm^-1")
-
-    with pytest.raises(NotImplementedError):
-        np.fmod(coord2, 2)
-
-    with pytest.raises(NotImplementedError):
-        np.multiply.accumulate(coord2)
-
-
 def test_coord_default():
     # gettting attribute default on a single coordinate should not give an error.
 
@@ -526,7 +486,50 @@ def test_coord_functions():
     d = Coord.fromiter(iterable, count=4, dtype=float, units="km")
     assert str(d) == "Coord (value): [float64] km (size: 4)"
 
-    #
+    # Maths
+    e = Coord.linspace(200.0, 300.0, 3, units="K", title="temperature")
+    f = e + 2.0
+    assert f[0].data == 202.0
+
+
+def test_coord_ufuncs():
+
+    coord = Coord(data=np.linspace(4000, 1000, 10), title="wavelength")
+    coord1 = coord + 1000.0
+    assert coord1[0].values == 5000.0
+    assert coord1.title == "wavelength"
+
+    # with units
+    coord0 = Coord(data=np.linspace(4000, 1000, 10), units="cm^-1")
+    coord1 = coord0 + 1000.0 * ur("cm^-1")
+    assert coord1[0].values == 5000.0 * ur("cm^-1")
+
+    # without units for the second operand
+    coord1 = coord0 + 1000.0
+    assert coord1[0].values == 5000.0 * ur("cm^-1")
+
+    coord2 = coord - 500.0
+    assert coord2[0].values == 3500.0
+
+    coord2 = np.subtract(coord0, 500.0)
+    assert coord2[0].values == 3500.0 * ur("cm^-1")
+
+    coord2 = 500.0 - coord0
+    assert coord2[0].values == -3500.0 * ur("cm^-1")
+
+    coord2 += 3000
+    assert coord2[0].values == -500.0 * ur("cm^-1")
+
+    # test_ufunc on coord
+    c = np.multiply(coord2, 2, coord2)
+    assert c is coord2
+    assert coord2[0].values == -1000.0 * ur("cm^-1")
+
+    with pytest.raises(NotImplementedError):
+        np.fmod(coord2, 2)
+
+    with pytest.raises(NotImplementedError):
+        np.multiply.accumulate(coord2)
 
 
 def test_linearcoord_deprecated():
@@ -693,9 +696,6 @@ def test_coordset_implements_method(coord0, coord1):
     c = CoordSet(coord0, coord1)
     assert c._implements("CoordSet")
     assert c._implements() == "CoordSet"
-
-
-# read_only properties
 
 
 def test_coordset_available_names_property(coord0, coord1, coord2):
