@@ -153,6 +153,7 @@ class Coord(
         "subtract",
         "multiply",
         "true_divide",
+        "power",
         "reciprocal",
         "log",
         "log2",

@@ -499,6 +499,8 @@ def test_coord_default():
 
 def test_coord_functions():
 
+    # Creation function
+
     # class method
     c = Coord.arange(1, 20.0001, 1, units="K", title="temperature")
     assert str(c) == "Coord (temperature): [float64] K (size: 20)"
@@ -523,6 +525,8 @@ def test_coord_functions():
     iterable = (x * x for x in range(5))
     d = Coord.fromiter(iterable, count=4, dtype=float, units="km")
     assert str(d) == "Coord (value): [float64] km (size: 4)"
+
+    #
 
 
 def test_linearcoord_deprecated():
