@@ -687,7 +687,7 @@ def test_coordset_coordset_example():
     cs = CoordSet(v=[coord1, coord1b])
     cs = CoordSet([coord1, coord1b])
     cs = CoordSet(t=coord0, u=coord2, v=[coord1, coord1b])
-    assert str(cs.u) == "Coord u(elapsed time): [float64] hr (size: 6)"
+    assert str(cs.u) == "Coord u(elapsed time): [float64] h (size: 6)"
     assert str(cs.v.parent) == "CoordSet: [_0:temperature, _1:magnetic field]"
     assert str(cs.v_0) == "Coord _0(temperature): [float64] K (size: 4)"
 
