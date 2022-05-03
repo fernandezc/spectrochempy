@@ -18,6 +18,10 @@ from datetime import datetime, tzinfo
 
 import numpy as np
 import pytz
+
+# TODO: for py>=3.9, we could use builtin zoneinfo library instead of pytz
+#       but we need compatibility with 3.7 (Colab).
+#       Change this when this compatibilty is no more necessary
 import traitlets as tr
 from traittypes import Array
 
@@ -1114,6 +1118,13 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
         self._history.append((date, value))
 
     @property
+    def local_timezone(self):
+        """
+        Return the local timezone.
+        """
+        return str(datetime.utcnow().astimezone().tzinfo)
+
+    @property
     def meta(self):
         """
         Return an additional metadata dictionary.
@@ -1145,6 +1156,19 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
         """
         modified = pytz.utc.localize(self._modified)
         return modified.astimezone(self.timezone).isoformat(sep=" ", timespec="seconds")
+
+    @property
+    def origin(self):
+        """
+        Origin of the data.
+
+        e.g. spectrometer or software
+        """
+        return self._origin
+
+    @origin.setter
+    def origin(self, value):
+        self._origin = value
 
     @property
     def parent(self):
@@ -1280,19 +1304,6 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
             new._mask = new._mask[tuple(indexes)]
 
         return new
-
-    @property
-    def origin(self):
-        """
-        Origin of the data.
-
-        e.g. spectrometer or software
-        """
-        return self._origin
-
-    @origin.setter
-    def origin(self, value):
-        self._origin = value
 
     def take(self, indices, **kwargs):
         """

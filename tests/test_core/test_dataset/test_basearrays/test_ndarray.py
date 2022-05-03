@@ -336,11 +336,8 @@ def test_ndarray_setitem(ndarrayunit):
     nd[1] = 2.0  # assume same units as the array
     assert nd[1, 0].value == 2 * ur("m/s")
     # set item with quantity
-    nd[1] = 3.0 * ur("km/hr")
+    nd[1] = 3.0 * ur("km/h")
     assert nd[1, 0].value == (30 / 36) * ur("m/s")
-    with pytest.raises(DimensionalityError):
-        nd[1] = 3.0 * ur("km/h")  # here there is a mistake (h is the planck
-        # constant not a time, so dimensionality is not correct
     # set item with fancy indexing
     nd[[0, 1, 5]] = 2
     assert np.all(nd[5].data == np.array([2] * 8))

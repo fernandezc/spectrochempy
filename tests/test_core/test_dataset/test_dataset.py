@@ -18,6 +18,7 @@ from spectrochempy.core.common.exceptions import (
     ShapeError,
     MissingCoordinatesError,
 )
+from spectrochempy.core.dataset.basearrays.ndarray import NDArray
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.units import ur
@@ -49,9 +50,11 @@ ref3d_mask = ref3d_data < -3
 ref3d_2_mask = ref3d_2_data < -2
 
 
-# ------------------------------------------------------------------
-# Fixtures: Some scp.NDDatasets
-# ------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def ndarray():
+    # return a simple ndarray with some data
+    return NDArray(ref_data, comment="An array", copy=True)
+
 
 coord0_ = scp.Coord(
     data=np.linspace(4000.0, 1000.0, 10),
@@ -421,6 +424,16 @@ def test_nddataset_swapdims():
     assert nds.swapdims(0, 1) == nds
 
 
+def test_nddataset_timezone():
+    nd = NDDataset(np.ones((1, 3, 1, 2)), name="value")
+    assert nd.timezone is not None
+    assert str(nd.timezone) == nd.local_timezone
+    nd.timezone = "UTC"
+    assert nd.timezone != nd.local_timezone
+    with pytest.raises(UnknownTimeZoneError):
+        nd.timezone = "XXX"
+
+
 def test_nddataset_transpose():
     nd = NDDataset(np.ones((1, 3, 1, 2)), name="value")
     assert (
@@ -438,16 +451,6 @@ def test_nddataset_transpose():
     # cannot transpose 1D
     nd = NDDataset([1, 2, 3])
     assert_array_equal(nd.T.data, nd.data)
-
-
-def test_nddataset_timezone():
-    nd = NDDataset(np.ones((1, 3, 1, 2)), name="value")
-    assert nd.timezone is not None
-    assert str(nd.timezone) == nd.local_timezone
-    nd.timezone = "UTC"
-    assert nd.timezone != nd.local_timezone
-    with pytest.raises(UnknownTimeZoneError):
-        nd.timezone = "XXX"
 
 
 def test_nddataset_swapdims_transpose():

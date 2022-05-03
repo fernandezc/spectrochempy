@@ -525,7 +525,7 @@ class CoordSet(tr.HasTraits):
     Display coordinates
 
     >>> cs.u
-    Coord u(elapsed time): [float64] hr (size: 6)
+    Coord u(elapsed time): [float64] h (size: 6)
 
     For multiple coordinates, the default is returned
     >>> cs.v

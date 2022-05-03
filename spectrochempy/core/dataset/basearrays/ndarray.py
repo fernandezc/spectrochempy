@@ -1357,13 +1357,6 @@ class NDArray(tr.HasTraits):
         return np.array([self._data.min(), self._data.max()])
 
     @property
-    def local_timezone(self):
-        """
-        Return the local timezone.
-        """
-        return str(datetime.utcnow().astimezone().tzinfo)
-
-    @property
     def title(self):
         """
         Return a user-friendly name for the array title.
