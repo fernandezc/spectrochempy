@@ -46,7 +46,7 @@ dependencies:
     - matplotlib>=3.5
     - numba=0.55.0
     - numpy=1.21.5
-    - pint>=0.18
+    - pint>=0.19
     - requests
     - scipy
     - tqdm
@@ -88,11 +88,11 @@ dependencies:
     # DEV: code and docs
     - mamba
     - jupytext
-    - sphinx<4.0
+    - sphinx
     - sphinx_rtd_theme
     - autodocsumm
-    - sphinx-gallery<=0.7.0
-    - nbsphinx=0.8.1
+    - sphinx-gallery
+    - nbsphinx
     - jupyter_sphinx
     - json5
     - sphinx-copybutton

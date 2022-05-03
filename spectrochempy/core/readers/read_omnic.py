@@ -757,7 +757,7 @@ def _read_spa(*args, **kwargs):
     #     key: hex 02, dec  02: position of spectral header (=> nx,
     #                                 firstx, lastx, nscans, nbkgscans)
     #     key: hex 03, dec  03: intensity position
-    #     #     key: hex 04, dec  04: user text position (custom info, can be present
+    #     key: hex 04, dec  04: user text position (custom info, can be present
     #                           several times. The text length is five bytes later)
     #     key: hex 1B, dec  27: position of History text, The text length
     #                           is five bytes later
@@ -785,6 +785,8 @@ def _read_spa(*args, **kwargs):
     while "continue":
         fid.seek(pos)
         key = _fromfile(fid, dtype="uint8", count=1)
+
+        # print(key, end=' ; ')
 
         if key == 2:
             # read the position of the header
@@ -903,8 +905,7 @@ def _read_spa(*args, **kwargs):
         for comment in spa_comments:
             dataset.description += comment + "\n---------------------\n"
 
-    dataset.history = "imported from spa file(s)"
-
+    dataset.history = "Imported from spa file(s)"
     if "spa_history" in locals():
         if len("spa_history".strip(" ")) > 0:
             dataset.history = "Data processing history from Omnic :"
@@ -1097,6 +1098,9 @@ def _read_srs(*args, **kwargs):
     #     )
     #     dataset.history = f"Imported from srs file {filename}"
     # >>>>>>> release/0.4_initial_dev
+
+    dataset.meta.laser_frequency = info["reference_frequency"] * ur("cm^-1")
+    dataset.meta.collection_length = info["collection_length"] * ur("s")
 
     dataset.meta.laser_frequency = info["reference_frequency"] * ur("cm^-1")
     dataset.meta.collection_length = info["collection_length"] * ur("s")
