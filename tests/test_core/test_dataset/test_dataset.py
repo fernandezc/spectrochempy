@@ -368,19 +368,7 @@ def test_nddataset_init_2D(arr):
 
 
 def test_nddataset_squeeze(ndarray):
-    nd = ndarray.copy()
-    assert nd.shape == (10, 8)
-    d = nd[..., 0]
-    assert d.shape == (10, 1)
-    d = d.squeeze()
-    assert d.shape == (10,)
-    d = nd[0]
-    assert d.shape == (1, 8)
-    d = d.squeeze()
-    assert d.shape == (8,)
-    d = nd[..., 0]
-    d = np.squeeze(d)
-    assert d.shape == (10,)
+
     nd = NDDataset()
     assert nd._squeeze_ndim == 0
     nd = NDDataset(np.ones((1, 3, 1, 2)), name="value")

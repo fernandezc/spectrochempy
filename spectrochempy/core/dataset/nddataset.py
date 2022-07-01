@@ -934,7 +934,7 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
     @property
     def coordnames(self):
         """
-        tr.List of the |Coord| names.
+        List of the |Coord| names.
 
         Read only property.
         """
@@ -1012,13 +1012,13 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
 
     @property
     def description(self):
-        """Comment or description of the current object"""
+        """Comment or description of the current object."""
         return self._description
 
     comment = description
-    comment.__doc__ = "Alias for description"
+    comment.__doc__ = "Alias for description."
     notes = description
-    notes.__doc__ = "Alias for description"
+    notes.__doc__ = "Alias for description."
 
     @description.setter
     def description(self, value):
@@ -1208,7 +1208,7 @@ class NDDataset(NDMaskedComplexArray):  # NDIO, NDPlot, NDManipulation, NDMath,
 
     def set_coordtitles(self, *args, **kwargs):
         """
-        DEPRECATED. Use set_coordtitle
+        DEPRECATED. Use set_coordtitle.
         """
         self.set_coordtitles(*args, **kwargs)
 
