@@ -6,8 +6,6 @@
 # ======================================================================================
 import numpy as np
 
-__all__ = ["generate_fake"]
-
 
 # --------------------------------------------------------------------------------------
 # Create fake data to be used by analysis routine for testing
@@ -99,5 +97,4 @@ def generate_fake():
 
 
 if __name__ == "__main__":
-
     pass

@@ -8,26 +8,17 @@
 
 import logging
 
-from spectrochempy import (
-    DEBUG,
-    INFO,
-    WARNING,
-    debug_,
-    error_,
-    info_,
-    set_loglevel,
-    warning_,
-)
+from spectrochempy import debug_, error_, info_, set_loglevel, warning_
 
 
 def test_logger(caplog):
     logger = logging.getLogger("SpectroChemPy")
     logger.propagate = True
-    caplog.set_level(DEBUG)
+    caplog.set_level("DEBUG")
 
     # We can set the level using strings
 
-    set_loglevel(WARNING)
+    set_loglevel("WARNING")
 
     error_(Exception, "\n" + "*" * 80 + "\n")
     debug_("debug in WARNING level - should not appear")
@@ -37,7 +28,7 @@ def test_logger(caplog):
 
     error_(NameError, "\n" + "*" * 80 + "\n")
 
-    set_loglevel(INFO)
+    set_loglevel("INFO")
 
     debug_("debug in INFO level - should not appear on stdout")
     info_("OK - info in INFO level")

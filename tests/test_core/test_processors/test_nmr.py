@@ -11,7 +11,7 @@ import os
 import numpy as np
 import pytest
 
-from spectrochempy.core import preferences as prefs
+from spectrochempy.application import preferences as prefs
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.units import ur
 from spectrochempy.utils.plots import show

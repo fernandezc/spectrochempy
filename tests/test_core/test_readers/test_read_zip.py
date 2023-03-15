@@ -9,7 +9,7 @@
 
 import pytest
 
-from spectrochempy.core import preferences as prefs
+from spectrochempy.application import preferences as prefs
 from spectrochempy.core.dataset.nddataset import NDDataset
 
 DATADIR = prefs.datadir

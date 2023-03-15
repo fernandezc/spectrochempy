@@ -32,7 +32,7 @@ from traitlets import (
     validate,
 )
 
-from spectrochempy.core import error_, info_
+from spectrochempy.application import error_, info_
 from spectrochempy.core.dataset.baseobjects.meta import Meta
 from spectrochempy.core.units import (
     DimensionalityError,
@@ -42,16 +42,12 @@ from spectrochempy.core.units import (
     ur,
 )
 from spectrochempy.extern.traittypes import Array
+from spectrochempy.utils.compare import is_number, is_sequence
 from spectrochempy.utils.constants import INPLACE, MASKED, NOMASK, MaskedConstant
+from spectrochempy.utils.dtypes import TYPE_FLOAT, TYPE_INTEGER
 from spectrochempy.utils.file import pathclean
-from spectrochempy.utils.misc import (
-    TYPE_FLOAT,
-    TYPE_INTEGER,
-    is_number,
-    is_sequence,
-    make_new_object,
-)
-from spectrochempy.utils.print import (
+from spectrochempy.utils.misc import make_new_object
+from spectrochempy.utils.prints import (
     convert_to_html,
     insert_masked_print,
     numpyprintoptions,
@@ -76,14 +72,16 @@ class NDArray(HasTraits):
     """
     The basic |NDArray| object.
 
-    The |NDArray| class is an array (numpy |ndarray|-like) container, usually not intended to be used directly,
-    as its basic functionalities may be quite limited, but to be subclassed.
+    The |NDArray| class is an array (numpy |ndarray|\-like) container, usually not
+    intended to be used directly, as its basic functionalities may be quite limited,
+    but to be subclassed.
 
-    Indeed, both the classes |NDDataset| and |Coord| which respectively implement a full dataset (with
-    coordinates) and the coordinates in a given dimension, are derived from |NDArray| in |scpy| .
+    Indeed, both the classes |NDDataset| and |Coord| which respectively implement a full
+    dataset (with coordinates) and the coordinates in a given dimension, are derived
+    from |NDArray| in |scpy| .
 
-    The key distinction from raw numpy |ndarray| is the presence of optional properties such as dimension names,
-    labels, masks, units and/or extensible metadata dictionary.
+    The key distinction from raw numpy |ndarray| is the presence of optional properties
+    such as dimension names, labels, masks, units and/or extensible metadata dictionary.
 
     Parameters
     ----------

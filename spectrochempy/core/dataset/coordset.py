@@ -30,8 +30,8 @@ from traitlets import (
 
 from spectrochempy.core.dataset.baseobjects.ndarray import DEFAULT_DIM_NAME, NDArray
 from spectrochempy.core.dataset.coord import Coord, LinearCoord
-from spectrochempy.utils.misc import is_sequence
-from spectrochempy.utils.print import colored_output, convert_to_html
+from spectrochempy.utils.compare import is_sequence
+from spectrochempy.utils.prints import colored_output, convert_to_html
 
 
 # ======================================================================================
@@ -258,9 +258,10 @@ class CoordSet(HasTraits):
         self._updated = True
 
         # set a notifier on the name traits name of each coordinates
-        for coord in self._coords:
-            if coord is not None:
-                HasTraits.observe(coord, self._coords_update, "_name")
+        if self._coords is not None:
+            for coord in self._coords:
+                if coord is not None:
+                    HasTraits.observe(coord, self._coords_update, "_name")
 
         # initialize the base class with the eventual remaining arguments
         super().__init__(**kwargs)

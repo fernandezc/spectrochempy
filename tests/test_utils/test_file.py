@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from spectrochempy import NO_DISPLAY
-from spectrochempy.core import preferences as prefs
+from spectrochempy.application import preferences as prefs
 from spectrochempy.utils.file import check_filenames, get_filenames, pathclean
 
 

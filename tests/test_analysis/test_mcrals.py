@@ -10,7 +10,7 @@
 import numpy as np
 
 from spectrochempy.analysis.mcrals import MCRALS
-from spectrochempy.core import set_loglevel
+from spectrochempy.application import set_loglevel
 from spectrochempy.core.dataset.arraymixins.npy import dot
 from spectrochempy.core.dataset.nddataset import Coord, NDDataset
 from spectrochempy.utils.plots import show

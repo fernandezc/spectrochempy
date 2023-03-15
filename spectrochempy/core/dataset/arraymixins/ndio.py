@@ -20,12 +20,10 @@ import numpy as np
 from numpy.lib.npyio import zipfile_factory
 from traitlets import HasTraits, Instance, Unicode, Union
 
-from spectrochempy.core.dataset.coord import Coord, LinearCoord
-from spectrochempy.core.dataset.coordset import CoordSet
 from spectrochempy.utils import exceptions
+from spectrochempy.utils.dtypes import TYPE_BOOL
 from spectrochempy.utils.file import check_filename_to_save, pathclean
 from spectrochempy.utils.jsonutils import json_serialiser
-from spectrochempy.utils.misc import TYPE_BOOL
 from spectrochempy.utils.zip import ScpFile
 
 SCPY_SUFFIX = {"NDDataset": ".scp", "Project": ".pscp"}
@@ -330,6 +328,8 @@ class NDIO(HasTraits):
     @classmethod
     def loads(cls, js):
 
+        from spectrochempy.core.dataset.coord import Coord, LinearCoord
+        from spectrochempy.core.dataset.coordset import CoordSet
         from spectrochempy.core.dataset.nddataset import NDDataset
         from spectrochempy.core.project.project import Project
         from spectrochempy.core.script import Script

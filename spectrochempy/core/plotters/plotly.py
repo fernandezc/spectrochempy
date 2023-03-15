@@ -10,7 +10,7 @@
 # import numpy as np
 #
 # from spectrochempy.utils import colorscale
-# from spectrochempy.core import preferences
+# from spectrochempy.application import preferences
 #
 # # from matplotlib.ticker import MaxNLocator
 #

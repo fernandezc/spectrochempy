@@ -5,40 +5,107 @@
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
 import re
+import textwrap
 
 import numpy as np
 from colorama import Fore, Style
 
-__all__ = [
-    "numpyprintoptions",
-    "insert_masked_print",
-    "TBlack",
-    "TBold",
-    "TRed",
-    "TGreen",
-    "TBlue",
-    "TCyan",
-    "TMagenta",
-    "TYellow",
-    "colored",
-    "colored_output",
-    "pstr",
-    "convert_to_html",
-]
+
+def make_summary(
+    object, colored=True, html=False, indent=0, no_name=False, no_size=False
+):
+    """
+    Return a detailed string representation of an object content.
+
+    The summary gives a friendly representation of the NDArray object content.
+
+    Parameters
+    ==========
+    object : instance
+        Object for which the summary will be printed.
+    colored : bool, optional, default: True
+        If True summary output is displayed in a colored mode in terminals.
+    indent : int, optional, default: 0
+        Number of space for the line indentation.
+    no_name : bool, optional
+    no_size : bool, optional
+
+    Returns
+    =======
+    str
+        A string with the object metadata.
+    """
+    kwargs = dict(
+        colored=colored, html=html, indent=indent, no_name=no_name, no_size=no_size
+    )
+    ps = pstr(object, **kwargs)
+
+    # if "@start" not in ps :
+    # align already done
+    ps = align_text_on_common(ps, **kwargs)
+
+    if not html:
+        # remove temporary markers
+        regex = r"(^.*@start).*$[\n]*"
+        ps = re.sub(regex, "", ps, 0, re.MULTILINE)
+        regex = r"(^.*@end).*$[\n]*"
+        ps = re.sub(regex, "", ps, 0, re.MULTILINE)
+        ps = textwrap.indent(ps, " " * indent)
+
+    ps = ps.rstrip()
+    return colored_output(ps) if colored else ps
+
+
+def format_log_args(*args, **kwargs):
+    # Build the message string for error
+    # ------------------------
+    stg = ""
+    for arg in args:
+        stg += pstr(arg, **kwargs) + " "
+    stg = stg.replace("\0", "").strip()
+    stg = stg.replace("\n", " ").strip()
+    return stg
 
 
 def pstr(object, **kwargs):
-    if hasattr(object, "_implements") and object._implements() in [
-        "NDArray",
-        "NDComplexArrray",
-        "NDDataset",
-        "LinearCoord",
-        "Coord",
-        "CoordSet",
-    ]:
-        return object._cstr(**kwargs).strip()
-    else:
-        return str(object).strip()
+    if hasattr(object, "_custom_str"):
+        txt = "\n".join(object._custom_str(**kwargs))
+    elif not isinstance(object, str):
+        txt = repr(object)
+    return txt.rstrip()
+
+
+def align_text_on_common(txt, **kwargs):
+
+    txt = txt.splitlines()
+    lines = []
+    length = 0
+    for line in txt:
+        if "\:" in line:
+            # we want to keep this part intact
+            line = line.replace("\:", "\[column]")
+        if ":" in line:
+            parts = line.split(":", maxsplit=1)
+        else:
+            parts = ["", line]
+        parts = list(map(lambda x: x.strip(), parts))
+        lines.append(parts)
+        length = max(length, len(parts[0]))
+
+    txt = ""
+    fmt = "{:>%d}" % (length)
+    prefix = "|@|"
+    for line in lines:
+        line[0] = fmt.format(line[0].strip())
+        line[1] = line[1].strip()
+        line = ": ".join(line) if len(line[0].strip()) > 0 else "  ".join(line)
+        if "DIMENSION" in line or "Coordinates" in line or "DATA" in line:
+            line = line.strip()
+        txt += prefix + line.rstrip() + "\n"
+    txt = txt.replace("|@|", "")
+    txt = txt.replace("\[column]", "\:")
+    txt = txt.rstrip()
+    return txt
 
 
 # ======================================================================================
@@ -81,12 +148,15 @@ def colored(text, color):
     return c + str(text) + Fore.RESET
 
 
-def colored_output(out):
+def colored_output(out, apply=True):
+    # if not apply:
+    #    TBold = TBlack = TGreen = TCyan = TBlue = lambda x: x
+
     regex = r"^(\W*(DIMENSION|DATA).*)$"
     subst = TBold(r"\1")
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
-    regex = r"^(\W{10}\(_\d{1}\))"
+    regex = r"^(\W{10}\(_\d{1}\)\*?)"
     subst = TBold(r"\1")
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
@@ -94,7 +164,7 @@ def colored_output(out):
     subst = TBlack(r"\1")
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
-    regex = r"^(\W{0,12}\w+\W?\w+)(:\W{1}.*$)"
+    regex = r"^(\W{0,12}\w+\W?\w+(?:\[\d\])?)(:\W{1}.*$)"
     subst = TGreen(r"\1") + r"\2"
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
@@ -109,39 +179,55 @@ def colored_output(out):
     return out
 
 
-#
+# ======================================================================================
 # html output
-#
-
-
+# ======================================================================================
 def html_output(out):
     return out
 
 
 def convert_to_html(obj):
-    tr = (
-        "<tr>"
-        "<td style='padding-right:5px; padding-bottom:0px; "
-        "padding-top:0px; width:124px'>{0}</td>"
-        "<td style='text-align:left; padding-bottom:0px; "
-        "padding-top:0px; {2} '>{1}</td><tr>\n"
+    tr1 = (
+        "<thead style='padding-right:5px; padding-bottom:0px; padding-top:0px; "
+        "font-size: inherit; width:88px'>\n"
+        "       {0}\n"
+        "</thead>\n"
     )
+    tr2 = (
+        "<tr>\n"
+        "  <td style='padding-right:5px; padding-bottom:0px; padding-top:0px; "
+        "font-size: inherit; width:88px'>\n"
+        "       {0}\n"
+        "  </td>\n"
+        "  <td style='font-size: inherit; text-align:left; padding-bottom:0px; "
+        "padding-top:0px; {2} '>\n"
+        "       {1}\n"
+        "  </td>\n"
+        "</tr>\n"
+    )
+    tr3 = (
+        "<tr>\n"
+        "  <td style='padding-right:5px; padding-bottom:0px; padding-top:0px; "
+        "font-size: inherit; width:88px'>\n"
+        "       {0}\n"
+        "  </td>\n"
+        "</tr>\n"
+    )
+    out = pstr(obj, colored=False, html=True)
 
-    obj._html_output = True
+    regex = r"(@start)"
+    out = re.sub(regex, "<table>", out, 0, re.MULTILINE)
 
-    out = obj._cstr()
+    regex = r"(@end)"
+    out = re.sub(regex, "</table>\n", out, 0, re.MULTILINE)
 
     regex = r"\0{3}[\w\W]*?\0{3}"
-
-    # noinspection PyPep8
-    def subst(match):
-        return "<div>{}</div>".format(
-            match.group(0).replace("\n", "<br/>").replace("\0", "")
-        )
-
+    subst = lambda match: f"<div>{match.group(0)}</div>".replace("\n", "<br/>").replace(
+        "\0", ""
+    )
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
-    regex = r"^(\W{0,12}\w+\W?\w+)(:\W{1}.*$)"  # r"^(\W*\w+\W?\w+)(:.*$)"
+    regex = r"^(\W{0,12}\w+\W?\w+(?:\[\d\])?)(:\W{1}.*$)"  # r"^(\W*\w+\W?\w+)(:.*$)"
     subst = r"<font color='green'>\1</font> \2"
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
@@ -154,23 +240,19 @@ def convert_to_html(obj):
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
     regex = r"\0{2}[\w\W]*?\0{2}"
-
-    # noinspection PyPep8
-    def subst(match):
-        return "<div><font color='darkcyan'>{}</font></div>".format(
-            match.group(0).replace("\n", "<br/>").replace("\0", "")
-        )
-
+    subst = lambda match: f'<div><font color="darkcyan">{match.group(0)}</font></div>'.replace(
+        "\n", "<br/>"
+    ).replace(
+        "\0", ""
+    )
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
     regex = r"\0{1}[\w\W]*?\0{1}"
-
-    # noinspection PyPep8
-    def subst(match):
-        return "<div><font color='blue'>{}</font></div>".format(
-            match.group(0).replace("\n", "<br/>").replace("\0", "")
-        )
-
+    subst = (
+        lambda match: f'<div><font color="blue">{match.group(0)}</font></div>'.replace(
+            "\n", "<br/>"
+        ).replace("\0", "")
+    )
     out = re.sub(regex, subst, out, 0, re.MULTILINE)
 
     regex = r"\.{3}\s+\n"
@@ -181,14 +263,23 @@ def convert_to_html(obj):
         if "</font> :" in line:
             # keep only first match
             parts = line.split(":")
-            html += tr.format(
-                parts[0], ":".join(parts[1:]), "border:.5px solid lightgray; "
-            )
+            second = ":".join(parts[1:])
+            if "<br/>" in second:
+                second = f"""
+                <details>
+                <summary>Click to expand...</summary>
+                {second}
+                </details>
+                """
+            html += tr2.format(parts[0], second, "border:.5px solid lightgray; ")
         elif "<strong>" in line:
-            html += tr.format(line, "<hr/>", "padding-top:10px;")
-    html += "</table>"
+            html += tr1.format(line)
+        elif "No coordinates defined." in line:
+            html += tr3.format(line)
+        else:
+            html += line
 
-    obj._html_output = False
+    html += "</table>"
 
     return html
 
@@ -200,7 +291,6 @@ def convert_to_html(obj):
 #  see the header of numpy.ma.core.py for the license
 # ======================================================================================
 class _MaskedPrintOption(object):
-
     # """
     # Handle the string used to represent missing data in a masked array.
     # copied from numpy.ma.core
@@ -209,7 +299,6 @@ class _MaskedPrintOption(object):
     def __init__(self, display):
         # """
         # Create the masked_print_option object.
-        #
         # """
         self._display = display
         self._enabled = True
@@ -217,28 +306,24 @@ class _MaskedPrintOption(object):
     def display(self):
         # """
         # Display the string to print for masked values.
-        #
         # """
         return self._display
 
     def set_display(self, s):
         # """
         # Set the string to print for masked values.
-        #
         # """
         self._display = s
 
     def enabled(self):
         # """
         # Is the use of the display value enabled?
-        #
         # """
         return self._enabled
 
     def enable(self, shrink=1):
         # """
         # Set the enabling shrink to `shrink`.
-        #
         # """
         self._enabled = shrink
 
@@ -367,7 +452,7 @@ def numpyprintoptions(
     formatter=None,
     spc=4,
     linewidth=150,
-    **kargs
+    **kargs,
 ):
     """
     Method to control array printing.
@@ -385,7 +470,7 @@ def numpyprintoptions(
     """
 
     def _format_object(x):
-        from spectrochempy.utils.misc import TYPE_COMPLEX, TYPE_FLOAT, TYPE_INTEGER
+        from spectrochempy.utils.dtypes import TYPE_COMPLEX, TYPE_FLOAT, TYPE_INTEGER
 
         if isinstance(x, _MaskedPrintOption):
             # a workaround to format masked values
@@ -433,5 +518,5 @@ def numpyprintoptions(
         suppress=suppress,
         formatter=formatter,
         linewidth=linewidth,
-        **kargs
+        **kargs,
     )

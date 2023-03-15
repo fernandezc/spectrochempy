@@ -21,16 +21,12 @@ import tempfile
 import textwrap
 import traceback
 
-# import matplotlib
 import docrep
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy
 from numpydoc.docscrape import get_doc_object
 from numpydoc.validate import Validator, error, validate
-
-# With template backend, matplotlib plots nothing
-# matplotlib.use("template")
-
 
 PRIVATE_CLASSES = [
     "HasTraits",
@@ -63,7 +59,6 @@ inplace : bool, optional, default: False
 
 class DocstringProcessor(docrep.DocstringProcessor):
     def __init__(self, **kwargs):
-
         super().__init__(**kwargs)
 
         regex = re.compile(r"(?=^[*]{0,2}\b\w+\b\s?:?\s?)", re.MULTILINE | re.DOTALL)
@@ -140,6 +135,9 @@ def spectrochempy_error(code, **kwargs):
 
 class SpectroChemPyDocstring(Validator):
     def __init__(self, func_name, doc_obj=None):
+        # With template backend, matplotlib plots nothing
+        matplotlib.use("template")
+
         self.func_name = func_name
         if doc_obj is None:
             doc_obj = get_doc_object(Validator._load_obj(func_name))
@@ -336,7 +334,6 @@ def spectrochempy_validate(func_name, exclude=[]):
 
 class DocstringError(Exception):
     def __init__(self, result):
-
         message = ""
         message += f"{len(result['errors'])} DocstringError(s) found:\n"
         message += f"{' '*10}{'-'*26}\n"
@@ -375,7 +372,6 @@ def add_docstring(*args):
     """
 
     def new_doc(func):
-
         for item in args:
             item.strip()
 

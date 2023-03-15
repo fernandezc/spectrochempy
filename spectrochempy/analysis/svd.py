@@ -10,7 +10,6 @@ This module implements the Singular Value Decomposition (SVD) class.
 
 __all__ = ["SVD"]
 
-__dataset_methods__ = []
 
 import numpy as np
 from traitlets import HasTraits

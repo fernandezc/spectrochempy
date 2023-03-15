@@ -5,7 +5,6 @@
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
 __all__ = ["fft", "ifft", "mc", "ps", "ht"]
-
 __dataset_methods__ = __all__
 
 import re
@@ -14,17 +13,14 @@ import numpy as np
 from quaternion import as_float_array
 from scipy.signal import hilbert
 
-from spectrochempy.core import error_
+from spectrochempy.application import error_
 from spectrochempy.core.dataset.coord import LinearCoord
 from spectrochempy.core.processors.utils import _units_agnostic_method
 from spectrochempy.core.processors.zero_filling import zf_size
 from spectrochempy.core.units import ur
-from spectrochempy.utils.misc import (
-    as_quaternion,
-    get_component,
-    largest_power_of_2,
-    typequaternion,
-)
+from spectrochempy.utils.complex import as_quaternion, get_component
+from spectrochempy.utils.dtypes import typequaternion
+from spectrochempy.utils.numutils import largest_power_of_2
 
 
 # ======================================================================================
@@ -637,6 +633,5 @@ def ht(dataset, N=None):
     return z
 
 
-# ======================================================================================
-if __name__ == "__main__":  # pragma: no cover
-    pass
+if __name__ == "__main__":
+    """ """

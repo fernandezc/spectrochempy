@@ -18,7 +18,7 @@ import requests
 import yaml
 from traitlets import Dict, HasTraits, List, Type, Unicode
 
-from spectrochempy.core import info_, warning_
+from spectrochempy.application import info_, warning_
 from spectrochempy.utils.exceptions import DimensionsCompatibilityError, ProtocolError
 from spectrochempy.utils.file import (
     check_filename_to_open,
@@ -134,17 +134,9 @@ class Importer(HasTraits):
                 # here files are read / or remotely from the disk using filenames
                 self._switch_protocol(key, self.files, **kwargs)
 
-        # now we will reset preference for this newly loaded datasets
         if len(self.datasets) > 0:
-
             if all(self.datasets) is None:
                 return None
-
-            prefs = self.datasets[0].preferences
-            try:
-                prefs.reset()
-            except (FileNotFoundError, AttributeError):
-                pass
         else:
             return None
 
@@ -211,12 +203,12 @@ class Importer(HasTraits):
                 try:
                     res = _read_remote(self.objtype(), filename, **kwargs)
 
-                except OSError:
-                    raise e
-
                 except IOError as e:
                     warning_(str(e))
                     res = None
+
+                except OSError:
+                    raise e
 
                 except NotImplementedError as e:
                     warning_(str(e))
@@ -578,7 +570,7 @@ def _get_url_content_and_save(url, dst, replace):
 
 
 def _download_full_testdata_directory():
-    from spectrochempy.core import preferences as prefs
+    from spectrochempy.application import preferences as prefs
 
     datadir = prefs.datadir
 
@@ -651,7 +643,7 @@ def _relative_to(path, base):
 
 @_importer_method
 def _read_remote(*args, **kwargs):
-    from spectrochempy.core import preferences as prefs
+    from spectrochempy.application import preferences as prefs
 
     datadir = prefs.datadir
 
@@ -742,4 +734,45 @@ def _read_(*args, **kwargs):
 
 # --------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    pass
+    """Simple test"""
+
+    import spectrochempy as scp
+
+    scp.close_all_figures()
+
+    nd = scp.read_omnic("irdata/nh4y-activation.spg")
+
+    # generic 2d plot
+    nd.plot(title="nd.plot()")
+    nd.plot(method="map", title='nd.plot(method="map")')
+
+    # specific 2d method
+    nd.plot_image(title="nd.plot_image()")
+
+    # api 2d method
+    scp.plot(nd, title="scp.plot(nd)")
+    scp.plot(nd, method="map", title='scp.plot(nd, method="map")')
+    scp.plot_stack(nd, title="scp.plot_stack(nd)")
+
+    scp.show()
+
+    # 1D
+
+    nd1 = scp.NDDataset().read_omnic("irdata/nh4y-activation.spg")[1]
+
+    # generic plot1d
+
+    # as nddataset
+    nd1.plot(title="nd1.plot()")
+    # as API method
+    scp.plot(nd1, title="scp.plot(nd1)")
+
+    # method specified
+    nd1.plot(method="scatter", title='nd1.plot(method="scatter")')
+    nd1.plot_scatter(title="nd1.plot_scatter()")
+
+    scp.plot(nd1, method="scatter", title='scp.plot(nd1, method="scatter")')
+    scp.plot_scatter_pen(nd1, title="scp.plot_scatter_pen(nd1)")
+    scp.show()
+
+    #

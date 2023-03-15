@@ -16,15 +16,16 @@ __all__ = [
     "plot_multiple",
     "plot_scatter_pen",
 ]
-
 __dataset_methods__ = __all__
+
 
 import numpy as np
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
+from spectrochempy.application import preferences as prefs
 from spectrochempy.core.dataset.coord import Coord
+from spectrochempy.utils.compare import is_sequence
 from spectrochempy.utils.docstrings import add_docstring  # , deprecated
-from spectrochempy.utils.misc import is_sequence
 from spectrochempy.utils.plots import make_label, plot_method
 
 _PLOT1D_DOC = """\
@@ -69,7 +70,8 @@ linewidth or lw : float, optional, default: auto
 linestyle or ls : str, optional, default: auto
     line style definition.
 marker, m: str, optional, default: auto
-    marker type for scatter plot. If marker != "" then the scatter type of plot is chosen automatically.
+    marker type for scatter plot. If marker != "" then the scatter type of plot is
+    chosen automatically.
 markeredgecolor or mec: color, optional
 markeredgewidth or mew: float, optional
 markerfacecolor or mfc: color, optional
@@ -250,8 +252,8 @@ def plot_1D(dataset, method=None, **kwargs):
         Source of data to plot.
     method : str, optional, default: dataset.preference.method_1D
         The method can be one among ``pen``, ``bar``, ``scatter`` or ``scatter+pen``.
-        Default values is ``pen``, i.e., solid lines are drawn. This default can be changed
-        using ``dataset.preference.method_1D``.
+        Default values is ``pen``, i.e., solid lines are drawn. This default can be
+        changed using ``dataset.preference.method_1D``.
         To draw a Bar graph, use method ``bar``.
         For a Scatter plot, use method ``scatter``.
         For pen and scatter simultaneously, use method ``scatter+pen``.
@@ -273,8 +275,6 @@ def plot_1D(dataset, method=None, **kwargs):
 
     # Get preferences
     # ----------------------------------------------------------------------------------
-    prefs = dataset.preferences
-
     # before going further, check if the style is passed in the parameters
     style = kwargs.pop("style", None)
     if style is not None:

@@ -8,7 +8,7 @@
 
 import os
 
-from spectrochempy.core import preferences
+from spectrochempy.application import preferences
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.plotters.multiplot import (
     multiplot,

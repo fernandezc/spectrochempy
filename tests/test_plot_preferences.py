@@ -10,9 +10,9 @@ import spectrochempy as scp
 
 
 def test_plotpreferences():
-    dataset = scp.NDDataset.read("irdata/nh4y-activation.spg")
+    dataset = scp.read("irdata/nh4y-activation.spg")
 
-    prefs = dataset.preferences  # we will use prefs instead of dataset.preference
+    prefs = scp.preferences
     prefs.figure.figsize = (6, 3)  # The default figsize is (6.8,4.4)
     prefs.colorbar = True  # This add a color bar on a side
     prefs.colormap = "magma"  # The default colormap is viridis
@@ -28,7 +28,7 @@ def test_plotpreferences():
 
     prefs.colormap = "magma"
 
-    prefs.available_styles
+    assert "poster" in prefs.available_styles
 
     prefs.makestyle("scpy")
     prefs.makestyle()

@@ -12,125 +12,97 @@ import warnings
 from os import environ
 from pathlib import Path, PosixPath, WindowsPath
 
-__all__ = [
-    "get_filenames",
-    "get_directory_name",
-    "pathclean",
-    "patterns",
-    "check_filenames",
-    "check_filename_to_open",
-    "check_filename_to_save",
-    "download_testdata",
-]
+import traitlets as tr
+
+from spectrochempy.utils.paths import pathclean
 
 
 # ======================================================================================
-# Utility functions
+# DataDir class
 # ======================================================================================
-def download_testdata():
-    from spectrochempy.core import preferences
-    from spectrochempy.core.readers.importer import read_remote
-    from spectrochempy.utils.file import pathclean
-
-    datadir = pathclean(preferences.datadir)
-    # this process is relatively long, so we do not want to do it several time:
-    downloaded = datadir / "__downloaded__"
-    if not downloaded.exists():
-        read_remote(datadir, download_only=True)
-        downloaded.touch(exist_ok=True)
-
-
-def _insensitive_case_glob(pattern):
-    def either(c):
-        return f"[{c.lower()}{c.upper()}]" if c.isalpha() else c
-
-    return "".join(map(either, pattern))
-
-
-def patterns(filetypes, allcase=True):
-    regex = r"\*\.*\[*[0-9-]*\]*\w*\**"
-    patterns = []
-    if not isinstance(filetypes, (list, tuple)):
-        filetypes = [filetypes]
-    for ft in filetypes:
-        m = re.finditer(regex, ft)
-        patterns.extend([match.group(0) for match in m])
-    if not allcase:
-        return patterns
-    else:
-        return [_insensitive_case_glob(p) for p in patterns]
-
-
-def pathclean(paths):
+class DataDir(tr.HasTraits):
     """
-    Clean a path or a series of path in order to be compatible with windows and unix-based system.
-
-    Parameters
-    ----------
-    paths :  str or a list of str
-        Path to clean. It may contain windows or conventional python separators.
-
-    Returns
-    -------
-    out : a pathlib object or a list of pathlib objects
-        Cleaned path(s)
-
-    Examples
-    --------
-    >>> from spectrochempy.utils import pathclean
-
-    Using unix/mac way to write paths
-    >>> filename = pathclean('irdata/nh4y-activation.spg')
-    >>> filename.suffix
-    '.spg'
-    >>> filename.parent.name
-    'irdata'
-
-    or Windows
-    >>> filename = pathclean("irdata\\\\nh4y-activation.spg")
-    >>> filename.parent.name
-    'irdata'
-
-    Due to the escape character \\ in Unix, path string should be escaped \\\\ or the raw-string prefix `r` must be used
-    as shown below
-    >>> filename = pathclean(r"irdata\\nh4y-activation.spg")
-    >>> filename.suffix
-    '.spg'
-    >>> filename.parent.name
-    'irdata'
+    A class used to determine the path to the testdata directory.
     """
-    import platform
 
-    def is_windows():
-        win = "Windows" in platform.platform()
-        return win
+    path = tr.Instance(Path)
 
-    def _clean(path):
+    # ----------------------------------------------------------------------------------
+    # Special methods
+    # ----------------------------------------------------------------------------------
+    def __str__(self):
+        return self.listing()
 
-        if isinstance(path, (Path, PosixPath, WindowsPath)):
-            path = path.name
-        if is_windows():
-            path = WindowsPath(path)  # pragma: no cover
-        else:  # some replacement so we can handle window style path on unix
-            path = path.strip()
-            path = path.replace("\\", "/")
-            path = path.replace("\n", "/n")
-            path = path.replace("\t", "/t")
-            path = path.replace("\b", "/b")
-            path = path.replace("\a", "/a")
-            path = PosixPath(path)
-        return Path(path)
+    # ----------------------------------------------------------------------------------
+    # Private methods
+    # ----------------------------------------------------------------------------------
+    def _repr_html_(self):  # pragma: no cover
+        # _repr_html is needed to output in notebooks
+        return self.listing().replace("\n", "<br/>").replace(" ", "&nbsp;")
 
-    if paths is not None:
-        if isinstance(paths, (str, Path, PosixPath, WindowsPath)):
-            path = str(paths)
-            return _clean(path).expanduser()
-        elif isinstance(paths, (list, tuple)):
-            return [_clean(p).expanduser() if isinstance(p, str) else p for p in paths]
+    @tr.default("path")
+    def _get_path_default(self, **kwargs):  # pragma: no cover
+        super().__init__(**kwargs)
 
-    return paths
+        # create a directory testdata in .spectrochempy to avoid an error if the
+        # following do not work
+        path = find_or_create_spectrochempy_dir() / "testdata"
+        path.mkdir(exist_ok=True)
+
+        # try to use the conda installed testdata (spectrochempy_data package)
+        try:
+            conda_env = environ["CONDA_PREFIX"]
+            _path = Path(conda_env) / "share" / "spectrochempy_data" / "testdata"
+            if not _path.exists():
+                _path = (
+                    Path(conda_env) / "share" / "spectrochempy_data"
+                )  # depending on the version of spectrochempy_data
+            if _path.exists():
+                path = _path
+
+        except KeyError:
+            pass
+
+        return path
+
+    # ----------------------------------------------------------------------------------
+    # Public methods
+    # ----------------------------------------------------------------------------------
+    def listing(self):
+        """
+        Create a str representing a listing of the testdata folder.
+
+        Returns
+        -------
+        listing : str
+            Display of the datadir content
+        """
+        strg = f"{self.path.name}\n"  # os.path.basename(self.path) + "\n"
+
+        def _listdir(s, initial, nst):
+            nst += 1
+            for fil in pathclean(initial).glob(
+                "*"
+            ):  # glob.glob(os.path.join(initial, '*')):
+                filename = fil.name  # os.path.basename(f)
+                if filename.startswith("."):  # pragma: no cover
+                    continue
+                if (
+                    not filename.startswith("acqu")
+                    and not filename.startswith("pulse")
+                    and filename not in ["ser", "fid"]
+                ):
+                    s += "   " * nst + f"|__{filename}\n"
+                if fil.is_dir():
+                    s = _listdir(s, fil, nst)
+            return s
+
+        return _listdir(strg, self.path, -1)
 
 
+# ======================================================================================
+# File Utility functions
+# ======================================================================================
 def _get_file_for_protocol(f, **kwargs):
     protocol = kwargs.get("protocol", None)
     if protocol is not None:
@@ -150,132 +122,14 @@ def _get_file_for_protocol(f, **kwargs):
             return f.parent / lst[0]
 
 
-def check_filenames(*args, **kwargs):
-    """
-    Return a list or a dictionary of filenames.
+def _insensitive_case_glob(pattern):
+    def _either(c):
+        return f"[{c.lower()}{c.upper()}]" if c.isalpha() else c
 
-    Parameters
-    ----------
-    *args
-        If passed it is a str, a list of str or a dictionary containing filenames or a byte's contents.
-    **kwargs
-        Optional keywords parameters. See Other parameters
-
-    Other Parameters
-    ----------------
-    filename :
-    filetypes :
-    content :
-    protocol :
-    processed :
-    expno :
-    procno :
-    listdir :
-    glob :
-
-    See Also
-    --------
-    check_filename_to_open
-    check_filename_to_save
-
-    Examples
-    --------
-    """
-    from spectrochempy.core import preferences as prefs
-
-    datadir = pathclean(prefs.datadir)
-
-    filenames = None
-
-    if args:
-        if isinstance(args[0], (str, Path, PosixPath, WindowsPath)):
-            # one or several filenames are passed - make Path objects
-            filenames = pathclean(args)
-        elif isinstance(args[0], bytes):
-            # in this case, one or several byte contents has been passed instead of filenames
-            # as filename where not given we passed the 'unnamed' string
-            # return a dictionary
-            return {pathclean(f"no_name_{i}"): arg for i, arg in enumerate(args)}
-        elif isinstance(args[0], list) and isinstance(
-            args[0][0], (str, Path, PosixPath, WindowsPath)
-        ):
-            filenames = pathclean(args[0])
-        elif isinstance(args[0], list) and isinstance(args[0][0], bytes):
-            return {pathclean(f"no_name_{i}"): arg for i, arg in enumerate(args[0])}
-        elif isinstance(args[0], dict):
-            # return directly the dictionary
-            return args[0]
-
-    if not filenames:
-        # look into keywords (only the case where a str or pathlib filename is given are accepted)
-        filenames = kwargs.pop("filename", None)
-        filenames = [pathclean(filenames)] if pathclean(filenames) is not None else None
-
-    # Look for content in kwargs
-    content = kwargs.pop("content", None)
-    if content:
-        if not filenames:
-            filenames = [pathclean("no_name")]
-        return {filenames[0]: content}
-
-    if not filenames:
-        # no filename specified open a dialog
-        filetypes = kwargs.pop("filetypes", ["all files (*)"])
-        directory = pathclean(kwargs.pop("directory", None))
-        filenames = get_filenames(
-            directory=directory, dictionary=True, filetypes=filetypes, **kwargs
-        )
-    if filenames and not isinstance(filenames, dict):
-        filenames_ = []
-        for filename in filenames:
-            # in which directory ?
-            directory = filename.parent
-
-            if directory.resolve() == Path.cwd() or directory == Path("."):
-                directory = ""
-            kw_directory = pathclean(kwargs.get("directory", None))
-            if directory and kw_directory and directory != kw_directory:
-                # conflict we do not take into account the kw.
-                warnings.warn(
-                    "Two different directory where specified (from args and keywords arg). "
-                    "Keyword `directory` will be ignored!"
-                )
-            elif not directory and kw_directory:
-                filename = kw_directory / filename
-
-            # check if the file exists here
-            if not directory or str(directory).startswith("."):
-                # search first in the current directory
-                directory = Path.cwd()
-
-            f = directory / filename
-
-            fexist = f if f.exists() else _get_file_for_protocol(f, **kwargs)
-
-            if fexist is None:
-                f = datadir / filename
-                fexist = f if f.exists() else _get_file_for_protocol(f, **kwargs)
-
-            if fexist:
-                filename = fexist
-
-            # Particular case for topspin where filename can be provided as a directory only
-            # use of expno and procno
-            if filename.is_dir() and "topspin" in kwargs.get("protocol", []):
-                filename = _topspin_check_filename(filename, **kwargs)
-
-            if not isinstance(filename, list):
-                filename = [filename]
-
-            filenames_.extend(filename)
-
-        filenames = filenames_
-
-    return filenames
+    return "".join(map(_either, pattern))
 
 
 def _topspin_check_filename(filename, **kwargs):
-
     if kwargs.get("listdir", False) or kwargs.get("glob", None) is not None:
         # when we list topspin dataset we have to read directories, not directly files
         # we can retrieve them using glob patterns
@@ -312,7 +166,8 @@ def _topspin_check_filename(filename, **kwargs):
             else:
                 files_ = [f / "1r"]
 
-    # depending on the glob patterns too many files may have been selected : restriction to the valid subset
+    # depending on the glob patterns too many files may have been selected :
+    # restriction to the valid subset
     filename = []
     for item in files_:
         if item.name in ["fid", "ser", "1r", "2rr", "3rrr"]:
@@ -321,13 +176,297 @@ def _topspin_check_filename(filename, **kwargs):
     return filename
 
 
-def get_filenames(*filenames, **kwargs):
+def check_filename_to_open(*args, **kwargs):
+    """Check the args and keywords arg to determine the correct filename"""
+
+    filenames = check_filenames(*args, **kwargs)
+
+    if filenames is None:  # not args and
+        # this is probably due to a cancel action for an open dialog.
+        return
+
+    if not isinstance(filenames, dict):
+        if len(filenames) == 1 and filenames[0] is None:
+            raise FileNotFoundError
+
+        # deal with some specific cases
+        key = filenames[0].suffix.lower()
+        if not key:
+            if re.match(r"^fid$|^ser$|^[1-3][ri]*$", filenames[0].name) is not None:
+                key = ".topspin"
+        if key[1:].isdigit():
+            # probably an opus file
+            key = ".opus"
+        return {key: filenames}
+
+    elif len(args) > 0 and args[0] is not None:
+        # args where passed so in this case we have directly byte contents instead
+        # of filenames only
+        contents = filenames
+        return {"frombytes": contents}
+
+    else:
+        # probably no args (which means that we are coming from a dialog or from a full
+        # list of a directory
+        return filenames
+
+
+def check_filename_to_save(
+    dataset, filename=None, save_as=False, confirm=True, **kwargs
+):
+    """Check filename for saving."""
+    from spectrochempy.application import NO_DISPLAY, info_
+
+    NODIAL = (NO_DISPLAY or "DOC_BUILDING" in environ) and "KEEP_DIALOGS" not in environ
+
+    if filename and pathclean(filename).parent.resolve() == Path.cwd():
+        filename = Path.cwd() / filename
+
+    if not filename or save_as or filename.exists():
+        from spectrochempy.application import save_dialog
+
+        # no filename provided
+        open_diag = True
+        caption = "Save as ..."
+        if filename is None or (NODIAL and pathclean(filename).is_dir()):
+            filename = dataset.name
+            filename = filename + kwargs.get("suffix", ".scp")
+
+        # existing filename provided
+        elif filename.exists():
+            if confirm:
+                caption = "File exists. Confirm overwrite"
+            else:
+                info_(f"A file {filename} was present and has been overwritten.")
+                open_diag = False
+
+        if not NODIAL and open_diag:
+            filename = save_dialog(
+                caption=kwargs.pop("caption", caption),
+                filename=filename,
+                filters=kwargs.pop("filetypes", ["All file types (*.*)"]),
+                **kwargs,
+            )
+            if filename is None:
+                # this is probably due to a cancel action for an open dialog.
+                return
+
+    return pathclean(filename)
+
+
+def check_filenames(*args, **kwargs):
     """
-    Return a list or dictionary of the filenames of existing files, filtered by extensions.
+    Return a list or a dictionary of filenames.
 
     Parameters
     ----------
-    filenames : `str` or pathlib object, `tuple` or `list` of strings of pathlib object, optional.
+    *args
+        If passed it is a str, a list of str or a dictionary containing filenames or
+        a byte's contents.
+    **kwargs
+        Optional keywords parameters. See Other parameters
+
+    Other Parameters
+    ----------------
+    filename :
+    filetypes :
+    content :
+    protocol :
+    processed :
+    expno :
+    procno :
+    listdir :
+    glob :
+
+    See Also
+    --------
+    check_filename_to_open
+    check_filename_to_save
+
+    Examples
+    --------
+    """
+    from spectrochempy.application import preferences as prefs
+
+    datadir = pathclean(prefs.datadir)
+
+    filenames = None
+
+    if args:
+        if isinstance(args[0], (str, Path, PosixPath, WindowsPath)):
+            # one or several filenames are passed - make Path objects
+            filenames = pathclean(args)
+        elif isinstance(args[0], bytes):
+            # in this case, one or several byte contents has been passed instead of
+            # filenames
+            # as filename where not given we passed the 'unnamed' string
+            # return a dictionary
+            return {pathclean(f"no_name_{i}"): arg for i, arg in enumerate(args)}
+        elif isinstance(args[0], list) and isinstance(
+            args[0][0], (str, Path, PosixPath, WindowsPath)
+        ):
+            filenames = pathclean(args[0])
+        elif isinstance(args[0], list) and isinstance(args[0][0], bytes):
+            return {pathclean(f"no_name_{i}"): arg for i, arg in enumerate(args[0])}
+        elif isinstance(args[0], dict):
+            # return directly the dictionary
+            return args[0]
+
+    if not filenames:
+        # look into keywords (only the case where a str or pathlib filename is given
+        # are accepted)
+        filenames = kwargs.pop("filename", None)
+        filenames = [pathclean(filenames)] if pathclean(filenames) is not None else None
+
+    # Look for content in kwargs
+    content = kwargs.pop("content", None)
+    if content:
+        if not filenames:
+            filenames = [pathclean("no_name")]
+        return {filenames[0]: content}
+
+    if not filenames:
+        # no filename specified open a dialog
+        filetypes = kwargs.pop("filetypes", ["all files (*)"])
+        directory = pathclean(kwargs.pop("directory", None))
+        filenames = get_filenames(
+            directory=directory, dictionary=True, filetypes=filetypes, **kwargs
+        )
+    if filenames and not isinstance(filenames, dict):
+        filenames_ = []
+        for filename in filenames:
+            # in which directory ?
+            directory = filename.parent
+
+            if directory.resolve() == Path.cwd() or directory == Path("."):
+                directory = ""
+            kw_directory = pathclean(kwargs.get("directory", None))
+            if directory and kw_directory and directory != kw_directory:
+                # conflict we do not take into account the kw.
+                warnings.warn(
+                    "Two different directory where specified "
+                    "(from args and keywords arg). "
+                    "Keyword `directory` will be ignored!"
+                )
+            elif not directory and kw_directory:
+                filename = kw_directory / filename
+
+            # check if the file exists here
+            if not directory or str(directory).startswith("."):
+                # search first in the current directory
+                directory = Path.cwd()
+
+            f = directory / filename
+
+            fexist = f if f.exists() else _get_file_for_protocol(f, **kwargs)
+
+            if fexist is None:
+                f = datadir / filename
+                fexist = f if f.exists() else _get_file_for_protocol(f, **kwargs)
+
+            if fexist:
+                filename = fexist
+
+            # Particular case for topspin where filename can be provided as a directory
+            # only use of expno and procno
+            if filename.is_dir() and "topspin" in kwargs.get("protocol", []):
+                filename = _topspin_check_filename(filename, **kwargs)
+
+            if not isinstance(filename, list):
+                filename = [filename]
+
+            filenames_.extend(filename)
+
+        filenames = filenames_
+
+    return filenames
+
+
+def download_testdata():
+    from spectrochempy.application import preferences as prefs
+    from spectrochempy.core.readers.importer import read_remote
+    from spectrochempy.utils.paths import pathclean
+
+    datadir = pathclean(prefs.datadir)
+    # this process is relatively long, so we do not want to do it several time:
+    downloaded = datadir / "__downloaded__"
+    if not downloaded.exists():
+        read_remote(datadir, download_only=True)
+        downloaded.touch(exist_ok=True)
+
+
+def find_or_create_spectrochempy_dir():
+    directory = Path.home() / ".spectrochempy"
+
+    directory.mkdir(exist_ok=True)  # Create directory only if it does not exist
+
+    if directory.is_file():  # pragma: no cover
+        msg = "Intended SpectroChemPy directory `{0}` is actually a file."
+        raise IOError(msg.format(directory))
+
+    return directory
+
+
+def get_directory_name(directory, **kwargs):
+    """
+    Return a valid directory name.
+
+    Parameters
+    ----------
+    directory : `str` or `pathlib.Path` object, optional.
+        Directory name. If not provided, a dialog box is opened to select a directory.
+
+    Returns
+    --------
+    out: `pathlib.Path` object
+        valid directory name.
+    """
+
+    from spectrochempy.application import NO_DISPLAY
+    from spectrochempy.application import preferences as prefs
+
+    data_dir = pathclean(prefs.datadir)
+    working_dir = Path.cwd()
+
+    directory = pathclean(directory)
+
+    if directory:
+        if directory.is_dir():
+            # nothing else to do
+            return directory
+
+        elif (working_dir / directory).is_dir():
+            # if no parent directory: look at current working dir
+            return working_dir / directory
+
+        elif (data_dir / directory).is_dir():
+            return data_dir / directory
+
+        else:
+            # raise ValueError(f'"{dirname}" is not a valid directory')
+            warnings.warn(f'"{directory}" is not a valid directory')
+            return None
+
+    else:
+        # open a file dialog
+        directory = data_dir
+        if not NO_DISPLAY:  # this is for allowing test to continue in the background
+            from spectrochempy.application import open_dialog
+
+            directory = open_dialog(
+                single=False, directory=working_dir, filters="directory", **kwargs
+            )
+
+        return pathclean(directory)
+
+
+def get_filenames(*filenames, **kwargs):
+    """
+    Return a list or dictionary of the filenames filtered by extensions.
+
+    Parameters
+    ----------
+    filenames : `str` or pathlib object, `tuple` or `list`, optional.
         A filename or a list of filenames.
         If not provided, a dialog box is opened to select files in the current
         directory if no `directory` is specified).
@@ -355,18 +494,19 @@ def get_filenames(*filenames, **kwargs):
 
     Warnings
     --------
-    if several filenames are provided in the arguments, they must all reside in the same directory!
+    if several filenames are provided in the arguments, they must all reside
+    in the same directory!
 
     Examples
     --------
     """
 
-    from spectrochempy import NO_DIALOG
-    from spectrochempy.core import preferences as prefs
+    from spectrochempy.application import NO_DISPLAY
+    from spectrochempy.application import preferences as prefs
+    from spectrochempy.utils.paths import pathclean
 
-    NODIAL = (
-        NO_DIALOG or "DOC_BUILDING" in environ
-    ) and "KEEP_DIALOGS" not in environ  # flag to suppress dialog when doc is built or during full testing
+    NODIAL = (NO_DISPLAY or "DOC_BUILDING" in environ) and "KEEP_DIALOGS" not in environ
+    # flag to suppress dialog when doc is built or during full testing
 
     # allowed filetypes
     # -----------------
@@ -400,8 +540,9 @@ def get_filenames(*filenames, **kwargs):
 
     if directory is not None:
         if filenames:
-            # prepend to the filename (incompatibility between filename and directory specification
-            # will result to a error
+            # prepend to the filename (incompatibility between filename and directory
+            # specification
+            # will result to an error
             filenames = [directory / filename for filename in filenames]
         else:
             directory = get_directory_name(directory)
@@ -425,13 +566,13 @@ def get_filenames(*filenames, **kwargs):
 
     # now proceed with the filenames
     if filenames:
-
         # look if all the filename exists either in the specified directory,
-        # else in the current directory, and finally in the default preference data directory
+        # else in the current directory, and finally in the default preference
+        # data directory
         temp = []
         for i, filename in enumerate(filenames):
             if not (directory / filename).exists():
-                # the filename provided doesn't exists in the working directory
+                # the filename provided does not exist in the working directory
                 # try in the data directory
                 directory = pathclean(prefs.datadir)
                 if not (directory / filename).exists():
@@ -455,8 +596,7 @@ def get_filenames(*filenames, **kwargs):
         if not getdir:
             # we open a dialogue to select one or several files manually
             if not NODIAL:
-
-                from spectrochempy.core.common.dialogs import open_dialog
+                from spectrochempy.application import open_dialog
 
                 filenames = open_dialog(
                     single=False, directory=directory, filters=filetypes, **kwargs
@@ -470,9 +610,8 @@ def get_filenames(*filenames, **kwargs):
                 filenames = [pathclean(environ.get("TEST_FILE"))]
 
         else:
-
             if not NODIAL:
-                from spectrochempy.core.common.dialogs import open_dialog
+                from spectrochempy.application import open_dialog
 
                 directory = open_dialog(
                     directory=directory, filters="directory", **kwargs
@@ -502,7 +641,7 @@ def get_filenames(*filenames, **kwargs):
                 # Topspin directory detection
                 filenames = [directory]
 
-            # on mac case insensitive OS this cause doubling the number of files.
+            # On Mac case-insensitive OS this cause doubling the number of files.
             # Eliminates doublons:
             filenames = list(set(filenames))
 
@@ -553,137 +692,15 @@ def get_filenames(*filenames, **kwargs):
         return filenames
 
 
-def get_directory_name(directory, **kwargs):
-    """
-    Return a valid directory name.
-
-    Parameters
-    ----------
-    directory : `str` or `pathlib.Path` object, optional.
-        A directory name. If not provided, a dialog box is opened to select a directory.
-
-    Returns
-    --------
-    out: `pathlib.Path` object
-        valid directory name.
-    """
-
-    from spectrochempy import NO_DIALOG
-    from spectrochempy.core import preferences as prefs
-
-    data_dir = pathclean(prefs.datadir)
-    working_dir = Path.cwd()
-
-    directory = pathclean(directory)
-
-    if directory:
-        if directory.is_dir():
-            # nothing else to do
-            return directory
-
-        elif (working_dir / directory).is_dir():
-            # if no parent directory: look at current working dir
-            return working_dir / directory
-
-        elif (data_dir / directory).is_dir():
-            return data_dir / directory
-
-        else:
-            # raise ValueError(f'"{dirname}" is not a valid directory')
-            warnings.warn(f'"{directory}" is not a valid directory')
-            return None
-
+def patterns(filetypes, allcase=True):
+    regex = r"\*\.*\[*[0-9-]*\]*\w*\**"
+    pats = []
+    if not isinstance(filetypes, (list, tuple)):
+        filetypes = [filetypes]
+    for ft in filetypes:
+        m = re.finditer(regex, ft)
+        pats.extend([match.group(0) for match in m])
+    if not allcase:
+        return pats
     else:
-        # open a file dialog
-        directory = data_dir
-        if not NO_DIALOG:  # this is for allowing test to continue in the background
-            from spectrochempy.core.common.dialogs import open_dialog
-
-            directory = open_dialog(
-                single=False, directory=working_dir, filters="directory", **kwargs
-            )
-
-        return pathclean(directory)
-
-
-def check_filename_to_save(
-    dataset, filename=None, save_as=False, confirm=True, **kwargs
-):
-
-    from spectrochempy import NO_DIALOG
-    from spectrochempy.core import info_
-
-    NODIAL = (NO_DIALOG or "DOC_BUILDING" in environ) and "KEEP_DIALOGS" not in environ
-
-    if filename and pathclean(filename).parent.resolve() == Path.cwd():
-        filename = Path.cwd() / filename
-
-    if not filename or save_as or filename.exists():
-
-        from spectrochempy.core.common.dialogs import save_dialog
-
-        # no filename provided
-        open_diag = True
-        caption = "Save as ..."
-        if filename is None or (NODIAL and pathclean(filename).is_dir()):
-            filename = dataset.name
-            filename = filename + kwargs.get("suffix", ".scp")
-
-        # existing filename provided
-        elif filename.exists():
-            if confirm:
-                caption = "File exists. Confirm overwrite"
-            else:
-                info_(f"A file {filename} was present and has been overwritten.")
-                open_diag = False
-
-        if not NODIAL and open_diag:
-
-            filename = save_dialog(
-                caption=kwargs.pop("caption", caption),
-                filename=filename,
-                filters=kwargs.pop("filetypes", ["All file types (*.*)"]),
-                **kwargs,
-            )
-            if filename is None:
-                # this is probably due to a cancel action for an open dialog.
-                return
-
-    return pathclean(filename)
-
-
-def check_filename_to_open(*args, **kwargs):
-    # Check the args and keywords arg to determine the correct filename
-
-    filenames = check_filenames(*args, **kwargs)
-
-    if filenames is None:  # not args and
-        # this is probably due to a cancel action for an open dialog.
-        return
-
-    if not isinstance(filenames, dict):
-
-        if len(filenames) == 1 and filenames[0] is None:
-            raise (FileNotFoundError)
-
-        # deal with some specific cases
-        key = filenames[0].suffix.lower()
-        if not key:
-            if re.match(r"^fid$|^ser$|^[1-3][ri]*$", filenames[0].name) is not None:
-                key = ".topspin"
-        if key[1:].isdigit():
-            # probably an opus file
-            key = ".opus"
-        return {key: filenames}
-
-    elif len(args) > 0 and args[0] is not None:
-        # args where passed so in this case we have directly byte contents instead of filenames only
-        contents = filenames
-        return {"frombytes": contents}
-
-    else:
-        # probably no args (which means that we are coming from a dialog or from a full list of a directory
-        return filenames
-
-
-# EOF
+        return [_insensitive_case_glob(p) for p in pats]

@@ -10,8 +10,8 @@ This module implement the NNMF (Non Negative Matrix Factorization) class.
 
 __all__ = ["NNMF"]
 
-__dataset_methods__ = []
 
+import logging
 from sys import stdout
 from time import time
 
@@ -19,7 +19,7 @@ import numpy as np
 from numpy.linalg import norm
 from traitlets import Float, HasTraits, Int
 
-from spectrochempy.core import INFO, debug_, get_loglevel, info_, set_loglevel
+from spectrochempy.application import debug_, get_loglevel, info_, set_loglevel
 from spectrochempy.utils.traits import NDDatasetType
 
 
@@ -83,8 +83,8 @@ class NNMF(HasTraits):
         maxtime = kwargs.get("maxtime", 60)
         maxit = kwargs.get("maxiter", 100)
 
-        if kwargs.get("verbose", False) and get_loglevel() > INFO:
-            set_loglevel(INFO)
+        if kwargs.get("verbose", False) and get_loglevel() > logging.INFO:
+            set_loglevel("INFO")
 
         self.C = Ci.copy()
         self.St = Sti.copy()

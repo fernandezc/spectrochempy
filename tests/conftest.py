@@ -19,7 +19,8 @@ except ModuleNotFoundError:  # pragma: no cover
         "You must install spectrochempy and its dependencies before executing tests!"
     )
 
-from spectrochempy.core import preferences as prefs
+import spectrochempy as scp
+from spectrochempy.application import preferences as prefs
 from spectrochempy.core.dataset.baseobjects.ndarray import NDArray
 from spectrochempy.core.dataset.baseobjects.ndcomplex import NDComplexArray
 from spectrochempy.core.dataset.coord import Coord
@@ -276,7 +277,7 @@ def dsm():
     ).copy()
 
 
-dataset = NDDataset.read_omnic(datadir / "irdata" / "nh4y-activation.spg")
+dataset = scp.read_omnic(datadir / "irdata" / "nh4y-activation.spg")
 
 
 @pytest.fixture(scope="function")

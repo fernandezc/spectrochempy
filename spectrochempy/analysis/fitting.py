@@ -9,8 +9,8 @@ Module to perform fitting of 1D or n-D spectral data.
 """
 __all__ = ["Fit", "FitParameters", "ParameterScript"]
 
-__dataset_methods__ = []
 
+import logging
 import re
 import sys
 from collections import UserDict
@@ -22,7 +22,7 @@ from IPython import display
 from traitlets import Any, Bool, HasTraits, Instance, List, Unicode, observe
 
 from spectrochempy.analysis import models as models_
-from spectrochempy.core import INFO, info_, preferences, warning_
+from spectrochempy.application import info_, preferences, warning_
 from spectrochempy.utils.docstrings import htmldoc
 
 
@@ -642,8 +642,8 @@ class Fit(HasTraits):
 
         if not self.silent:
             level = preferences.log_level
-            if level > INFO:
-                preferences.log_level = INFO
+            if level > logging.INFO:
+                preferences.log_level = logging.INFO
             info_("*" * 50)
             info_("  Entering fitting procedure")
             info_("*" * 50)

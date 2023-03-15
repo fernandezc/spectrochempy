@@ -16,7 +16,7 @@ import functools
 
 import numpy as np
 
-from spectrochempy.core import error_
+from spectrochempy.application import error_
 from spectrochempy.core.units import Quantity, ur
 
 pi = np.pi
@@ -655,3 +655,7 @@ def pk_exp(dataset, phc0=0.0, pivot=0.0, exptc=0.0, **kwargs):
 #     # apply to the original data and return
 #     data = pk(data, phc0, phc1 + p_shifted, pivot=pivot, is_exp=is_exp)
 #     return data, phc0, phc1
+
+
+if __name__ == "__main__":
+    """ """

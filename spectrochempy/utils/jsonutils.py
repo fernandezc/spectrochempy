@@ -14,8 +14,6 @@ import pickle
 
 import numpy as np
 
-__all__ = ["json_serialiser", "json_decoder"]
-
 
 def fromisoformat(s):
     try:
@@ -35,7 +33,6 @@ def json_decoder(dic):
     from spectrochempy.core.units import Quantity, Unit
 
     if "__class__" in dic:
-
         klass = dic["__class__"]
         if klass == "DATETIME":
             return fromisoformat(dic["isoformat"])
@@ -67,14 +64,13 @@ def json_serialiser(byte_obj, encoding=None):
     """
     Return a serialised json object.
     """
-    from spectrochempy.core.dataset.arraymixins.ndplot import PreferencesSet
+    from spectrochempy.application import PreferencesSet
     from spectrochempy.core.units import Quantity, Unit
 
     if byte_obj is None:
         return None
 
     elif hasattr(byte_obj, "_implements"):
-
         objnames = byte_obj.__dir__()
 
         # particular case of Linear Coordinates
@@ -83,7 +79,6 @@ def json_serialiser(byte_obj, encoding=None):
 
         dic = {}
         for name in objnames:
-
             if (
                 name in ["readonly"]
                 or (name == "dims" and "datasets" in objnames)

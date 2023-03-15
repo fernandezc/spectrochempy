@@ -10,7 +10,6 @@ This module implement the PCA (Principal Component Analysis) class.
 
 __all__ = ["PCA"]
 
-__dataset_methods__ = []
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -19,7 +18,7 @@ from scipy import special
 from traitlets import HasTraits
 
 from spectrochempy.analysis.svd import SVD
-from spectrochempy.core import info_
+from spectrochempy.application import info_, preferences
 from spectrochempy.core.dataset.arraymixins.npy import dot
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.utils.plots import NBlue, NRed
@@ -90,7 +89,7 @@ class PCA(HasTraits):
 
         super().__init__()
 
-        self.prefs = dataset.preferences
+        self.prefs = preferences
 
         self._X = X = dataset
 

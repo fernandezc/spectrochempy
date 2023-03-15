@@ -10,22 +10,18 @@ This module defines the |NDPlot| class in which generic |NDDataset| plot methods
 
 __all__ = ["plot"]
 
-import re
-import textwrap
-
 import matplotlib as mpl
+import traitlets as tr
 from cycler import cycler
 from matplotlib import pyplot as plt
 from matplotlib.colors import to_rgba
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from traitlets import Dict, HasTraits, Instance, TraitError, Union, default
 
-from spectrochempy.core import error_, plot_preferences, preferences
-from spectrochempy.core.dataset.baseobjects.meta import Meta
+from spectrochempy.application import error_
+from spectrochempy.application import preferences as prefs
 from spectrochempy.core.plotters.plot1d import plot_1D
 from spectrochempy.core.plotters.plot2d import plot_2D
 from spectrochempy.core.plotters.plot3d import plot_3D
-from spectrochempy.utils.file import pathclean
 from spectrochempy.utils.optional import import_optional_dependency
 from spectrochempy.utils.plots import _Axes, _Axes3D, get_figure
 
@@ -36,310 +32,9 @@ HAS_PLOTLY = go is not None
 
 
 # ======================================================================================
-# Management of the preferences for datasets
-# ======================================================================================
-class PreferencesSet(Meta):
-    """
-    Preferences setting.
-    """
-
-    def __getitem__(self, key):
-
-        # search on the preferences
-        if self.parent is not None:
-            res = getattr(self.parent, f"{self.name}_{key}")
-        elif hasattr(plot_preferences, key):
-            res = getattr(plot_preferences, key)
-        elif hasattr(preferences, key):
-            res = getattr(preferences, key)
-        else:
-            alias = self._get_alias(key)
-            if alias:
-                if isinstance(alias, list):
-                    res = PreferencesSet(
-                        parent=self,
-                        name=key,
-                        **dict([(n, getattr(self, f"{key}_{n}")) for n in alias]),
-                    )
-                else:
-                    res = getattr(self, alias)
-            else:
-                res = super().__getitem__(key)
-                if res is None:
-                    error_(
-                        KeyError, f"not found {key}"
-                    )  # key = key.replace('_','.').replace('...', '_').replace('..',
-                    # '-')  #  # res = mpl.rcParams[key]
-
-        return res
-
-    def __setitem__(self, key, value):
-
-        # also change the corresponding preferences
-        if hasattr(plot_preferences, key):
-            try:
-                setattr(plot_preferences, key, value)
-            except TraitError:
-                value = type(plot_preferences.traits()[key].default_value)(value)
-                setattr(plot_preferences, key, value)
-        elif hasattr(preferences, key):
-            setattr(preferences, key, value)
-        elif key in self.keys():
-            newkey = f"{self.name}_{key}"
-            setattr(plot_preferences, newkey, value)
-            self.parent[newkey] = value
-            return
-        else:
-            # try to find an alias for matplotlib values
-            alias = self._get_alias(key)
-            if alias:
-                newkey = f"{alias}_{key}"
-                setattr(plot_preferences, newkey, value)
-                self.parent[newkey] = value
-            else:
-                error_(KeyError, f"not found {key}")
-            return
-
-        super().__setitem__(key, value)
-
-    # ----------------------------------------------------------------------------------
-    # Private methods
-    # ----------------------------------------------------------------------------------
-    def _get_alias(self, key):
-
-        alias = []
-        lkeyp = len(key) + 1
-
-        regex = r"[a-zA-Z0-9_]*(?:\b|_)" + key + "(?:\b|_)[a-zA-Z0-9_]*"
-        for item in plot_preferences.trait_names():
-            matches = re.match(regex, item)
-            if matches is not None:
-                alias.append(item)
-
-        if alias:
-
-            starts = any([par.startswith(key) for par in alias])
-            # ends = any([par.endswith(key) for par in alias])
-
-            if len(alias) > 1:
-                if alias[0].endswith(key) and (not starts and self.parent is not None):
-                    # it is a member of a group but we don't know which one:
-                    raise KeyError(
-                        f"Found several keys for {key}: {alias}, so it is ambiguous. Please choose on one of them"
-                    )
-                else:
-                    if any([par.startswith(key) for par in alias]):
-                        # we return the group of parameters
-                        pars = []
-                        for par in alias:
-                            if par.startswith(key):
-                                pars.append(par[lkeyp:])
-                        return pars
-            else:
-                return alias[0][:-lkeyp]
-
-        raise KeyError(f"{key} not found in matplolib preferences")
-
-    # ----------------------------------------------------------------------------------
-    # Public methods
-    # ----------------------------------------------------------------------------------
-    def reset(self):
-        """
-        Remove the matplotlib_user json file to reset to defaults.
-        """
-        config_dir = pathclean(preferences.cfg.config_dir)
-        f = config_dir / "PlotPreferences.json"
-        if f.exists():
-            f.unlink()
-
-        plot_preferences._apply_style("scpy")
-        self.style = "scpy"
-
-        # reset also non-matplolib preferences
-        nonmplpars = [
-            "method_1D",
-            "method_2D",
-            "method_3D",
-            "colorbar",
-            "show_projections",
-            "show_projection_x",
-            "show_projection_y",
-            "colormap",
-            "max_lines_in_stack",
-            "simplify",
-            "number_of_x_labels",
-            "number_of_y_labels",
-            "number_of_z_labels",
-            "number_of_contours",
-            "contour_alpha",
-            "contour_start",
-            "antialiased",
-            "rcount",
-            "ccount",
-        ]
-        for par in nonmplpars:
-            setattr(self, par, plot_preferences.traits()[par].default_value)
-
-        self._data = {}
-
-    def all(self):
-        """
-        List all parameters with their current and default value.
-        """
-        for key in plot_preferences.trait_names(config=True):
-            self.help(key)
-
-    def help(self, key):
-        """
-        Display information on a given parameter.
-
-        Parameters
-        ----------
-        key : str
-            Name of the parameter for which we want information.
-        """
-        from spectrochempy.utils.print import TBold, colored
-
-        value = self[key]
-        trait = plot_preferences.traits()[key]
-        default = trait.default_value
-        thelp = trait.help.replace("\n", " ").replace("\t", " ")
-        sav = ""
-        while thelp != sav:
-            sav = thelp
-            thelp = thelp.replace("  ", " ")
-        help = "\n".join(
-            textwrap.wrap(
-                thelp, 100, initial_indent=" " * 20, subsequent_indent=" " * 20
-            )
-        )
-
-        value = colored(value, "GREEN")
-        default = colored(default, "BLUE")
-
-        print(TBold(f"{key} = {value} \t[default: {default}]"))
-        print(f"{help}\n")
-
-    def makestyle(self, stylename="mydefault", to_mpl=False):
-        """
-        Create Matplotlib Style files.
-
-        Parameters
-        ----------
-        stylename :
-        to_mpl :
-
-        Returns
-        --------
-        stylename
-            Name of the style
-
-        """
-        if stylename.startswith("scpy"):
-            error_(
-                NameError,
-                "Style name starting with `scpy` are READ-ONLY. Please use an another style name.",
-            )
-            return
-
-        txt = ""
-        sline = ""
-
-        for key in mpl.rcParams.keys():
-            if key in [
-                "animation.avconv_args",
-                "animation.avconv_path",
-                "animation.html_args",
-                "keymap.all_axes",
-                "mathtext.fallback_to_cm",
-                "validate_bool_maybe_none",
-                "savefig.jpeg_quality",
-                "text.latex.preview",
-                "backend",
-                "backend_fallback",
-                "date.epoch",
-                "docstring.hardcopy",
-                "figure.max_open_warning",
-                "figure.raise_window",
-                "interactive",
-                "savefig.directory",
-                "timezone",
-                "tk.window_focus",
-                "toolbar",
-                "webagg.address",
-                "webagg.open_in_browser",
-                "webagg.port",
-                "webagg.port_retries",
-            ]:
-                continue
-
-            val = str(mpl.rcParams[key])
-            if val.startswith("CapStyle") or val.startswith("JoinStyle"):
-                val = val.split(".")[-1]
-
-            sav = ""
-            while val != sav:
-                sav = val
-                val = val.replace("  ", " ")
-            line = f"{key:40s} : {val}\n"
-            if line[0] != sline:
-                txt += "\n"
-                sline = line[0]
-            if key not in ["axes.prop_cycle"]:
-                line = (
-                    line.replace("[", "")
-                    .replace("]", "")
-                    .replace("'", "")
-                    .replace('"', "")
-                )
-            if key == "savefig.bbox":
-                line = f"{key:40s} : standard\n"
-            txt += line.replace("#", "").rstrip() + "\n"
-
-        # Non matplotlib parameters,
-        # some parameters are not saved in matplotlib style sheets so we willa dd them here
-        nonmplpars = [
-            "method_1D",
-            "method_2D",
-            "method_3D",
-            "colorbar",
-            "show_projections",
-            "show_projection_x",
-            "show_projection_y",
-            "colormap",
-            "max_lines_in_stack",
-            "simplify",
-            "number_of_x_labels",
-            "number_of_y_labels",
-            "number_of_z_labels",
-            "number_of_contours",
-            "contour_alpha",
-            "contour_start",
-            "antialiased",
-            "rcount",
-            "ccount",
-        ]
-        txt += "\n\n##\n## ADDITIONAL PARAMETERS FOR SPECTROCHEMPY\n##\n"
-        for par in nonmplpars:
-            txt += f"##@{par:37s} : {getattr(self, par)}\n"
-
-        stylesheet = (pathclean(self.stylesheets) / stylename).with_suffix(".mplstyle")
-        stylesheet.write_text(txt)
-
-        if to_mpl:
-            # make it also accessible to pyplot
-            stylelib = (
-                pathclean(mpl.get_configdir()) / "stylelib" / stylename
-            ).with_suffix(".mplstyle")
-            stylelib.write_text()
-
-        return stylename
-
-
-# ======================================================================================
 # Class NDPlot to handle plotting of datasets
 # ======================================================================================
-class NDPlot(HasTraits):
+class NDPlot(tr.HasTraits):
     """
     Plotting interface for |NDDataset| .
 
@@ -349,20 +44,19 @@ class NDPlot(HasTraits):
     # Instance of the current matplotlib axis defined for a NDArray object.
     # The _Axes class subclass matplotlib axes in order to allow methods with
     # Quantities as arguments
-    _ax = Instance(_Axes, allow_none=True)
+    _ax = tr.Instance(_Axes, allow_none=True)
 
     # The figure on which this NDArray can be plotted
     if HAS_PLOTLY:
-        _fig = Union((Instance(plt.Figure), Instance(go.Figure)), allow_none=True)
+        _fig = tr.Union(
+            (tr.Instance(plt.Figure), tr.Instance(go.Figure)), allow_none=True
+        )
     else:
-        _fig = Instance(plt.Figure, allow_none=True)
+        _fig = tr.Instance(plt.Figure, allow_none=True)
 
     # A list of axes on which this dataset and other elements such as projections
     # and colorbar can be plotted
-    _ndaxes = Dict(Instance(_Axes))
-
-    # Metadata to store plot parameters
-    _preferences = Instance(PreferencesSet, allow_none=True)
+    _ndaxes = tr.Dict(tr.Instance(_Axes))
 
     # ----------------------------------------------------------------------------------
     # Generic plotter and plot related methods or properties
@@ -371,7 +65,8 @@ class NDPlot(HasTraits):
         """
         Generic plot function.
 
-        This apply to a |NDDataset| but actually delegate the work to a plotter defined by the keyword parameter
+        This apply to a |NDDataset| but actually delegate the work to a plotter defined
+        by the keyword parameter
         ``method``.
 
         Parameters
@@ -385,7 +80,7 @@ class NDPlot(HasTraits):
         Returns
         -------
         axe
-            The axe instance on which the plot has bee performed.
+            The axe instance on which the plot has been performed.
 
         See Also
         --------
@@ -477,8 +172,6 @@ class NDPlot(HasTraits):
     # ----------------------------------------------------------------------------------
     def _figure_setup(self, ndim=1, method=None, **kwargs):
 
-        prefs = self.preferences
-
         if not method:
             method = prefs.method_2D if ndim == 2 else prefs.method_1D
 
@@ -529,7 +222,8 @@ class NDPlot(HasTraits):
             self.ndaxes = self._fig.get_axes()
         else:
             # or create a new subplot
-            # ax = self._fig.gca(projection=ax3d) :: passing parameters DEPRECATED in matplotlib 3.4
+            # ax = self._fig.gca(projection=ax3d) ::
+            # passing parameters DEPRECATED in matplotlib 3.4
             # ---
             if not ax3d:
                 ax = _Axes(self._fig, 1, 1, 1)
@@ -715,25 +409,6 @@ class NDPlot(HasTraits):
     # ------------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------------
-    @default("_preferences")
-    def _preferences_default(self):
-        # Reset all preferences
-        prefs = PreferencesSet()
-        return prefs
-
-    @property
-    def preferences(self):
-        """
-        |Meta| instance object - Additional metadata.
-        """
-        return self._preferences
-
-    @preferences.setter
-    def preferences(self, preferences):
-        # property.setter for preferences
-        if preferences is not None:
-            self._preferences.update(preferences)
-
     @property
     def fig(self):
         """
@@ -822,4 +497,8 @@ plot = NDPlot.plot  # make plot accessible directly from the scp API
 
 # ======================================================================================
 if __name__ == "__main__":
-    pass
+    import spectrochempy as scp
+
+    nd = scp.NDDataset([1, 2, 3])
+    nd.plot(method="scatter")
+    scp.show()

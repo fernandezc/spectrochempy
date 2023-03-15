@@ -10,23 +10,10 @@ import matplotlib as mpl
 import matplotlib.axes as maxes
 import mpl_toolkits.mplot3d.axes3d as maxes3D
 import numpy as np
+import traitlets as tr
 from matplotlib import pyplot as plt
 
-__all__ = [
-    "cmyk2rgb",
-    "NBlack",
-    "NRed",
-    "NBlue",
-    "NGreen",
-    "figure",
-    "show",
-    "get_figure",  # Plotly specific
-    "get_plotly_figure",
-    "colorscale",
-    "make_attr",
-    "make_label",
-    "plot_method",
-]
+__all__ = ["show", "close_all_figures"]
 
 
 @maxes.subplot_class_factory
@@ -288,6 +275,33 @@ class _Axes(maxes.Axes):
     def set_ylim(self, *args, **kwargs):
         return super().set_ylim(*args, **kwargs)
 
+    def _twinx(self):
+        self, ax2 = _make_twin_axes(self, sharex=self)
+        ax2.yaxis.tick_right()
+        ax2.yaxis.set_label_position("right")
+        ax2.yaxis.set_offset_position("right")
+        ax2.set_autoscalex_on(self.get_autoscalex_on())
+        ax2.set_xlim(self.get_xlim())
+        self.yaxis.tick_left()
+        ax2.xaxis.set_visible(False)
+        ax2.patch.set_visible(False)
+        return ax2
+
+
+def _make_twin_axes(tax, *args, **kwargs):
+    twin = tax.figure.add_subplot(tax.get_subplotspec(), *args, **kwargs)
+    tax.set_adjustable("datalim")
+    twin.set_adjustable("datalim")
+    tax._twinned_axes.join(tax, twin)
+    return tax, twin
+
+
+# twin = self.figure.add_subplot(self.get_subplotspec(), *args, **kwargs)
+# self.set_adjustable('datalim')
+# twin.set_adjustable('datalim')
+# self._twinned_axes.join(self, twin)
+# return twin
+
 
 class _Axes3D(maxes3D.Axes3D):
     from spectrochempy.core.units import remove_args_units
@@ -306,21 +320,31 @@ def plot_method(type, doc):
     """
 
     def decorator_plot_method(func):
-
         method = func.__name__.split("plot_")[-1]
 
-        def wrapper(dataset, *args, **kwargs):
+        def wrapper(*args, **kwargs):
 
-            if dataset.ndim < 2:
-                from spectrochempy.core.plotters.plot1d import plot_1D
-
-                _ = kwargs.pop("method", None)
-                return plot_1D(dataset, *args, method=method, **kwargs)
+            args = list(args)
+            dataset = args.pop(0)
+            if len(args) > 0:
+                raise KeyError("too many anon-keyword arguments")
 
             if kwargs.get("use_plotly", False):
                 return dataset.plotly(method=method, **kwargs)
-            else:
-                return getattr(dataset, f"plot_{type}")(*args, method=method, **kwargs)
+
+            if dataset._squeeze_ndim < 2:
+                from spectrochempy.core.plotters.plot1d import plot_1D
+
+                # method already determined, remove it from kwargs if specified
+                _ = kwargs.pop("method", None)
+
+                return plot_1D(dataset, method=method, **kwargs)
+
+            elif dataset.ndim >= 2:
+                _plot = tr.import_item(
+                    f"spectrochempy.core.plotters.plot{type.lower()}.plot_{type}"
+                )
+                return _plot(dataset, method=method, **kwargs)
 
         wrapper.__doc__ = f"""
 {textwrap.dedent(func.__doc__).strip()}
@@ -380,7 +404,7 @@ def cmyk2rgb(C, M, Y, K):
     # The blue color (B) is calculated from the yellow (Y) and black (K) colors:
     B = (1.0 - Y) * (1.0 - K)
 
-    return R, G, B
+    return (R, G, B)
 
 
 # Constants
@@ -420,13 +444,17 @@ def show():
     """
     Method to force the `matplotlib` figure display.
     """
-    from spectrochempy import NO_DISPLAY
+    from spectrochempy.application import NO_DISPLAY
 
     if NO_DISPLAY:
-        plt.close("all")
+        close_all_figures()
     else:
         if get_figure(clear=False):
             plt.show(block=True)
+
+
+def close_all_figures():
+    plt.close("all")
 
 
 def get_figure(**kwargs):
@@ -447,14 +475,13 @@ def get_figure(**kwargs):
         The figure patch edge color.
     frameon : bool, default: preferences.figure_frameon (default: True)
         If False, suppress drawing the figure background patch.
-    tight_layout : bool or dict, default: preferences.figure.autolayout
-        If False use subplotpars. If True adjust subplot parameters using tight_layout
-        with default padding.nWhen providing a dict containing the keys pad, w_pad,
-        h_pad, and rect, the default tight_layout paddings will be overridden.
-    constrained_layout : bool, default: preferences.figure_constrained_layout
+    tight_layout : bool or dict, default: preferences.figure.autolayout (default: False)
+        If False use subplotpars. If True adjust subplot parameters using tight_layout with default padding.
+        When providing a dict containing the keys pad, w_pad, h_pad, and rect,
+        the default tight_layout paddings will be overridden.
+    constrained_layout : bool, default: preferences.figure_constrained_layout (default: False)
         If True use constrained layout to adjust positioning of plot elements.
-        Like tight_layout, but designed to be more flexible.
-        See Constrained Layout Guide for examples.
+        Like tight_layout, but designed to be more flexible. See Constrained Layout Guide for examples.
     preferences : Meta object,
         Per object plot configuration.
 
@@ -470,34 +497,36 @@ def get_figure(**kwargs):
     if not n or clear:
         # create a figure
         prefs = kwargs.pop("preferences", None)
+        if prefs is None:
+            return
+        else:
+            figsize = kwargs.get("figsize", prefs.figure_figsize)
+            dpi = kwargs.get("dpi", prefs.figure_dpi)
+            facecolor = kwargs.get("facecolor", prefs.figure_facecolor)
+            edgecolor = kwargs.get("edgecolor", prefs.figure_edgecolor)
+            frameon = kwargs.get("frameon", prefs.figure_frameon)
+            tight_layout = kwargs.get("autolayout", prefs.figure_autolayout)
 
-        figsize = kwargs.get("figsize", prefs.figure_figsize)
-        dpi = kwargs.get("dpi", prefs.figure_dpi)
-        facecolor = kwargs.get("facecolor", prefs.figure_facecolor)
-        edgecolor = kwargs.get("edgecolor", prefs.figure_edgecolor)
-        frameon = kwargs.get("frameon", prefs.figure_frameon)
-        tight_layout = kwargs.get("autolayout", prefs.figure_autolayout)
+            # get the current figure (or the last used)
+            fig = plt.figure(figsize=figsize)
 
-        # get the current figure (or the last used)
-        fig = plt.figure(figsize=figsize)
-
-        fig.set_dpi(dpi)
-        fig.set_frameon(frameon)
-        try:
-            fig.set_edgecolor(edgecolor)
-        except ValueError:
-            fig.set_edgecolor(eval(edgecolor))
-        try:
-            fig.set_facecolor(facecolor)
-        except ValueError:
+            fig.set_dpi(dpi)
+            fig.set_frameon(frameon)
             try:
-                fig.set_facecolor(eval(facecolor))
+                fig.set_edgecolor(edgecolor)
             except ValueError:
-                fig.set_facecolor("#" + eval(facecolor))
-        fig.set_dpi(dpi)
-        fig.set_tight_layout(tight_layout)
+                fig.set_edgecolor(eval(edgecolor))
+            try:
+                fig.set_facecolor(facecolor)
+            except ValueError:
+                try:
+                    fig.set_facecolor(eval(facecolor))
+                except ValueError:
+                    fig.set_facecolor("#" + eval(facecolor))
+            fig.set_dpi(dpi)
+            fig.set_tight_layout(tight_layout)
 
-        return fig
+            return fig
 
     # a figure already exists - if several we take the last
     return plt.figure(n[-1])

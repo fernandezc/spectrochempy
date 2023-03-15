@@ -96,7 +96,7 @@ print(f"Default: {scp.get_loglevel()}")  # print the current loglevel
 # next instruction
 # lowers the loglevel to `ÌNFO`:
 # %%
-scp.set_loglevel(scp.INFO)  # set loglevel to 'INFO'
+scp.set_loglevel("INFO")  # set loglevel to 'INFO'
 
 
 # %% [markdown]
@@ -128,7 +128,7 @@ scp.debug_("this is a debug message!")
 # If we change the loglevel to ``DEBUG``, then the two messages will be printed:
 
 # %%
-scp.set_loglevel(scp.DEBUG)
+scp.set_loglevel("DEBUG")
 scp.info_("this is an info message!")
 scp.debug_("this is a debug message!")
 
@@ -138,7 +138,7 @@ scp.debug_("this is a debug message!")
 # nor `INFO` messages will be printed.
 
 # %%
-scp.set_loglevel(scp.WARNING)
+scp.set_loglevel("WARNING")
 
 scp.info_("this is an info message!")
 scp.debug_("this is a debug message!")

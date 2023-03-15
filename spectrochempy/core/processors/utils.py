@@ -40,3 +40,7 @@ def _units_agnostic_method(method):
         return new
 
     return wrapper
+
+
+if __name__ == "__main__":
+    """ """

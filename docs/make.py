@@ -30,8 +30,8 @@ from sphinx.deprecation import RemovedInSphinx70Warning
 from traitlets import import_item
 
 import spectrochempy
-from spectrochempy.api import preferences as prefs
-from spectrochempy.api import version
+from spectrochempy import preferences as prefs
+from spectrochempy import version
 from spectrochempy.utils.file import download_testdata
 from spectrochempy.utils.packages import list_packages
 from spectrochempy.utils.system import sh

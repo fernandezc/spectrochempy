@@ -8,7 +8,7 @@
 This module implements the class _CoordRange.
 """
 
-__all__ = ["trim_ranges"]
+__all__ = []
 
 import traitlets as tr
 
@@ -23,7 +23,6 @@ class _CoordRange(tr.HasTraits):
     reversed = tr.Bool()
 
     def __init__(self, *ranges, reversed=False):
-
         self.reversed = reversed
         if len(ranges) == 0:
             # first case: no argument passed, returns an empty range
@@ -78,7 +77,7 @@ class _CoordRange(tr.HasTraits):
 
 def trim_ranges(*ranges, reversed=False):
     """
-    Set of ordered, non intersecting intervals.
+    Set of ordered, non-intersecting intervals.
 
     An ordered set of ranges is constructed from the inputs and returned.
     *e.g.,* [[a, b], [c, d]] with a < b < c < d or a > b > c > d.
@@ -87,12 +86,10 @@ def trim_ranges(*ranges, reversed=False):
     -----------
     *ranges :  iterable
         An interval or a set of intervals.
-        set of  intervals. If none is given, the range will be a set of an empty
-        interval [[]]. The interval
+        set of  intervals. If none is given, the range will be a set of an empty interval [[]]. The interval
         limits do not need to be ordered, and the intervals do not need to be distincts.
     reversed : bool, optional
-        The intervals are ranked by decreasing order if True or increasing order if
-        False.
+        The intervals are ranked by decreasing order if True or increasing order if False.
 
     Returns
     -------

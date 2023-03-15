@@ -12,8 +12,6 @@ from datetime import date
 import yaml
 from cffconvert.cli.create_citation import create_citation
 
-__all__ = ["Citation", "Zenodo"]
-
 sys.tracebacklimit = 2
 
 HOME = pathlib.Path(__file__).parent.parent.parent
@@ -48,7 +46,7 @@ class Zenodo:
         """
         Update the version string metadata
         """
-        from spectrochempy.core import version as scpversion
+        from spectrochempy import version as scpversion
 
         if version is None:
             version = scpversion
@@ -75,7 +73,7 @@ class Citation:
         }
         if key in self._outputformat.keys():
             return self.format(key)
-        raise AttributeError(f"`{key}` attribute not found in the `Citation` object.")
+        raise AttributeError
 
     def load(self):
         """
@@ -140,7 +138,7 @@ class Citation:
         """
         Update the version metadata.
         """
-        from spectrochempy.core import version as scpversion
+        from spectrochempy import version as scpversion
 
         if version is None:
             version = scpversion

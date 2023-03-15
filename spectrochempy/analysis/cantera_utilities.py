@@ -20,7 +20,7 @@ from collections.abc import Iterable
 import numpy as np
 from scipy.optimize import differential_evolution, least_squares, minimize
 
-from spectrochempy.core import error_
+from spectrochempy.application import error_
 from spectrochempy.core.dataset.nddataset import Coord, NDDataset
 from spectrochempy.utils.optional import import_optional_dependency
 

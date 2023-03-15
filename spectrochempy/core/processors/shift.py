@@ -12,7 +12,7 @@ Adapted from NMRGLUE proc_base (New BSD License)
 """
 
 __all__ = ["rs", "ls", "roll", "cs", "fsh", "fsh2"]
-__dataset_methods__ = __all__
+
 
 import numpy as np
 
@@ -266,3 +266,7 @@ def fsh2(dataset, pts, **kwargs):
     data = _fft_positive(data)
 
     return data
+
+
+if __name__ == "__main__":
+    """ """

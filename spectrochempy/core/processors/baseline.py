@@ -8,8 +8,7 @@
 This module implements the `BaselineCorrection` class for baseline corrections.
 """
 __all__ = ["BaselineCorrection", "ab", "abc", "dc", "basc"]
-
-__dataset_methods__ = ["ab", "abc", "dc", "basc"]
+__dataset_methods__ = __all__
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,12 +16,12 @@ import scipy.interpolate
 from matplotlib.widgets import SpanSelector
 from traitlets import Float, HasTraits, Int, List, Tuple, Unicode
 
-from spectrochempy.core import debug_, warning_
+from spectrochempy.application import debug_, warning_
 from spectrochempy.core.plotters.multiplot import multiplot
-from spectrochempy.core.processors.smooth import smooth
+from spectrochempy.core.processors.filter import smooth
 from spectrochempy.core.processors.utils import _units_agnostic_method
 from spectrochempy.utils.coordrange import trim_ranges
-from spectrochempy.utils.misc import TYPE_FLOAT, TYPE_INTEGER
+from spectrochempy.utils.dtypes import TYPE_FLOAT, TYPE_INTEGER
 from spectrochempy.utils.traits import NDDatasetType
 
 
@@ -850,4 +849,4 @@ def _polybase(data, **kwargs):
 
 
 if __name__ == "__main__":
-    pass
+    """ """

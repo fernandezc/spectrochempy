@@ -6,16 +6,14 @@
 # ======================================================================================
 # flake8: noqa
 
-from spectrochempy.analysis.iris import IRIS
-from spectrochempy.core.dataset.coord import Coord
-from spectrochempy.core.dataset.nddataset import NDDataset
+from spectrochempy import IRIS, Coord, read_omnic
 
 # pytestmark = pytest.mark.skip("WIP: iris dev on going")
 
 # import pytest
 # @pytest.mark.skip('do not work with workflow - need to solve this!')
 def test_IRIS():
-    X = NDDataset.read_omnic("irdata/CO@Mo_Al2O3.SPG")
+    X = read_omnic("irdata/CO@Mo_Al2O3.SPG")
 
     p = [
         0.00300,

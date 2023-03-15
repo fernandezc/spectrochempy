@@ -8,7 +8,7 @@
 This module implements the IRIS class.
 """
 __all__ = ["IRIS", "kern"]
-__dataset_methods__ = []
+
 
 from collections.abc import Iterable
 
@@ -17,7 +17,7 @@ import quadprog
 from matplotlib import pyplot as plt
 from scipy import optimize
 
-from spectrochempy.core import info_, warning_
+from spectrochempy.application import info_, warning_
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
 

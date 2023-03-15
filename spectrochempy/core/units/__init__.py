@@ -49,7 +49,6 @@ else:
     from pint.facets.plain import ScaleConverter, UnitDefinition
     from pint.util import UnitsContainer
 
-
 # ======================================================================================
 # Modify the pint behaviour
 # ======================================================================================

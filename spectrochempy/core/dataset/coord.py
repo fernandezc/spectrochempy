@@ -18,13 +18,13 @@ from traitlets import All, Bool, CFloat, CInt, Instance, Integer, Unicode, Union
 from traitlets import default as traitdefault
 from traitlets import observe
 
-from spectrochempy.core import error_
+from spectrochempy.application import error_
 from spectrochempy.core.dataset.arraymixins.ndmath import NDMath, _set_operators
 from spectrochempy.core.dataset.baseobjects.ndarray import NDArray
 from spectrochempy.core.units import Quantity, ur
 from spectrochempy.utils.constants import INPLACE, NOMASK
-from spectrochempy.utils.misc import spacing_
-from spectrochempy.utils.print import colored_output
+from spectrochempy.utils.numutils import spacings
+from spectrochempy.utils.prints import colored_output
 
 
 # ======================================================================================
@@ -374,9 +374,12 @@ class Coord(NDMath, NDArray):
         It will be a scalar if the coordinates are uniformly spaced,
         else an array of the different spacings
         """
+        units = self.units if self.units is not None else 1
         if self.linear:
-            return self.increment * self.units
-        return spacing_(self.data) * self.units
+            return self.increment * units
+        if self.has_data:
+            return spacings(self._data) * units
+        return None
 
     def squeeze(self, *args, **kwargs):
         raise NotImplementedError

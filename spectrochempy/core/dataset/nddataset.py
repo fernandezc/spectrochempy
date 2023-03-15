@@ -16,21 +16,9 @@ from datetime import datetime, tzinfo
 
 import numpy as np
 import pytz  # TODO: for py>=3.9, we could use builtin zoneinfo library instead of pyt
-from traitlets import (
-    All,
-    Bool,
-    Float,
-    HasTraits,
-    Instance,
-    List,
-    Tuple,
-    Unicode,
-    default,
-    observe,
-    validate,
-)
+import traitlets as tr
 
-from spectrochempy.core import error_, warning_
+from spectrochempy.application import error_, warning_
 from spectrochempy.core.dataset.arraymixins.ndio import NDIO
 from spectrochempy.core.dataset.arraymixins.ndmath import NDMath  # _set_ufuncs,
 from spectrochempy.core.dataset.arraymixins.ndmath import _set_operators
@@ -40,12 +28,17 @@ from spectrochempy.core.dataset.baseobjects.ndcomplex import NDComplexArray
 from spectrochempy.core.dataset.coord import Coord, LinearCoord
 from spectrochempy.core.dataset.coordset import CoordSet
 from spectrochempy.extern.traittypes import Array
+from spectrochempy.utils import exceptions
 from spectrochempy.utils.exceptions import SpectroChemPyError, UnknownTimeZoneError
 from spectrochempy.utils.optional import import_optional_dependency
-from spectrochempy.utils.print import colored_output
+from spectrochempy.utils.prints import colored_output
 from spectrochempy.utils.system import get_user_and_node
 
-#       but we need compatibility with 3.7 (Colab).
+try:
+    from spectrochempy.core.dataset._dataset_methods import dataset_methods
+except ImportError:
+    # occurs when the API is first created
+    pass
 
 
 # ======================================================================================
@@ -193,20 +186,20 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     # """
 
     # coordinates
-    _coordset = Instance(CoordSet, allow_none=True)
+    _coordset = tr.Instance(CoordSet, allow_none=True)
 
     # model data (e.g., for fit)
-    _modeldata = Array(Float(), allow_none=True)
+    _modeldata = Array(tr.Float(), allow_none=True)
 
     # some setting for NDDataset
-    _copy = Bool(False)
-    _labels_allowed = Bool(False)  # no labels for NDDataset
+    _copy = tr.Bool(False)
+    _labels_allowed = tr.Bool(False)  # no labels for NDDataset
 
     # dataset can be members of a project.
     # we use the abstract class to avoid circular imports.
     from spectrochempy.core.project.abstractproject import AbstractProject
 
-    _parent = Instance(AbstractProject, allow_none=True)
+    _parent = tr.Instance(AbstractProject, allow_none=True)
 
     # For the GUI interface
 
@@ -229,18 +222,18 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     # _ranges = Instance(Meta)
 
     # history
-    _history = List(Tuple(), allow_none=True)
+    _history = tr.List(tr.Tuple(), allow_none=True)
 
     # Dates
     # _acquisition_date = Instance(datetime, allow_none=True)
-    _created = Instance(datetime)
-    _modified = Instance(datetime)
-    _timezone = Instance(tzinfo, allow_none=True)
+    _created = tr.Instance(datetime)
+    _modified = tr.Instance(datetime)
+    _timezone = tr.Instance(tzinfo, allow_none=True)
 
     # Metadata
-    _author = Unicode()
-    _description = Unicode()
-    _origin = Unicode()
+    _author = tr.Unicode()
+    _description = tr.Unicode()
+    _origin = tr.Unicode()
 
     # ----------------------------------------------------------------------------------
     # Initialisation
@@ -325,7 +318,6 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             "mask",
             "units",
             "meta",
-            "preferences",
             "author",
             "description",
             "history",
@@ -425,8 +417,14 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             # raise an error so that traits, ipython operation and more ... will be handled correctly
             raise AttributeError
 
-        # syntax such as ds.x, ds.y, etc...
+        # plugin method?
+        if item in dataset_methods:
+            api_method = tr.import_item(f"spectrochempy.{item}")
+            from functools import partial
 
+            return partial(api_method, self)
+
+        # syntax such as ds.x, ds.y, etc...
         if item[0] in self.dims or self._coordset:
 
             # look also properties
@@ -546,11 +544,11 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     # ----------------------------------------------------------------------------------
     # Private methods and properties
     # ----------------------------------------------------------------------------------
-    @default("_coordset")
+    @tr.default("_coordset")
     def _coordset_default(self):
         return None
 
-    @default("_modeldata")
+    @tr.default("_modeldata")
     def _modeldata_default(self):
         return None
 
@@ -573,12 +571,12 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     #         ranges[dim] = dict(masks={}, baselines={}, integrals={}, others={})
     #     return ranges
 
-    @default("_timezone")
+    @tr.default("_timezone")
     def _timezone_default(self):
         # Return the default timezone (UTC)
         return datetime.utcnow().astimezone().tzinfo
 
-    @validate("_created")
+    @tr.validate("_created")
     def _created_validate(self, proposal):
         date = proposal["value"]
         if date.tzinfo is not None:
@@ -586,7 +584,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             date = date.replace(tzinfo=None)
         return date
 
-    @validate("_history")
+    @tr.validate("_history")
     def _history_validate(self, proposal):
         history = proposal["value"]
         if isinstance(history, list) or history is None:
@@ -594,7 +592,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             self._history = None
         return history
 
-    @validate("_modified")
+    @tr.validate("_modified")
     def _modified_validate(self, proposal):
         date = proposal["value"]
         if date.tzinfo is not None:
@@ -602,7 +600,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             date = date.replace(tzinfo=None)
         return date
 
-    @observe(All)
+    @tr.observe(tr.All)
     def _anytrait_changed(self, change):
 
         # ex: change {
@@ -714,7 +712,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
         # when notified that a coords names have been updated
         _ = self.dims  # fire an update
 
-    @validate("_coordset")
+    @tr.validate("_coordset")
     def _coordset_validate(self, proposal):
         coords = proposal["value"]
         return self._valid_coordset(coords)
@@ -833,7 +831,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
 
         if self._coordset:
             # set a notifier to the updated traits of the CoordSet instance
-            HasTraits.observe(self._coordset, self._dims_update, "_updated")
+            tr.HasTraits.observe(self._coordset, self._dims_update, "_updated")
             # force it one time after this initialization
             self._coordset._updated = True
 
@@ -1542,6 +1540,17 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     # @referencedata.setter
     # def referencedata(self, val):
     #     self._referencedata = val
+
+    #                             #### DEPRECATIONS #####
+
+    @classmethod
+    def read(cls, *args, **kwargs):
+        from spectrochempy import read as _read
+
+        dataset = exceptions.deprecated(removed="0.6.1", replace="API method `read`")(
+            _read
+        )(*args, **kwargs)
+        return dataset
 
 
 # ======================================================================================

@@ -9,8 +9,7 @@ Integration methods.
 """
 
 __all__ = ["simps", "trapz", "simpson", "trapezoid"]
-
-__dataset_methods__ = ["simps", "trapz", "simpson", "trapezoid"]
+__dataset_methods__ = __all__
 
 import functools
 
@@ -190,3 +189,7 @@ def simps(dataset, **kwargs):
 simps__doc__ = f"""
 An alias of `Simpson` kept for backwards compatibility.
 {trapezoid.__doc__}"""
+
+
+if __name__ == "__main__":
+    """ """

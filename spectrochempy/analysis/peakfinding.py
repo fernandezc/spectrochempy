@@ -12,7 +12,6 @@ Contains wrappers of scipy.signal peak finding functions.
 
 __all__ = ["find_peaks"]
 
-__dataset_methods__ = ["find_peaks"]
 
 from datetime import datetime, timezone
 

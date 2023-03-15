@@ -9,15 +9,16 @@ This module should be able to handle a large set of plot types related to 3D plo
 """
 
 __all__ = ["plot_3D", "plot_surface", "plot_waterfall"]
-
 __dataset_methods__ = __all__
+
 
 from spectrochempy.utils.docstrings import add_docstring
 from spectrochempy.utils.plots import plot_method
 
 _PLOT3D_DOC = """
 ax : |Axes| instance. Optional
-    The axe where to plot. The default is the current axe or to create a new one if is None.
+    The axe where to plot. The default is the current axe or to create a new one if is
+    None.
 figsize : tuple, optional
     The figure size expressed as a tuple (w,h) in inch.
 fontsize : int, optional
@@ -76,7 +77,8 @@ def plot_3D(dataset, method="surface", **kwargs):
     dataset : |NDDataset|
         The dataset to plot.
     method : ['surface', 'waterfall'] , optional
-        The method of plot of the dataset, which will determine the plotter to use. Default is stack.
+        The method of plot of the dataset, which will determine the plotter to use.
+        Default is stack.
     **kwargs
         Optional keyword parameters (see Other Parameters).
 

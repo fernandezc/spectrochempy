@@ -7,8 +7,10 @@
 """
 SpectroChemPy specific exceptions
 """
+import logging
+import sys
 from contextlib import contextmanager
-from warnings import warn
+from pathlib import Path
 
 import pint
 import pytz
@@ -41,9 +43,10 @@ class ValueErrorWarning(UserWarning):
     """
 
 
-class NeedsUpdateWarning(UserWarning):
+class SpectroChemPyDeprecationWarning(DeprecationWarning):
+
     """
-    Warning raised when an issue arise arguments or attributes
+    warning raised when an object or a functio is deprecated.
     """
 
 
@@ -85,13 +88,6 @@ class ShapeError(SpectroChemPyError):
     def __init__(self, shape, message):
         message = f" Assigned value has shape {shape} but {message}"
         super().__init__(message)
-
-
-# Analysis method errors
-class NotFittedError(SpectroChemPyError):
-    """
-    Exception raised when an analysis estimtor is not fitted before use.
-    """
 
 
 class MissingDataError(SpectroChemPyError):
@@ -214,7 +210,7 @@ class InvalidDimensionNameError(SpectroChemPyError):
     def __init__(self, name, available_names=DEFAULT_DIM_NAME):
         self.message = (
             f"dim name must be one of {tuple(available_names)} "
-            f"with an optional subdir indication (e.g., 'x_2') but axis=`"
+            f"with an optional subdir indication (e.g., 'x_2') but dim=`"
             f"{name}` was given!"
         )
         super().__init__(self.message)
@@ -252,7 +248,6 @@ class ProtocolError(SpectroChemPyError):
     """
 
     def __init__(self, protocol, available_protocols):
-
         self.message = (
             f"IO - The `{protocol}` protocol is unknown or not yet implemented.\n"
             f"It is expected to be one of {tuple(available_protocols)}"
@@ -266,15 +261,12 @@ class WrongFileFormatError(SpectroChemPyError):
 
 
 # noinspection PyDeprecation
-def deprecated(name=None, *, kind="method", replace="", removed=None, extra_msg=""):
+def deprecated(kind="method", replace="", extra_msg="", removed=None):
     """
     Deprecation decorator.
 
     Parameters
     ----------
-    name : str
-        If name is specified, kind is mandatory set to attribute
-        and the deprecated function is no more acting as a decorator.
     kind : str
         By default, it is method.
     replace : str, optional, default:None
@@ -284,29 +276,21 @@ def deprecated(name=None, *, kind="method", replace="", removed=None, extra_msg=
     removed : str, optional
         Version string when this method will be removed
     """
-
-    def output_warning_message(name, kind, replace, removed, extra_msg):
-        sreplace = f"Use `{replace}` instead. " if replace is not None else ""
-        msg = f" The `{name}` {kind} is now deprecated. {sreplace}"
-        sremoved = f"version {removed}" if removed else "future version"
-        msg += f"`{name}` {kind} will be removed in {sremoved}. "
-        msg += extra_msg
-        warn(
-            msg,
-            category=DeprecationWarning,
-        )
-
-    if name is not None:
-        kind = "attribute"
-        output_warning_message(name, kind, replace, removed, extra_msg)
-        return
+    from spectrochempy.application import warning_
 
     def deprecation_decorator(func):
         def wrapper(*args, **kwargs):
             name = func.__qualname__
             if name.endswith("__init__"):
                 name = name.split(".", maxsplit=1)[0]
-            output_warning_message(name, kind, replace, removed, extra_msg)
+            extra = f"{kind} {extra_msg} " if extra_msg else f"{kind} "
+            sreplace = f"Use `{replace}` {extra}instead." if replace is not None else ""
+            msg = f" `{name}` {kind} is now deprecated. {sreplace}\n"
+            msg += f"The `{name}` {kind} will be removed in version {removed}."
+            warning_(
+                msg,
+                category=SpectroChemPyDeprecationWarning,
+            )
             return func(*args, **kwargs)
 
         return wrapper
@@ -345,3 +329,44 @@ def ignored(*exc):
         yield
     except exc:
         pass
+
+
+def _get_trace_info(*args):
+    import traceback
+
+    typ, val, tb = args
+    info = traceback.extract_tb(tb)[-1]
+    return (
+        f"{info.name}[{Path(info.filename).name}:{info.lineno}] - {typ.__name__}"
+        f" : {val}"
+    )
+
+
+def handle_exception(*args):
+    """
+    Custom handling of the uncaught exceptions
+
+    Parameters
+    ----------
+    *args
+        Arguments received from the caught exception.
+    """
+
+    from spectrochempy.application import app
+
+    stg = _get_trace_info(*args)
+    app.logs.handlers[0].setFormatter(logging.Formatter("%(message)s"))
+    app.logs.handlers[1].setFormatter(logging.Formatter("[%(asctime)s - %(message)s]"))
+    app.logs.error(stg)
+    sys.exit(1)
+
+
+def send_warnings_to_log(*args, **kwargs):
+    from spectrochempy.application import _format_args, app
+
+    if len(args) > 1:
+        kwargs["category"] = args[1]  # priority to arg
+    category = kwargs.pop("category", UserWarning)
+    # stack = inspect.stack()
+    stg = _format_args(f"{category.__name__}: ", str(args[0]), stacklevel=-3)
+    app.logs.warning(stg)

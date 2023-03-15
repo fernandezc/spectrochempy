@@ -10,13 +10,12 @@ This module implements the MCRALS class.
 
 __all__ = ["MCRALS"]
 
-__dataset_methods__ = []
 
 import numpy as np
 from traitlets import Dict, HasTraits, Unicode
 
 from spectrochempy.analysis.pca import PCA
-from spectrochempy.core import INFO, info_, set_loglevel
+from spectrochempy.application import info_, set_loglevel
 from spectrochempy.core.dataset.arraymixins.npy import dot
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.utils import exceptions
@@ -245,7 +244,7 @@ class MCRALS(HasTraits):
             exceptions.deprecated(
                 "verbose", replace="set_loglevel('INFO') before launching MCRALS"
             )
-            set_loglevel(INFO)
+            set_loglevel("INFO")
 
         # Check initial data
         # ------------------------------------------------------------------------------

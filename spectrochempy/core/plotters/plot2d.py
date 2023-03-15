@@ -13,8 +13,8 @@ __all__ = [
     "plot_stack",
     "plot_image",
 ]
-
 __dataset_methods__ = __all__
+
 
 from copy import copy as cpy
 
@@ -23,13 +23,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
+from spectrochempy.application import preferences as prefs
 from spectrochempy.core.dataset.coord import LinearCoord
 from spectrochempy.utils.docstrings import add_docstring
 from spectrochempy.utils.plots import make_label, plot_method
 
 _PLOT2D_DOC = """
 ax : |Axes| instance. Optional
-    The axe where to plot. The default is the current axe or to create a new one if is None.
+    The axe where to plot. The default is the current axe or to create a new one if is
+    None.
 clear : bool, optional, default=`True`
     Should we plot on the ax previously used or create a new figure?.
 figsize : tuple, optional
@@ -52,7 +54,8 @@ clear :
 ax :
 twinx :
 use_plotly : bool, optional
-    Should we use plotly instead of mpl for plotting. Default to `preferences.use_plotly`  (default=False)
+    Should we use plotly instead of mpl for plotting. Default to
+    `preferences.use_plotly`  (default=False)
 data_only : `bool` [optional, default=`False`]
     Only the plot is done. No addition of axes or label specifications
     (current if any or automatic settings are kept.
@@ -132,8 +135,6 @@ def plot_2D(dataset, method=None, **kwargs):
 
     # Get preferences
     # ----------------------------------------------------------------------------------
-    prefs = dataset.preferences
-
     # before going further, check if the style is passed in the parameters
     style = kwargs.pop("style", None)
     if style is not None:

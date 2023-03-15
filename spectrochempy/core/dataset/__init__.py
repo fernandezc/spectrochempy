@@ -4,6 +4,8 @@
 # CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
-"""
-Package related to n-dimensional dataset's creation and handling.
-"""
+# flake8: noqa
+
+# ======================================================================================
+if __name__ == "__main__":
+    """ """

@@ -17,6 +17,7 @@ See :ref:`release` for a full changelog including other versions of SpectroChemP
 New features
 ~~~~~~~~~~~~
 .. Add here new public features (do not delete this comment)
+
 * PCA score plot labelling (issue #543).
 * Improved loading time
 
@@ -25,6 +26,7 @@ New features
 Bug fixes
 ~~~~~~~~~
 .. Add here new bug fixes (do not delete this comment)
+
 * Masks handling.
 * Multicoordinates slicing work correctly.
 
@@ -33,6 +35,29 @@ Bug fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 .. Add here new breaking changes (do not delete this comment)
+
+* The `read` and all other `read_<protocol>` (with `<protocol>` such as `omnic`, `opus` ...) functions should no longer
+  be used as methods of the NDDataset class.
+  This behavior will be removed in version 0.6.0.
+  This means that you should use::
+
+    from spectrochempy import read
+    read(some_data)
+
+  or::
+
+    import spectrochempy as scp
+    scp.read(some_data)
+
+  instead of::
+
+    from spectrochempy import NDDataset
+    NDDataset.read(some_data)
+
+  or::
+
+    import spectrochempy as scp
+    scp.NDDataset.read(some_data)
 
 .. section
 

@@ -16,13 +16,13 @@ import sys
 from os import environ
 from pathlib import Path
 
-__all__ = ["show_versions"]
+__all__ = ["print_versions"]
 
 
 def _get_sys_info():
     """Returns system information as a dict"""
     # copied from XArray
-    from spectrochempy.utils.file import pathclean
+    from spectrochempy.utils.paths import pathclean
 
     REPOS = pathclean(__file__).parent.parent.parent
 
@@ -73,7 +73,7 @@ def _get_sys_info():
     return blob
 
 
-def show_versions(file=sys.stdout):
+def print_versions(file=sys.stdout):
     """print the versions of spectrochempy and its dependencies
 
     Parameters
@@ -92,7 +92,7 @@ def show_versions(file=sys.stdout):
 
     # dependencies
     deps = []
-    reqs = Path(__file__).parent.parent.parent / "requirements" / "requirements_dev.txt"
+    reqs = Path(__file__).parent.parent.parent / "requirements_dev.txt"
     reqs = reqs.read_text().split("\n")
     for req in reqs:
         req = req.strip()
@@ -113,4 +113,4 @@ def show_versions(file=sys.stdout):
 
 
 if __name__ == "__main__":
-    show_versions()
+    print_versions()

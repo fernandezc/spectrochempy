@@ -9,16 +9,16 @@ This module defines functions related to NDDataset alignment.
 """
 
 __all__ = ["align"]
-__dataset_methods__ = __all__
+
 
 # import scipy.interpolate
 import numpy as np
 
-from spectrochempy.core import error_, warning_
+from spectrochempy.application import error_, warning_
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.utils import exceptions
 from spectrochempy.utils.constants import MASKED
-from spectrochempy.utils.misc import get_n_decimals
+from spectrochempy.utils.numutils import get_n_decimals
 
 
 def can_merge_or_align(coord1, coord2):
@@ -392,3 +392,7 @@ def align(dataset, *others, **kwargs):
     #     dataset.modified), axis, ref.name, ref.coords[refaxis].title)  #  #     if is_sorted and out.coordset(
     #     axis).reversed:  #  #  out.sort(axis, descend=True, inplace=True)  #         ref.sort(  #  refaxis,
     #     descend=True, inplace=True)  #  # return out
+
+
+if __name__ == "__main__":
+    """ """

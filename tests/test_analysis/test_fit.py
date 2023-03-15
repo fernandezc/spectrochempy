@@ -8,7 +8,7 @@
 
 import pytest
 
-from spectrochempy import Fit
+from spectrochempy import Fit, preferences
 from spectrochempy.utils.plots import show
 from spectrochempy.utils.testing import assert_approx_equal
 
@@ -57,6 +57,8 @@ def test_fit_single_dataset(IR_dataset_2D, script):
     f1.run(maxiter=10, every=1)
     #    assert_approx_equal(dataset.model_A, -116.40475, significant=4)
     #    assert_approx_equal(f1.fp['width_line_2'], 195.7273, significant=4)
+
+    preferences.figure.figsize = (3, 4)
     dataset.plot(plot_model=True)
 
     dataset2 = dataset.copy() * 2.34

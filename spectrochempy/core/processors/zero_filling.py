@@ -5,16 +5,15 @@
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
 __all__ = ["zf_auto", "zf_double", "zf_size", "zf"]
-
 __dataset_methods__ = __all__
 
 import functools
 
 import numpy as np
 
-from spectrochempy.core import error_
+from spectrochempy.application import error_
 from spectrochempy.core.dataset.coord import LinearCoord
-from spectrochempy.utils.misc import largest_power_of_2
+from spectrochempy.utils.numutils import largest_power_of_2
 
 
 # ======================================================================================
@@ -181,3 +180,7 @@ def zf_auto(dataset, mid=False):
 
 
 zf = zf_size
+
+
+if __name__ == "__main__":
+    """ """

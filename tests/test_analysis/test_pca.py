@@ -12,6 +12,7 @@ Tests for the PCA module
 """
 import numpy as np
 
+import spectrochempy as scp
 from spectrochempy.analysis.pca import PCA
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.utils.constants import MASKED
@@ -23,7 +24,7 @@ from spectrochempy.utils.testing import assert_array_almost_equal
 # test pca
 # ---------
 def test_pca():
-    dataset = NDDataset.read("irdata/nh4y-activation.spg")
+    dataset = scp.read("irdata/nh4y-activation.spg")
 
     # with masks
     dataset[:, 1240.0:920.0] = MASKED  # do not forget to use float in slicing

@@ -9,19 +9,19 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import spectrochempy.core as sc
+import spectrochempy as scp
 from spectrochempy.utils.plots import show
 
 
 def test_lstsq_from_scratch():
-    t = sc.NDDataset(data=[0, 1, 2, 3], title="time", units="hour")
+    t = scp.NDDataset(data=[0, 1, 2, 3], title="time", units="hour")
 
-    d = sc.NDDataset(data=[-1, 0.2, 0.9, 2.1], title="distance", units="kilometer")
+    d = scp.NDDataset(data=[-1, 0.2, 0.9, 2.1], title="distance", units="kilometer")
 
     # We would like v and d0 such as
     #    d = v.t + d0
 
-    lstsq = sc.LSTSQ(t, d)
+    lstsq = scp.LSTSQ(t, d)
     v, d0 = lstsq.transform()
 
     assert np.around(v.magnitude) == 1
@@ -38,9 +38,9 @@ def test_lstsq_from_scratch():
 
 
 def test_implicit_lstsq():
-    t = sc.Coord(data=[0, 1, 2, 3], units="hour", title="time")
+    t = scp.Coord(data=[0, 1, 2, 3], units="hour", title="time")
 
-    d = sc.NDDataset(
+    d = scp.NDDataset(
         data=[-1, 0.2, 0.9, 2.1], coordset=[t], units="kilometer", title="distance"
     )
 
@@ -49,7 +49,7 @@ def test_implicit_lstsq():
     # We would like v and d0 such as
     #    d = v.t + d0
 
-    lstsq = sc.LSTSQ(d)  #
+    lstsq = scp.LSTSQ(d)  #
     v, d0 = lstsq.transform()
 
     print(v, d0)

@@ -27,7 +27,6 @@ class MetaConfigurable(Configurable):
     """
 
     def __init__(self, section, **kwargs):  # lgtm[py/missing-call-to-init]
-
         super().__init__(**kwargs)
 
         self.cfg = self.parent.config_manager
@@ -67,7 +66,6 @@ class MetaConfigurable(Configurable):
             return
 
         if change.name in self.traits(config=True):
-
             value = change.new
             # replace non serializable value by an equivalent
             if isinstance(value, (type(cycler), Path)):
@@ -174,6 +172,38 @@ class CoordType(SpectroChemPyType):
             from spectrochempy.core.dataset.coord import Coord
 
             kwargs["klass"] = Coord
+        super().__init__(default_value=default_value, allow_none=allow_none, **kwargs)
+        self.metadata.update({"dtype": dtype})
+
+
+class ProjectType(SpectroChemPyType):
+    """
+    A NDDataset trait type.
+    """
+
+    info_text = "a SpectroChemPy Project"
+
+    def __init__(self, default_value=Empty, allow_none=False, dtype=None, **kwargs):
+        if "klass" not in kwargs and self.klass is None:
+            from spectrochempy.core.project import Project
+
+            kwargs["klass"] = Project
+        super().__init__(default_value=default_value, allow_none=allow_none, **kwargs)
+        self.metadata.update({"dtype": dtype})
+
+
+class ScriptType(SpectroChemPyType):
+    """
+    A NDDataset trait type.
+    """
+
+    info_text = "a SpectroChemPy Script"
+
+    def __init__(self, default_value=Empty, allow_none=False, dtype=None, **kwargs):
+        if "klass" not in kwargs and self.klass is None:
+            from spectrochempy.core.script import Script
+
+            kwargs["klass"] = Script
         super().__init__(default_value=default_value, allow_none=allow_none, **kwargs)
         self.metadata.update({"dtype": dtype})
 

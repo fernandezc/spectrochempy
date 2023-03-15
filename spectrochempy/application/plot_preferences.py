@@ -5,7 +5,8 @@
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
 import matplotlib as mpl
-from matplotlib import pyplot as plt
+
+# from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from traitlets import (
     All,
@@ -23,9 +24,7 @@ from traitlets import (
     observe,
 )
 
-from spectrochempy.utils.traits import MetaConfigurable
-
-# from spectrochempy.core import warning_
+from spectrochempy.application.metaconfigurable import MetaConfigurable
 
 
 # --------------------------------------------------------------------------------------
@@ -40,9 +39,11 @@ def available_styles():
     -------
     A list of matplotlib styles
     """
+    # Todo: Make this list extensible programmatically (adding files to stylelib)
+    from matplotlib import pyplot as plt
+
     from spectrochempy.utils.file import pathclean
 
-    # Todo: Make this list extensible programmatically (adding files to stylelib)
     cfgdir = mpl.get_configdir()
     stylelib = pathclean(cfgdir) / "stylelib"
     styles = plt.style.available
@@ -58,6 +59,8 @@ class PlotPreferences(MetaConfigurable):
     """
     This is a port of matplotlib.rcParams to our configuration system (traitlets)
     """
+
+    from matplotlib import pyplot as plt
 
     name = Unicode("PlotPreferences")
     description = Unicode("Options for Matplotlib")
@@ -882,6 +885,8 @@ class PlotPreferences(MetaConfigurable):
     )
 
     def __init__(self, **kwargs):
+        from matplotlib import pyplot as plt
+
         super().__init__(section="PlotPreferences", **kwargs)
         for key in plt.rcParams:
             lis = key.split(".")
@@ -967,6 +972,8 @@ class PlotPreferences(MetaConfigurable):
 
     @observe("simplify")
     def _simplify_changed(self, change):
+        from matplotlib import pyplot as plt
+
         plt.rcParams["path.simplify"] = change.new
         plt.rcParams["path.simplify_threshold"] = 1.0
 
@@ -996,6 +1003,8 @@ class PlotPreferences(MetaConfigurable):
 
     @staticmethod
     def _get_fontsize(fontsize):
+        from matplotlib import pyplot as plt
+
         if fontsize == "None":
             return float(mpl.rcParams["font.size"])
         plt.ioff()
@@ -1013,6 +1022,8 @@ class PlotPreferences(MetaConfigurable):
 
     @staticmethod
     def _get_color(color):
+        from matplotlib import pyplot as plt
+
         prop_cycle = plt.rcParams["axes.prop_cycle"]
         colors = prop_cycle.by_key()["color"]
         c = [f"C{i}" for i in range(10)]
@@ -1022,7 +1033,7 @@ class PlotPreferences(MetaConfigurable):
             return f"{color}"
 
     def _apply_style(self, _style):
-        from spectrochempy.utils.file import pathclean
+        from spectrochempy.utils.paths import pathclean
 
         f = (pathclean(self.stylesheets) / _style).with_suffix(".mplstyle")
         if not f.exists():
@@ -1129,3 +1140,7 @@ class PlotPreferences(MetaConfigurable):
                 )  # @observe('use_latex')  # def _use_latex_changed(self, change):  #     mpl.rc(  # 'text', usetex=change.new)  #  # @observe('latex_preamble')  # def _set_latex_preamble(self,  # change):  #     mpl.rcParams[  #    #  #  #  'text.latex.preamble'] = change.new.split('\n')
         super()._anytrait_changed(change)
         return  # EOF
+
+
+if __name__ == "__main__":
+    pass

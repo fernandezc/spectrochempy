@@ -10,14 +10,13 @@ This module implement the SIMPLISMA class.
 
 __all__ = ["SIMPLISMA"]
 
-__dataset_methods__ = []
 
 import warnings
 
 import numpy as np
 from traitlets import HasTraits, Unicode
 
-from spectrochempy.core import INFO, info_, set_loglevel
+from spectrochempy.application import info_, set_loglevel
 from spectrochempy.core.dataset.arraymixins.npy import dot
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.utils import exceptions
@@ -110,9 +109,9 @@ class SIMPLISMA(HasTraits):
 
         if "verbose" in kwargs.keys():
             exceptions.deprecated(
-                "verbose", replace="use set_loglevel(INFO) before launching SIMPLISMA"
+                "verbose", replace="use set_loglevel('INFO') before launching SIMPLISMA"
             )
-            set_loglevel(INFO)
+            set_loglevel("INFO")
 
         interactive = kwargs.get("interactive", False)
         tol = kwargs.get("tol", 0.1)

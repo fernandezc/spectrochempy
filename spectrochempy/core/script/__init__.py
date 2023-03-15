@@ -9,7 +9,7 @@ import re
 
 from traitlets import Float, HasTraits, Instance, TraitError, Unicode, validate
 
-from spectrochempy.core import error_
+from spectrochempy.application import error_
 from spectrochempy.core.project.abstractproject import AbstractProject
 
 __all__ = ["Script", "run_script", "run_all_scripts"]
@@ -192,7 +192,9 @@ class Script(HasTraits):
             exec(code, globals(), localvars)
         except NameError as e:
             error_(
-                e + ". pass the variable `locals()` : this may solve " "this problem! "
+                NameError,
+                str(e) + ". pass the variable `locals()` : this may solve "
+                "this problem! ",
             )
 
 

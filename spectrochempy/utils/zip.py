@@ -10,8 +10,6 @@ from collections.abc import Mapping
 
 from numpy.lib.format import read_array
 
-__all__ = ["make_zipfile", "ScpFile"]
-
 
 # ======================================================================================
 # ZIP UTILITIES
@@ -71,7 +69,6 @@ class ScpFile(Mapping):  # lgtm[py/missing-equals]
     """
 
     def __init__(self, fid):
-
         _zip = make_zipfile(fid)
 
         self.files = _zip.namelist()

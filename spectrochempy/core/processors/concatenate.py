@@ -6,7 +6,6 @@
 # ======================================================================================
 __all__ = ["concatenate", "stack"]
 
-__dataset_methods__ = __all__
 
 import datetime as datetime
 from warnings import warn
@@ -253,4 +252,4 @@ def _get_copy(datasets):
 
 
 if __name__ == "__main__":
-    pass
+    """ """
