@@ -27,7 +27,6 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install json5 pyyaml cffconvert
           python3 -m pip install setuptools_scm
-          python3 -m pip install pre-commit
 
       - name: Create release branch
         run: git checkout -b release/${{ github.event.inputs.versionString }}
@@ -39,8 +38,7 @@ jobs:
 
       - name: Update version in release notes, .zenodo.json and CITATION.cff
         run: |
-          python .ci/update_version_and_release_notes.py ${{ github.event.inputs.versionString }}
-          pre-commit run --all-file
+          python3 .ci/update_version_and_release_notes.py ${{ github.event.inputs.versionString }}
 
       - name: Commit tracked files
         id: make-commit
