@@ -19,15 +19,10 @@ from traitlets import Bool, validate
 
 from spectrochempy.core.dataset.baseobjects.ndarray import NDArray
 from spectrochempy.core.units import Quantity
+from spectrochempy.utils.complex import as_quaternion, get_component
 from spectrochempy.utils.constants import NOMASK
-from spectrochempy.utils.misc import (
-    TYPE_COMPLEX,
-    TYPE_FLOAT,
-    as_quaternion,
-    get_component,
-    typequaternion,
-)
-from spectrochempy.utils.print import insert_masked_print
+from spectrochempy.utils.dtypes import TYPE_COMPLEX, TYPE_FLOAT, typequaternion
+from spectrochempy.utils.prints import insert_masked_print
 
 
 # ======================================================================================

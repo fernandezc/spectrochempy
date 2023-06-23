@@ -18,13 +18,10 @@ from spectrochempy.application import error_
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.units import ur
 from spectrochempy.processing.fft.zero_filling import zf_size
+from spectrochempy.utils.complex import as_quaternion, get_component
 from spectrochempy.utils.decorators import _units_agnostic_method
-from spectrochempy.utils.misc import (
-    as_quaternion,
-    get_component,
-    largest_power_of_2,
-    typequaternion,
-)
+from spectrochempy.utils.dtypes import typequaternion
+from spectrochempy.utils.numutils import largest_power_of_2
 
 
 # ======================================================================================

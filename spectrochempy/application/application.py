@@ -7,225 +7,45 @@
 """
 This module defines the `application` on which the API rely.
 
-It also defines
-the default application preferences and IPython magic functions.
+It also defines the default application preferences and IPython magic functions.
 """
 
+import inspect
 import io
 import json
 import logging
-import pprint
-import subprocess
+
+# import pprint
 import sys
-import threading
 import traceback
 import warnings
+from contextlib import contextmanager
 from os import environ
 from pathlib import Path
-from zipfile import ZipFile
 
 import matplotlib as mpl
-import numpy as np
-import requests
 import traitlets as tr
 from IPython import get_ipython
 from IPython.core.interactiveshell import InteractiveShell
-from IPython.display import clear_output, publish_display_data
-from jinja2 import Template
-from pkg_resources import DistributionNotFound, get_distribution
-from setuptools_scm import get_version
 from traitlets.config.application import Application
 from traitlets.config.configurable import Config
 from traitlets.config.manager import BaseJSONConfigManager
 
 from spectrochempy.application.datadir import DataDir
-from spectrochempy.application.general_preferences import GeneralPreferences
-from spectrochempy.utils.file import find_or_create_spectrochempy_dir, pathclean
-
-# ======================================================================================
-# Setup
-# ======================================================================================
-
-# --------------------------------------------------------------------------------------
-# Log levels
-# --------------------------------------------------------------------------------------
-DEBUG = logging.DEBUG
-INFO = logging.INFO
-WARNING = logging.WARNING
-ERROR = logging.ERROR
-CRITICAL = logging.CRITICAL
 
 
 # --------------------------------------------------------------------------------------
-# logo / copyright display
+# Public functions
 # --------------------------------------------------------------------------------------
-def _display_info_string(**kwargs):  # pragma: no cover
-    _template = """
-    {{widgetcss}}
-    <div>
-    <table>
-    <tr>
-    <td>
-    {% if logo %}
-    <img src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAAXNSR0IArs4c6QAAAAlw
-    SFlzAAAJOgAACToB8GSSSgAAAetpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6
-    bWV0YS8iIHg6eG1wdGs9IlhNUCBDb3JlIDUuNC4wIj4KICAgPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8x
-    OTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4KICAgICAgPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIKICAgICAgICAgICAg
-    eG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIgogICAgICAgICAgICB4bWxuczp0aWZmPSJodHRwOi8vbnMu
-    YWRvYmUuY29tL3RpZmYvMS4wLyI+CiAgICAgICAgIDx4bXA6Q3JlYXRvclRvb2w+bWF0cGxvdGxpYiB2ZXJzaW9uIDIuMS4wLCBo
-    dHRwOi8vbWF0cGxvdGxpYi5vcmcvPC94bXA6Q3JlYXRvclRvb2w+CiAgICAgICAgIDx0aWZmOk9yaWVudGF0aW9uPjE8L3RpZmY6
-    T3JpZW50YXRpb24+CiAgICAgIDwvcmRmOkRlc2NyaXB0aW9uPgogICA8L3JkZjpSREY+CjwveDp4bXBtZXRhPgqNQaNYAAAGiUlE
-    QVRIDY1We4xU1Rn/3XPuYx47u8w+hnU38hTcuoUEt/6D2y4RB0ME1BoEd9taJaKh9CFiN7YGp7appUAMNmktMZFoJTYVLVQ0smsy
-    26CN0SU1QgsuFAaW3WVmx33N677O6XfuyoIxTXqSO/fec+75fd93vt/3/UbDV0aKSZmCpkFMLz3T9utuu2N+o98aDSMBKVAo89z5
-    y+zEz3ZafcCOfvWdlGCalqKn1Bf71CygTd+mf1esSOnpdMpTb+vWpTZuWVfe3jLPa5tzHYNm0T5N0gpdkkHaDBeGBU6d1/t/fyS8
-    +/CbqdfUvmsx1PuMgc2bNxv79u1zgd31r+7JH1jbIZKxWRXAcYUQ8IWvBfBXNjEuJWPgMA02NR7C3/pYT9fjdZ3A9tGrWF8YSJHn
-    qcDz3y7q2T967PZv+gnYJdd1mEZ+62zGDQV/dQgKhmLzDNOXCEWM3j6eTT5Y3w78dOBKJLR1PQf+4ivPj76UPZnssBN+wbM9Aet/
-    AV81Mf1EEULXYfOobvX2WWQk0aoioXwwSmirOlioY0mu8BIouzYl7P8GV3vpqCCEZvlFz769w08oLDWvyKIyL1asSm28d6WfzA97
-    ztvvV1kexUMsmhlkULEkuGYmFYC6AvfUrITnwUKl5K79lkjeSSRRTCTbQPd95e1WzMbZSya74XoXAxctCllCnbECMOjZNGRwvzIX
-    nD85wbkMmKK+U045Dtdi8Qp+SAxU2GTg2bYlC9224pgvmSb54vkVTBQYyhUt2KjAMyMmPjwRQW5Mh2WKwJhlBh6jVGagFM84wZnQ
-    4bpC0Rt4pk1PbSt0NDcxDA5xryosDHWgtbM0DGZDWLSoiDMDYeQnGVrmOThxLozB0RAaahzkJzjKNqcIQBymJFMkOlN8Dqjpg0XY
-    Tx5xO/QbmmUrqIjGJznq47TqTaClKYfjp+PInLMwnOdYvtQBZ2XcunQY+VwIo4U4muoFEjVEFE6lQyEUKzHYfgQG9ylCyngU+Cxj
-    tOqxCDGHcCsOMCs6iQul5ZiStdATYxjMZXDLTUVwLY8Jey4uOh2IxjwsrP8UXJYxUrkZrghBahzV5iXU6gNkq0Z1EzIsUBUSCV2n
-    EOHo0LVxHCpuxabJJdhi5PFnvw5vLXwXIfNZvD/+JNo/X40NegE54sUaazl+UL8XD1x+FB9Ijjt4EQfdGN6J/x131LwIV9ap/AYs
-    0x1fz1ZKFbh6A7qKy/By9Dg6G36Ep91vUJJ15Cqr0Z67E8/HzmBrw1OwxWyM+3Mo6BAuSB17oyfx0Oyl2DN0Hqs/70Cx6hBCvESF
-    UY1ShWXZZEE7OTAYxZzaPH4TuoiusZvRnunFy2NbiHYuBp2vB66srX4vMEjpRKPxKXmnoQ4+Mn4DPiv8CYcrs3GfNUXJLtM+alSO
-    hrMj/KT+wBNW3+E/2liywNO3iSflbaFva/+stGDTxE0E9Sjaox8HBhxpEamzMGSEaFKg+mjEddzDh1MxTDq3YV1kGBsjfwW3S9Cq
-    anjmko+ndlb1UR3s6K8JlfphNWq9Ew/7c61T2BB/EbcaNkb8GBaE0tANH7/M34PLdhJDzjIcL9xPbdTG6zyM72Y+wXPHmvB489No
-    fm0b5HnbQ9Rgp/7DSSd29AeVvPeNyK6JcYl/yQVi5dBjuGvoV/gaJe47s45QUxrDmcYX0MBsdF7egvXZ7+O0vZA4X8QmOQWjlSK7
-    RDz5wIM30gp9UbWcGjXxhzdDu1SiNSpx6kcQB57rPnr/3dlkZarWLnlRq5oPET1dOCIOk4wALib9eeS5iygfhkd09H0DWphB/+gs
-    +PcOAS+ssrFmmXXgVfR0de9cpbAJfH3Q1jofW9DZk56dDcVsq9YcsoUMEd1qyLoT3BX1YiyHMJuk97hyjqIoE91t+NcTLeN0ZrfM
-    oXatZbu6G0h4VG+ibqq0IJVK6cAjo6serG3vSUezCMct0yQeSOFJSUImqb2qbknUpDqlZxE0QZ+ZUpSlZx79h4Nda6zef9dlk121
-    JDjbR5XggPRZlRnS6bRQRtLpn4++cuie/Yvn2svmNxuLw9WCcYIl4fEoTEGiSTUqJdfgU+8ROqf1iMkLzS389YtNPXc/PH8l8ONB
-    JZkHD+4JtD04HmVEDWWErmBhzV2/2LB1bemJG6krzv2S6NOHUgtEP0Oif5pE/3fHoruP7N8RiP61GArzSwbUhJJQpXJKiKbfr/3b
-    IhKq76sKPUdF9NW/LSqfSn6vjv8C45H/6FSgvZQAAAAASUVORK5CYII='
-         style='height:25px; border-radius:12px; display:inline-block; float:left; vertical-align:middle'>
-    </img>
-    {% endif %}
-    </td>
-    <td>
-    {% if message %}
-    &nbsp;&nbsp;<span style='font-size:12px'>{{ message }}</span>
-    {% endif %}
-    </td>
-    </tr>
-    </table>
-    </div>
-    """
-
-    clear_output()
-
-    logo = kwargs.get("logo", True)
-    message = kwargs.get("message", "info ")
-
-    template = Template(_template)
-    html = template.render(
-        {"logo": logo, "message": message.strip().replace("\n", "<br/>")}
-    )
-    publish_display_data(data={"text/html": html})
-
-
-# --------------------------------------------------------------------------------------
-# Version
-# --------------------------------------------------------------------------------------
-try:
-    release = get_distribution("spectrochempy").version.split("+")[0]
-    "Release version string of this package"
-except DistributionNotFound:  # pragma: no cover
-    # package is not installed
-    release = "--not set--"
-
-try:
-    version = get_version(root="..", relative_to=__file__)
-    "Version string of this package"
-except LookupError:  # pragma: no cover
-    version = release
-
-
-def _get_copyright():
-    current_year = np.datetime64("now", "Y")
-    right = f"2014-{current_year}"
-    right += " - A.Travert & C.Fernandez @ LCS"
-    return right
-
-
-copyright = _get_copyright()
-"Copyright string of this package"
-
-
-def _get_release_date():
-    return subprocess.getoutput("git log -1 --tags --date=short --format='%ad'")
-
-
-release_date = _get_release_date()
-"Last release date of this package"
-
-
-# --------------------------------------------------------------------------------------
-# Testdata
-# --------------------------------------------------------------------------------------
-def _download_full_testdata_directory(datadir):
-    # this process is relatively long, so we do not want to do it several time:
-    downloaded = datadir / "__downloaded__"
-    if downloaded.exists():
-        return
-
-    url = "https://github.com/spectrochempy/spectrochempy_data/archive/refs/heads/master.zip"
-
-    resp = requests.get(url, stream=True, allow_redirects=True)
-    zipfile = ZipFile(io.BytesIO(resp.content))
-    files = [zipfile.open(file_name) for file_name in zipfile.namelist()]
-
-    for file in files:
-        name = file.name
-        if name.endswith("/") or "testdata/" not in name:  # dir
-            continue
-        uncompressed = zipfile.read(name)
-        p = list(pathclean(name).parts)[2:]
-        dst = datadir.joinpath("/".join(p))
-        if not dst.parent.exists():
-            # create the eventually missing subdirectory
-            dst.parent.mkdir(parents=True, exist_ok=True)
-        dst.write_bytes(uncompressed)
-
-    # write the "__downloaded__" file to avoid this process to run several file.
-    downloaded.touch(exist_ok=True)
-
-
-# --------------------------------------------------------------------------------------
-# Other info
-# --------------------------------------------------------------------------------------
-url = "https://www.spectrochempy.fr"
-"URL for the documentation of this package"
-
-authors = "C. Fernandez & A. Travert"
-"First authors(s) of this package"
-
-contributors = "A. Ait Blal, W. Guérin, M. Mailänder"
-"contributor(s) to this package"
-
-license = "CeCILL-B license"
-"License of this package"
-
-cite = (
-    f"Arnaud Travert & Christian Fernandez (2021) SpectroChemPy (version"
-    f" {'.'.join(version.split('.')[0:2])}). "
-    f"Zenodo. https://doi.org/10.5281/zenodo.3823841"
-)
-"How to cite this package"
-
-
-# Directories
-
-
-def _get_config_dir():
+def get_config_dir():
     """
     Determines the SpectroChemPy configuration directory name and
     creates the directory if it doesn't exist.
 
-    This directory is typically `$HOME/.spectrochempy/config` ,
+    This directory is typically ``$HOME/.spectrochempy/config``,
     but if the
     SCP_CONFIG_HOME environment variable is set and the
-    `$SCP_CONFIG_HOME` directory exists, it will be that
+    ``$SCP_CONFIG_HOME`` directory exists, it will be that
     directory.
 
     If neither exists, the former will be created.
@@ -235,22 +55,56 @@ def _get_config_dir():
     config_dir : str
         The absolute path to the configuration directory.
     """
+    from spectrochempy.utils.file import find_or_create_spectrochempy_dir
 
-    # first look for SCP_CONFIG_HOME
-    scp = environ.get("SCP_CONFIG_HOME")
+    # first look for SCPY_CONFIG_HOME
+    scp = environ.get("SCPY_CONFIG_HOME")
 
-    if scp is not None and Path(scp).exists():
+    if scp is not None and Path(scp).exists():  # pragma: no cover
         return Path(scp)
 
     config = find_or_create_spectrochempy_dir() / "config"
-    if not config.exists():
+    if not config.exists():  # pragma: no cover
         config.mkdir(exist_ok=True)
 
     return config
 
 
+def get_log_dir():
+    """
+    Determines the SpectroChemPy log output directory name and
+    creates the directory if it doesn't exist.
+
+    This directory is typically ``$HOME/.spectrochempy/logs``,
+    but if the
+    SCPY_LOGS environment variable is set and the
+    ``$SCPY_LOGS`` directory exists, it will be that
+    directory.
+
+    If neither exists, the former will be created.
+
+    Returns
+    -------
+    log_dir : str
+        The absolute path to the log directory.
+    """
+    from spectrochempy.utils.file import find_or_create_spectrochempy_dir
+
+    # first look for SCP_LOGS
+    log_dir = environ.get("SCP_LOGS")
+
+    if log_dir is not None and Path(log_dir).exists():  # pragma: no cover
+        return Path(log_dir)
+
+    log_dir = find_or_create_spectrochempy_dir() / "logs"
+    if not log_dir.exists():  # pragma: no cover
+        log_dir.mkdir(exist_ok=True)
+
+    return log_dir
+
+
 # ======================================================================================
-# Application
+# The main SpectoChemPy Application
 # ======================================================================================
 class SpectroChemPy(Application):
     """
@@ -258,131 +112,28 @@ class SpectroChemPy(Application):
     configuration and more.
     """
 
-    icon = tr.Unicode("scpy.png")
-    "Icon for the application"
-
-    running = tr.Bool(False)
-    "Running status of the  `SpectroChemPy` application"
-
     name = tr.Unicode("SpectroChemPy")
-    "Running name of the application"
-
-    description = tr.Unicode(
-        "SpectroChemPy is a framework for processing, analysing and modelling "
-        "Spectroscopic data for Chemistry with Python."
-    )
-    "Short description of the  `SpectroChemPy` application"
-
-    long_description = tr.Unicode()
-    "Long description of the  `SpectroChemPy` application"
-
-    @tr.default("long_description")
-    def _get_long_description(self):
-        desc = f"""
-<p><strong>SpectroChemPy</strong> is a framework for processing, analysing and modelling
- <strong>Spectro</>scopic data for <strong>Chem</strong>istry with
- <strong>Py</strong>thon.
- It is a cross platform software, running on Linux, Windows or OS X.</p><br><br>
-<strong>Version:</strong> {release}<br>
-<strong>Authors:</strong> {authors}<br>
-<strong>License:</strong> {license}<br>
-<div class='warning'> SpectroChemPy is still experimental and under active development.
-Its current design and
- functionalities are subject to major changes, reorganizations, bugs and crashes!!!.
- Please report any issues
-to the <a url='https://github.com/spectrochempy/spectrochempy/issues'>Issue Tracker<a>
-</div><br><br>
-When using <strong>SpectroChemPy</strong> for your own work,
-you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
-"""
-
-        return desc
+    description = tr.Unicode("Main application")
 
     # ----------------------------------------------------------------------------------
-    # Configuration parameters
+    # Non configurable attributes
     # ----------------------------------------------------------------------------------
-    # Config file setting
-    _loaded_config_files = tr.List()
-
-    reset_config = tr.Bool(
-        False, help="Should we restore a default configuration ?"
-    ).tag(config=True)
-    """Flag: True if one wants to reset settings to the original config defaults."""
-
-    # config_file_name = tr.Unicode(None, help="Configuration file name").tag(config=True)
-    # """Configuration file name."""
-    #
-    # @tr.default("config_file_name")
-    # def _get_config_file_name_default(self):
-    #     return str(self.name).lower() + "_cfg"
-
-    config_dir = tr.Instance(Path, help="Set the configuration directory location").tag(
-        config=True
-    )
-    """Configuration directory."""
-
-    @tr.default("config_dir")
-    def _get_config_dir_default(self):
-        return _get_config_dir()
-
+    # config
+    config_file_name = tr.Unicode(None, help="Configuration file name")
+    config_dir = tr.Instance(Path, help="Set the configuration directory location")
     config_manager = tr.Instance(BaseJSONConfigManager)
 
-    @tr.default("config_manager")
-    def _get_default_config_manager(self):
-        return BaseJSONConfigManager(config_dir=str(self.config_dir))
-
-    debug = tr.Bool(True, help="Set DEBUG mode, with full outputs").tag(config=True)
-    """Flag to set debugging mode."""
-
-    info = tr.Bool(False, help="Set INFO mode, with msg outputs").tag(config=True)
-    """Flag to set info mode."""
-
-    quiet = tr.Bool(False, help="Set Quiet mode, with minimal outputs").tag(config=True)
-    """Flag to set in fully quite mode (even no warnings)."""
-
-    nodisplay = tr.Bool(
-        False, help="Set NO DISPLAY mode, i.e., no graphics outputs"
-    ).tag(config=True)
-    """Flag to set in NO DISPLAY mode."""
-
-    # last_project = tr.Unicode('', help='Last used project').tag(config=True, type='project')
-    # """Last used project"""
-    #
-    # @tr.observe('last_project')
-    # def _last_project_changed(self, change):
-    #     if change.name in self.traits(config=True):
-    #         self.config_manager.update(self.config_file_name, {self.__class__.__name__: {change.name: change.new, }})
-
-    show_config = tr.Bool(help="Dump configuration to stdout at startup").tag(
+    # ----------------------------------------------------------------------------------
+    # Configurable attributes
+    # ----------------------------------------------------------------------------------
+    # log
+    log_dir = tr.Instance(Path, help="The log output directory location").tag(
         config=True
     )
-
-    @tr.observe("show_config")
-    def _show_config_changed(self, change):
-        if change.new:
-            self._save_start = self.start
-            self.start = self.start_show_config
-
-    show_config_json = tr.Bool(help="Dump configuration to stdout (as JSON)").tag(
-        config=True
-    )
-
-    @tr.observe("show_config_json")
-    def _show_config_json_changed(self, change):
-        self.show_config = change.new
-
-    test = tr.Bool(False, help="test flag").tag(config=True)
-    """Flag to set the application in testing mode."""
-
-    port = tr.Integer(7000, help="Dash server port").tag(config=True)
-    """Dash server port."""
-
-    # logger
     log_format = tr.Unicode(
         "%(highlevel)s %(message)s",
         help="The Logging format template",
     ).tag(config=True)
-
     logging_config = tr.Dict(
         {
             "handlers": {
@@ -402,73 +153,31 @@ you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
         }
     ).tag(config=True)
 
-    # Command line interface
     # ----------------------------------------------------------------------------------
-    aliases = dict(
-        test="SpectroChemPy.test",
-        project="SpectroChemPy.last_project",
-        f="SpectroChemPy.startup_filename",
-        port="SpectroChemPy.port",
-    )
+    # Private attributes
+    # ----------------------------------------------------------------------------------
+    _running = tr.Bool(False)
+    _loaded_config_files = tr.List()
+    _from_warning_ = False
 
-    flags = dict(
-        debug=(
-            {"SpectroChemPy": {"log_level": DEBUG}},
-            "Set log_level to DEBUG - most verbose mode.",
-        ),
-        info=(
-            {"SpectroChemPy": {"log_level": INFO}},
-            "Set log_level to INFO - verbose mode.",
-        ),
-        quiet=(
-            {"SpectroChemPy": {"log_level": ERROR}},
-            "Set log_level to ERROR - no verbosity at all.",
-        ),
-        nodisplay=(
-            {"SpectroChemPy": {"nodisplay": True}},
-            "Set NO DISPLAY mode to true - no graphics at all",
-        ),
-        reset_config=(
-            {"SpectroChemPy": {"reset_config": True}},
-            "Reset config to default",
-        ),
-        show_config=(
-            {
-                "SpectroChemPy": {
-                    "show_config": True,
-                }
-            },
-            "Show the application's configuration (human-readable format).",
-        ),
-        show_config_json=(
-            {
-                "SpectroChemPy": {
-                    "show_config_json": True,
-                }
-            },
-            "Show the application's configuration (json format).",
-        ),
-    )
-
-    classes = tr.List(
-        help="List of configurables",
-    )
-
-    _from_warning_ = tr.Bool(False)
+    # used to create configuration files
+    classes = tr.List([])
 
     # ----------------------------------------------------------------------------------
     # Initialisation of the application
     # ----------------------------------------------------------------------------------
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-        self.initialize()
+        log_level = kwargs.pop("log_level", None)
+        self._initialize()
+        if log_level is not None:
+            self.log_level = log_level
 
     # ----------------------------------------------------------------------------------
     # Error/warning capture
     # ----------------------------------------------------------------------------------
     def _ipython_catch_exceptions(self, shell, etype, evalue, tb, tb_offset=None):
-        # output the full traceback only in DEBUG mode or when under pytest
+        # output the full traceback only in DEBUG mode
         if self.log_level == logging.DEBUG:
             shell.showtraceback((etype, evalue, tb), tb_offset=tb_offset)
         else:
@@ -497,14 +206,14 @@ you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
         self, message, category, filename, lineno, file=None, line=None
     ):
         with self._fmtcontext():
+            self._formatter(message)
             self.log.warning(f"({category.__name__}) {message}")
 
     # ----------------------------------------------------------------------------------
     # Initialisation of the configurables
     # ----------------------------------------------------------------------------------
     def _init_all_preferences(self):
-        # Get preferences from the config files
-        # ---------------------------------------------------------------------
+        # Get preferences from the config file
         if not self.config:
             self.config = Config()
 
@@ -514,111 +223,90 @@ you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
             for fil in lis:
                 if fil.suffix == ".py":
                     pyname = self.config_dir / fil
-                    if self.reset_config:
-                        # remove the py file to reset to defaults
-                        pyname.unlink()
-                    else:
-                        configfiles.append(pyname)
+                    configfiles.append(pyname)
                 elif fil.suffix == ".json":
                     jsonname = self.config_dir / fil
-                    if self.reset_config or fil == "PlotPreferences.json":
-                        # remove the user json file to reset to defaults
-                        jsonname.unlink()
-                    else:
-                        # check integrity of the file
-                        with jsonname.open() as f:
-                            try:
-                                json.load(f)
-                            except json.JSONDecodeError:
-                                jsonname.unlink()
-                                continue
-                        configfiles.append(jsonname)
+                    # check integrity of the file
+                    with jsonname.open() as f:
+                        try:
+                            json.load(f)
+                        except json.JSONDecodeError:
+                            jsonname.unlink()
+                            continue
+                    configfiles.append(jsonname)
 
             for cfgname in configfiles:
                 self.load_config_file(cfgname)
                 if cfgname not in self._loaded_config_files:
                     self._loaded_config_files.append(cfgname)
 
-        self.datadir = (
-            DataDir()
-        )  # config=self.config)  -- passing args deprecated in traitlets 4.2
-        self.preferences = GeneralPreferences(parent=self)
-        from spectrochempy.application.plot_preferences import (
-            PlotPreferences,  # slow : delayed import
-        )
+        from spectrochempy.application.general_preferences import GeneralPreferences
+        from spectrochempy.application.plot_preferences import PlotPreferences
 
-        self.plot_preferences = PlotPreferences(parent=self)
-        self.classes.extend(
-            [
-                GeneralPreferences,
-                PlotPreferences,
-            ]
-        )
+        self.general_preferences = GeneralPreferences(config=self.config, parent=self)
+        self.plot_preferences = PlotPreferences(config=self.config, parent=self)
 
     # ----------------------------------------------------------------------------------
-    # Public methods and properties
+    # Private methods and properties
     # ----------------------------------------------------------------------------------
-    def start_show_config(self):
-        """
-        Start function used when show_config is True.
-        """
-        config = self.config.copy()
-        # exclude show_config flags from displayed config
-        for cls in self.__class__.mro():
-            if cls.__name__ in config:
-                cls_config = config[cls.__name__]
-                cls_config.pop("show_config", None)
-                cls_config.pop("show_config_json", None)
+    @tr.default("config_dir")
+    def _config_dir_default(self):
+        return get_config_dir()
 
-        if self.show_config_json:
-            json.dump(config, sys.stdout, indent=1, sort_keys=True, default=repr)
-            # add trailing newlines
-            sys.stdout.write("\n")
-            return self._start()
+    @tr.default("log_dir")
+    def _log_dir_default(self):
+        return get_log_dir()
 
-        if self._loaded_config_files:
-            print("Loaded config files:")
-            for fil in self._loaded_config_files:
-                print(f"  {fil}")
+    @tr.default("config_manager")
+    def _config_manager_default(self):
+        return BaseJSONConfigManager(config_dir=str(self.config_dir))
 
-        for classname in sorted(config):
-            class_config = config[classname]
-            if not class_config:
-                continue
-            print(classname)
-            pformat_kwargs = dict(indent=4)
-            if sys.version_info >= (3, 4):
-                # use compact pretty-print on Pythons that support it
-                pformat_kwargs["compact"] = True
-            for traitname in sorted(class_config):
-                value = class_config[traitname]
-                print(f"  {traitname} = {pprint.pformat(value, **pformat_kwargs)}")
+    def _formatter(self, *args):
+        # We need a custom formatter (maybe there is a better way to do this suing
+        # the logging library directly?)
 
-        # now run the actual start function
-        return self.start()
+        rootfolder = Path(__file__).parent
+        st = 2
+        if "_showwarnmsg" in inspect.stack()[2][3]:
+            st = 4 if self._from_warning_ else 3
 
-    def initialize(self, argv=None):
+        filename = Path(inspect.stack()[st][1])
+        try:
+            module = filename.relative_to(rootfolder)
+        except ValueError:
+            module = filename
+        line = inspect.stack()[st][2]
+        func = inspect.stack()[st][3]
+
+        # rotatingfilehandler formatter (DEBUG)
+        formatter = logging.Formatter(
+            f"<%(asctime)s:{module}/{func}::{line}> %(message)s"
+        )
+        self.log.handlers[1].setFormatter(formatter)
+
+    @contextmanager
+    def _fmtcontext(self):
+        fmt = self.log_format, self.log.handlers[1].formatter
+        try:
+            yield fmt
+        finally:
+            self.log_format = fmt[0]
+            self.log.handlers[1].setFormatter(fmt[1])
+
+    def _initialize(self):
         """
         Initialisation function for the API applications.
-
-        Parameters
-        ----------
-        argv :  List, [optional].
-            List of configuration parameters.
         """
-        # parse the argv
-        # --------------------------------------------------------------------
+        # Parse the argv.
         # if we are running this under ipython and jupyter notebooks
         # deactivate potential command line arguments
         # (such that those from jupyter which cause problems here)
-
         ipy = get_ipython() if InteractiveShell.initialized() else None
 
         if ipy is None:
             # remove argument not known by spectrochempy
             if (
-                "sphinx-build" in sys.argv[0]
-                or "make.py" in sys.argv[0]
+                "make.py" in sys.argv[0]
                 or "pytest" in sys.argv[0]
                 or "validate_docstrings" in sys.argv[0]
             ):  # building docs
@@ -635,22 +323,7 @@ you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
                             options.append(item)
                 self.parse_command_line(options)
             else:  # pragma: no cover
-                pass  # print("args", sys.argv)
-                # self.parse_command_line(sys.argv)
-
-        # Get preferences from the config file and init everything
-        # ---------------------------------------------------------------------
-        self._init_all_preferences()
-
-        # we catch warnings and error for a lighter display to the end-user.
-        # except if we are in debugging mode
-
-        # warning handler
-        # ----------------
-        def send_warnings_to_log(message, category):
-            self.log.warning(f"{category.__name__} - {message}")
-
-        warnings.showwarning = send_warnings_to_log
+                self.parse_command_line(sys.argv)
 
         # Warning handler
         # we catch warnings and error for a lighter display to the end-user.
@@ -659,44 +332,27 @@ you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
         warnings.showwarning = self._custom_warning
 
         # exception handler
-        # -----------------
         if ipy is not None:  # pragma: no cover
             ipy.set_custom_exc((Exception,), self._ipython_catch_exceptions)
         else:
-            if environ.get("SCPY_TESTING", 0) == 0 and "pytest" not in sys.argv[0]:
-                # catch exception only when pytest is not running
-                sys.excepthook = self._catch_exceptions
-
-    def reset_preferences(self):
-        """
-        Reset all preferences to default.
-        """
-        self.reset_config = True
-        self._init_all_preferences()
-        self.reset_config = False
+            sys.excepthook = self._catch_exceptions
 
     # ----------------------------------------------------------------------------------
-    # start the application
+    # Public methods and properties
     # ----------------------------------------------------------------------------------
-    def start(self):
-        """
-        Start the  `SpectroChemPy` API.
 
-        All configuration must have been done before calling this function.
+    def start(self, configurables=None):
         """
-        if self.running:
+        Start SpectroChemPy application main loop and int preferences
+        """
+        if self._running:
             # API already started. Nothing done!
             return True
 
-        if self.preferences.show_info_on_loading:
-            info_string = f"SpectroChemPy's API - v.{version}\n© Copyright {copyright}"
-            ipy = get_ipython()
-            if ipy is not None and "TerminalInteractiveShell" not in str(ipy):
-                _display_info_string(message=info_string.strip())
+        self.datadir = DataDir()
 
-            else:
-                if "/bin/scpy" not in sys.argv[0]:  # deactivate for console scripts
-                    print(info_string.strip())
+        # Get preferences from the config file and init everything
+        self._init_all_preferences()
 
         # force update of rcParams
         for rckey in mpl.rcParams.keys():
@@ -713,35 +369,52 @@ you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
 
         self.plot_preferences.set_latex_font(self.plot_preferences.font_family)
 
-        # Eventually write the default config file
-        # --------------------------------------
-        self._make_default_config_file()
+        # Eventually write the default config file for all configurables
+        # ------------------------------------------------------------------------------
+        # self._make_default_config_file(configurables=configurables)
 
-        # set the default style
-        # --------------------------------------------------------------------------------------
-        from matplotlib import pyplot as plt  # <-- slow!  delayed import
+        self._running = True
 
-        plt.style.use(["classic"])
+        self.debug_(
+            f"API loaded with log level set to "
+            f"{logging.getLevelName(self.log_level)}- application is ready"
+        )
 
-        debug_("API loaded - application is ready")
-        self.running = True
-        return True
+    def make_default_config_file(self, configurables=None):
+        """auto generate default config files."""
 
-    from contextlib import contextmanager
+        # remove old configuration file spectrochempy_cfg.py
+        fname = self.config_dir / "spectrochempy_cfg.py"  # Old configuration file
+        if fname.exists():
+            fname.unlink()
 
-    @contextmanager
-    def _fmtcontext(self):
-        fmt = self.log_format
-        try:
-            yield fmt
-        finally:
-            self.log_format = fmt
+        # create a configuration file for each configurables
+        if configurables:
+            self.classes.extend(configurables)
+
+        config_classes = list(self._classes_with_config_traits(self.classes))
+        for cls in config_classes:
+            name = cls.__name__
+            fname = self.config_dir / f"{name}.cfg.py"
+            if fname.exists():
+                continue
+            """generate default config file from Configurables"""
+            lines = [f"# Configuration file for SpectroChemPy::{name}"]
+            lines.append("")
+            lines.append("c = get_config()  # noqa")
+            lines.append("")
+            lines.append(cls.class_config_section([cls]))
+            sfil = "\n".join(lines)
+            self.log.info(f"Generating default config file: {fname}")
+            with open(fname, "w") as fil:
+                fil.write(sfil)
 
     def info_(self, msg, *args, **kwargs):
         """
         Formatted info message.
         """
         with self._fmtcontext():
+            self._formatter(msg)
             self.log.info(msg, *args, **kwargs)
 
     def debug_(self, msg, *args, **kwargs):
@@ -749,6 +422,7 @@ you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
         Formatted debug message.
         """
         with self._fmtcontext():
+            self._formatter(msg)
             self.log.debug("DEBUG | " + msg, *args, **kwargs)
 
     def error_(self, *args, **kwargs):
@@ -782,74 +456,308 @@ you are kindly requested to cite it this way: <pre>{cite}</pre></p>.
         self._from_warning_ = False
 
     # ----------------------------------------------------------------------------------
-    # Private methods
+    # Dialog functions
     # ----------------------------------------------------------------------------------
-    def _make_default_config_file(self):
-        # auto generate default config file.
+    def save_dialog(
+        self, filename=None, caption="Save as...", filters=("All Files (*)"), **kwargs
+    ):  # pragma: no cover
+        """
+        Return a file where to save.
+        """
+        if self.general_preferences.use_qt:
+            import pyqt
 
-        # remove old configuration file spectrochempy_cfg.py
-        # --------------------------------------------------
-        fname = self.config_dir / "spectrochempy_cfg.py"  # Old configuration file
-        fname2 = self.config_dir / "SpectroChemPy.cfg.py"
-        if fname.exists() or fname2.exists():
-            for file in list(self.config_dir.iterdir()):
-                file.unlink()
+            parent = kwargs.pop(
+                "Qt_parent", None
+            )  # in case this is launched from spectrochempy_gui
 
-        # create a configuration file for each configurables
-        # --------------------------------------------------
-        from spectrochempy.analysis.api import __configurables__
+            FileDialog = pyqt.QFileDialog
+            _ = pyqt.QApplication([])
 
-        # first we will complete self.classes with a list of configurable in analysis
-        self.classes.extend(__configurables__)
-        config_classes = list(self._classes_with_config_traits(self.classes))
-        for cls in config_classes:
-            name = cls.__name__
-            fname = self.config_dir / f"{name}.py"
-            if fname.exists() and not self.reset_config:
-                continue
-            """generate default config file from Configurables"""
-            lines = [f"# Configuration file for SpectroChemPy::{name}"]
-            lines.append("")
-            lines.append("c = get_config()  # noqa")
-            lines.append("")
-            lines.append(cls.class_config_section([cls]))
-            sfil = "\n".join(lines)
-            self.log.info(f"Generating default config file: {fname}")
-            with open(fname, "w") as fil:
-                fil.write(sfil)
+            f = _QTFileDialogs._save_filename(
+                FileDialog,
+                parent=parent,
+                filename=filename,
+                caption=caption,
+                filters=filters,
+            )
+        else:
+            from tkinter import filedialog
+
+            f = _TKFileDialogs()._save_filename(
+                filedialog, filename=filename, caption=caption, filters=filters
+            )
+
+        from spectrochempy.utils.paths import pathclean
+
+        return pathclean(f)
+
+    def open_dialog(
+        self, single=True, directory=None, filters=("All Files (*)"), **kwargs
+    ):  # pragma: no cover
+        """
+        Return one or several files to open.
+        """
+        if self.general_preferences.use_qt:
+            import pyqt
+
+            parent = kwargs.pop(
+                "Qt_parent", None
+            )  # in case this is launched from spectrochempy_gui
+
+            FileDialog = pyqt.QFileDialog
+            _ = pyqt.QApplication([])
+            klass = _QTFileDialogs
+        else:
+            from tkinter import filedialog as FileDialog
+
+            klass = _TKFileDialogs()
+            parent = klass.root
+
+        if directory is None:
+            directory = ""
+        if filters == "directory":
+            caption = "Select a folder"
+            f = klass._open_existing_directory(
+                FileDialog, parent=parent, caption=caption, directory=str(directory)
+            )
+        elif single:
+            f = klass._open_filename(FileDialog, parent=parent, filters=filters)
+        else:
+            f = klass._open_multiple_filenames(
+                FileDialog, parent=parent, filters=filters
+            )
+
+        from spectrochempy.utils.paths import pathclean
+
+        return pathclean(f)
 
 
-# ======================================================================================
-# Start instance of Spectrochempy and expose public members in all
-# ======================================================================================
-app = SpectroChemPy()
-preferences = app.preferences
-error_ = app.error_
-warning_ = app.warning_
-info_ = app.info_
-debug_ = app.debug_
-preferences = app.preferences
-plot_preferences = app.plot_preferences
-description = app.description
-long_description = app.long_description
-config_manager = app.config_manager
-config_dir = app.config_dir
-reset_preferences = app.reset_preferences
+class _QTFileDialogs:  # pragma: no cover
+    @classmethod
+    def _open_existing_directory(
+        cls, FileDialog, parent=None, caption="Select a folder", directory=None
+    ):
+        from spectrochempy.application import preferences
+
+        if directory is None:
+            directory = str(preferences.datadir)
+
+        options = FileDialog.DontResolveSymlinks | FileDialog.ShowDirsOnly
+        directory = FileDialog.getExistingDirectory(
+            parent=parent, caption=caption, directory=directory, options=options
+        )
+
+        if directory:
+            return directory
+
+        return None
+
+    # noinspection PyRedundantParentheses
+    @classmethod
+    def _open_filename(
+        cls,
+        FileDialog,
+        parent=None,
+        directory=None,
+        caption="Select file",
+        filters=None,
+    ):
+        from spectrochempy.application import preferences
+
+        if directory is None:
+            directory = str(preferences.datadir)
+
+        filename, _ = FileDialog.getOpenFileName(
+            parent=parent,
+            caption=caption,
+            directory=directory,
+            filter=";;".join(filters),
+        )
+        if filename:
+            return filename
+
+        return None
+
+    # noinspection PyRedundantParentheses
+    @classmethod
+    def _open_multiple_filenames(
+        cls,
+        FileDialog,
+        parent=None,
+        directory=None,
+        caption="Select file(s)",
+        filters=None,
+    ):
+        """
+        Return one or several files to open
+        """
+        from spectrochempy.application import preferences
+
+        if directory is None:
+            directory = str(preferences.datadir)
+
+        files, _ = FileDialog.getOpenFileNames(
+            parent=parent,
+            caption=caption,
+            directory=directory,
+            filter=";;".join(filters),
+        )
+        if files:
+            return files
+
+        return None
+
+    @classmethod
+    def _save_filename(
+        cls,
+        FileDialog,
+        parent=None,
+        filename=None,
+        caption="Save as...",
+        filters=None,
+    ):
+        directory = str(filename)
+
+        options = (
+            FileDialog.DontConfirmOverwrite
+        )  # bug : this seems to work only with DontUseNativeDialog on OSX.
+        # TODO: Check on windows and Linux
+        # second problems: if we confirm overwrite here a new dialog is opened,
+        # and thus the main one do not close on exit!
+        filename, _ = FileDialog.getSaveFileName(
+            parent=parent,
+            caption=caption,
+            directory=directory,
+            filter=";;".join(filters),
+            options=options,
+        )
+        if filename:
+            return filename
+
+        return None
 
 
-# --------------------------------------------------------------------------------------
-# Check for new release in a separate thread
-# --------------------------------------------------------------------------------------
-from spectrochempy.application._check_update import check_update
+class _TKFileDialogs:  # pragma: no cover
+    def __init__(self):
+        import tkinter as tk
 
-DISPLAY_UPDATE = threading.Thread(target=check_update, args=(version,))
-DISPLAY_UPDATE.start()
+        root = tk.Tk()
+        root.withdraw()
+        root.overrideredirect(True)
+        root.geometry("0x0+0+0")
+        root.deiconify()
+        root.lift()
+        root.focus_force()
+        self.root = root
 
+    @staticmethod
+    def _open_existing_directory(
+        filedialog, parent=None, caption="Select a folder", directory=""
+    ):
+        directory = filedialog.askdirectory(
+            # parent=parent,
+            initialdir=directory,
+            title=caption,
+        )
 
-# --------------------------------------------------------------------------------------
-# Download data in a separate thread
-# --------------------------------------------------------------------------------------
-DOWNLOAD_TESTDATA = threading.Thread(
-    target=_download_full_testdata_directory, args=(preferences.datadir,)
-)
-DOWNLOAD_TESTDATA.start()
+        if directory:
+            return directory
+
+        return None
+
+    @staticmethod
+    def filetypes(filters):
+        # convert QT filters to TK
+        import re
+
+        regex = r"(.*)\((.*)\)"
+        filetypes = []
+        for _filter in filters:
+            matches = re.finditer(regex, _filter)
+            match = list(matches)[0]
+            g = list(match.groups())
+            g[1] = g[1].replace("[0-9]", "")
+            g[1] = g[1].replace("1[r|i]", "*.*")
+            g[1] = g[1].replace("2[r|i]*", "*.*")
+            g[1] = g[1].replace("3[r|i]*", "*.*")
+            g[1] = g[1].replace(" ", ",")
+            g[1] = tuple(set(g[1].split(",")))
+            filetypes.append((g[0], (g[1])))
+        return filetypes
+
+    # noinspection PyRedundantParentheses
+    def _open_filename(
+        self,
+        filedialog,
+        parent=None,
+        filters=None,
+    ):
+        filename = filedialog.askopenfilename(
+            # parent=parent,
+            filetypes=self.filetypes(filters),
+            title="Select file to open",
+        )
+
+        if parent is not None:
+            parent.destroy()
+
+        if filename:
+            return filename
+
+        return None
+
+    # noinspection PyRedundantParentheses
+    def _open_multiple_filenames(self, filedialog, parent=None, filters=None):
+        """
+        Return one or several files to open
+        """
+        filename = filedialog.askopenfilenames(
+            # parent=parent,
+            filetypes=self.filetypes(filters) + [("all files", ("*"))],
+            title="Select file(s) to open",
+        )
+
+        if parent is not None:
+            parent.destroy()
+
+        if filename:
+            return filename
+
+        return None
+
+    def _save_filename(
+        self,
+        filedialog,
+        # parent=None,
+        filename="",
+        caption="Save as...",
+        filters=None,
+    ):
+        from spectrochempy.utils.paths import pathclean
+
+        dftext = ""
+        directory = "."
+        if filename:
+            filename = pathclean(filename)
+            directory = filename.parent
+            dftext = filename.suffix
+
+        if not dftext:
+            dftext = ".scp"
+
+        filename = filedialog.asksaveasfilename(
+            # parent=parent,
+            title=caption,
+            initialdir=str(directory),
+            initialfile=filename.name,
+            defaultextension=dftext,
+            filetypes=self.filetypes(filters),
+        )
+        #        if parent is not None:
+        #            parent.destroy
+
+        if filename:
+            return pathclean(filename)
+
+        return None

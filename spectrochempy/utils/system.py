@@ -46,11 +46,9 @@ class _ExecCommand:
     # """
 
     def __init__(self, command):
-
         self.commands = [command]
 
     def __call__(self, *args, **kwargs):
-
         self.commands.extend(args)
 
         silent = kwargs.pop("silent", False)
@@ -71,7 +69,6 @@ class sh(object):
     """
 
     def __getattr__(self, command):
-
         return _ExecCommand(command)
 
     def __call__(self, script, silent=False):

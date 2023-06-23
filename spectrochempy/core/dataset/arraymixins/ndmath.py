@@ -10,7 +10,7 @@ This module implements the NDMath class.
 # TODO: test binary ufunc and put them in docs
 
 __all__ = []
-__dataset_methods__ = []
+
 
 import copy as cpy
 import functools
@@ -25,9 +25,10 @@ from quaternion import as_float_array
 
 from spectrochempy.application import error_, warning_
 from spectrochempy.core.units import DimensionalityError, Quantity, ur
+from spectrochempy.utils.complex import as_quaternion, quat_as_complex_array
 from spectrochempy.utils.constants import NOMASK
+from spectrochempy.utils.dtypes import TYPE_COMPLEX
 from spectrochempy.utils.exceptions import CoordinatesMismatchError
-from spectrochempy.utils.misc import TYPE_COMPLEX, as_quaternion, quat_as_complex_array
 from spectrochempy.utils.orderedset import OrderedSet
 from spectrochempy.utils.testing import assert_coord_almost_equal
 

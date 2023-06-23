@@ -5,7 +5,6 @@
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
 __all__ = ["zf_auto", "zf_double", "zf_size", "zf"]
-
 __dataset_methods__ = __all__
 
 import functools
@@ -13,7 +12,7 @@ import functools
 import numpy as np
 
 from spectrochempy.application import error_
-from spectrochempy.utils.misc import largest_power_of_2
+from spectrochempy.utils.numutils import largest_power_of_2
 
 
 # ======================================================================================

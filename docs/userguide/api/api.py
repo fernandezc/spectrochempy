@@ -76,11 +76,12 @@ print(f" description : {scp.description}")
 #  having a
 #  criticality larger than that passed to the `set_loglevel()` function will be shown.
 #
-#  For instance, the `DEBUG` level can be triggered by using one of the
+#  For instance, the `DEBUG` level can be triggered by using one of the three
 #  equivalent instructions
 #
 # ```python
 # scp.set_loglevel('DEBUG')
+# scp.set_loglevel(scp.DEBUG)
 # scp.set_loglevel(10)
 # ```
 #
@@ -95,7 +96,7 @@ print(f"Default: {scp.get_loglevel()}")  # print the current loglevel
 # next instruction
 # lowers the loglevel to ``"INFO"``\ :
 # %%
-scp.set_loglevel(scp.INFO)
+scp.set_loglevel("INFO")  # set loglevel to 'INFO'
 
 
 # %% [markdown]
@@ -124,10 +125,10 @@ scp.debug_("this is a debug message!")
 # %% [markdown]
 # As expected, only the info message was displayed.
 #
-# If we change the loglevel to `DEBUG` , then the two messages will be printed:
+# If we change the loglevel to ``DEBUG``, then the two messages will be printed:
 
 # %%
-scp.set_loglevel(scp.DEBUG)
+scp.set_loglevel("DEBUG")
 scp.info_("this is an info message!")
 scp.debug_("this is a debug message!")
 
@@ -137,7 +138,7 @@ scp.debug_("this is a debug message!")
 # nor `INFO` messages will be printed.
 
 # %%
-scp.set_loglevel(scp.WARNING)
+scp.set_loglevel("WARNING")
 
 scp.info_("this is an info message!")
 scp.debug_("this is a debug message!")

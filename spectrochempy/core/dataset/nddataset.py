@@ -9,7 +9,7 @@ This module implements the `NDDataset` class.
 """
 
 __all__ = ["NDDataset"]
-# import signal
+
 import sys
 import textwrap
 from datetime import datetime, tzinfo
@@ -30,10 +30,17 @@ from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.coordset import CoordSet
 from spectrochempy.extern.traittypes import Array
 from spectrochempy.utils.datetimeutils import utcnow
+from spectrochempy.utils.decorators import deprecated
 from spectrochempy.utils.exceptions import SpectroChemPyError
 from spectrochempy.utils.optional import import_optional_dependency
 from spectrochempy.utils.print import colored_output
 from spectrochempy.utils.system import get_user_and_node
+
+try:
+    from spectrochempy.core.dataset._dataset_methods import dataset_methods
+except ImportError:
+    # occurs when the API is first created
+    pass
 
 
 # ======================================================================================
@@ -300,7 +307,6 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             "mask",
             "units",
             "meta",
-            "preferences",
             "author",
             "description",
             "history",
@@ -319,6 +325,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
         ] + NDIO().__dir__()
 
     def __getitem__(self, items, **kwargs):
+
         saveditems = items
 
         # coordinate selection to test first
@@ -390,8 +397,14 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             # will be handled correctly
             raise AttributeError
 
-        # syntax such as ds.x, ds.y, etc...
+        # plugin method?
+        if item in dataset_methods:
+            api_method = tr.import_item(f"spectrochempy.{item}")
+            from functools import partial
 
+            return partial(api_method, self)
+
+        # syntax such as ds.x, ds.y, etc...
         if item[0] in self.dims or self._coordset:
             # look also properties
             attribute = None
@@ -1502,6 +1515,17 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     # @referencedata.setter
     # def referencedata(self, val):
     #     self._referencedata = val
+
+    #                             #### DEPRECATIONS #####
+
+    @classmethod
+    def read(cls, *args, **kwargs):
+        from spectrochempy import read as _read
+
+        dataset = deprecated(removed="0.6.1", replace="API method `read`")(_read)(
+            *args, **kwargs
+        )
+        return dataset
 
 
 # ======================================================================================

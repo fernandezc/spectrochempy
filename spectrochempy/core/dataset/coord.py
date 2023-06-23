@@ -65,10 +65,7 @@ class Coord(NDMath, NDArray):
         type of the data will be used.
     dims : list of chars, optional.
         if specified the list must have a length equal to the number od
-        data dimensions (ndim) and the chars must be
-        taken among x,y,z,u,v,w or t. If not specified,
-        the dimension names are automatically attributed in
-        this order.
+        data dimensions (ndim)
     name : str, optional
         A user-friendly name for this object. If not given,
         the automatic `id` given at the object creation will be

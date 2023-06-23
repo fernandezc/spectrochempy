@@ -19,12 +19,14 @@ __all__ = [
 
 __dataset_methods__ = __all__
 
+
 import numpy as np
 from matplotlib.ticker import MaxNLocator, ScalarFormatter
 
+from spectrochempy.application import preferences as prefs
 from spectrochempy.core.dataset.coord import Coord
+from spectrochempy.utils.compare import is_sequence
 from spectrochempy.utils.docstrings import add_docstring  # , deprecated
-from spectrochempy.utils.misc import is_sequence
 from spectrochempy.utils.plots import make_label, plot_method
 
 _PLOT1D_DOC = """\
@@ -69,7 +71,8 @@ linewidth or lw : float, optional, default: auto
 linestyle or ls : str, optional, default: auto
     line style definition.
 marker, m: str, optional, default: auto
-    marker type for scatter plot. If marker != "" then the scatter type of plot is chosen automatically.
+    marker type for scatter plot. If marker != "" then the scatter type of plot is
+    chosen automatically.
 markeredgecolor or mec: color, optional
 markeredgewidth or mew: float, optional
 markerfacecolor or mfc: color, optional
@@ -312,8 +315,6 @@ def plot_1D(dataset, method=None, **kwargs):
 
     # Get preferences
     # ----------------------------------------------------------------------------------
-    prefs = dataset.preferences
-
     # before going further, check if the style is passed in the parameters
     style = kwargs.pop("style", None)
     if style is not None:

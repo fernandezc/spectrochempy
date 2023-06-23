@@ -21,7 +21,6 @@ class _CoordRange(tr.HasTraits):
     reversed = tr.Bool()
 
     def __init__(self, *ranges, reversed=False):
-
         self.reversed = reversed
         if len(ranges) == 0:
             # first case: no argument passed, returns an empty range

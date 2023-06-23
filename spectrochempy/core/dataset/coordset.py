@@ -261,9 +261,10 @@ class CoordSet(HasTraits):
         self._updated = True
 
         # set a notifier on the name traits name of each coordinates
-        for coord in self._coords:
-            if coord is not None:
-                HasTraits.observe(coord, self._coords_update, "_name")
+        if self._coords is not None:
+            for coord in self._coords:
+                if coord is not None:
+                    HasTraits.observe(coord, self._coords_update, "_name")
 
         # initialize the base class with the eventual remaining arguments
         super().__init__(**kwargs)

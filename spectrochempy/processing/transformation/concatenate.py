@@ -6,7 +6,6 @@
 # ======================================================================================
 __all__ = ["concatenate", "stack"]
 
-__dataset_methods__ = __all__
 
 from warnings import warn
 

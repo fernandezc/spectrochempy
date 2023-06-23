@@ -69,7 +69,6 @@ class ScpFile(Mapping):  # lgtm[py/missing-equals]
     """
 
     def __init__(self, fid):
-
         _zip = make_zipfile(fid)
 
         self.files = _zip.namelist()

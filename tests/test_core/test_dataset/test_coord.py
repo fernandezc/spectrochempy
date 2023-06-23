@@ -17,9 +17,9 @@ from spectrochempy.core.units import Quantity, ur
 from spectrochempy.utils.testing import (
     assert_approx_equal,
     assert_array_equal,
+    assert_produces_warning,
     assert_units_equal,
 )
-from spectrochempy.utils.warnings import assert_produces_warning
 
 # --------------------------------------------------------------------------------------
 # Coord

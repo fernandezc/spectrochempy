@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 # ======================================================================================
 # Copyright (©) 2015-2023 LCS
 # Laboratoire Catalyse et Spectrochimie, Caen, France.
@@ -47,35 +46,108 @@ SpectroChemPy is a framework for processing, analyzing and modeling Spectroscopi
 for Chemistry with Python.
 It is a cross-platform software, running on Linux, Windows or OS X.
 """
-
+import threading
 import warnings
 
-import numpy as np
+# from spectrochempy.extern.lazy_imports import LazyImporter
 
+
+# setup warnings
+# --------------
 # warnings.filterwarnings(action="error", category=DeprecationWarning)
+# warnings.filterwarnings(action="ignore", module="matplotlib")  # , category=UserWarning)
 warnings.filterwarnings(
     action="once", module="spectrochempy", category=DeprecationWarning
 )
-
-warnings.filterwarnings(
-    action="error", module="spectrochempy", category=np.VisibleDeprecationWarning
-)
-
 warnings.filterwarnings(action="ignore", module="jupyter")  # , category=UserWarning)
 warnings.filterwarnings(action="ignore", module="pykwalify")  # , category=UserWarning)
-warnings.filterwarnings(action="ignore", module="matplotlib")
-warnings.filterwarnings(action="ignore", category=FutureWarning)
 
-from spectrochempy import api
-from spectrochempy.api import *
+# --------------------------------------------------------------------------------------
+# Display API info
+# --------------------------------------------------------------------------------------
+from spectrochempy._info import Info
 
-__all__ = api.__all__
+info = Info()
+name = info.name
+icon = info.icon
+description = info.description
+long_description = info.long_description
+version = info.version
+release = info.release
+release_date = info.release_date
+copyright = info.copyright
+url = info.url
+authors = info.authors
+contributors = info.contributors
+license = info.license
+cite = info.cite
+
+# --------------------------------------------------------------------------------------
+# Check for new release in a separate thread
+# --------------------------------------------------------------------------------------
+from spectrochempy._check_update import check_update
+
+DISPLAY_UPDATE = threading.Thread(target=check_update, args=(version,))
+DISPLAY_UPDATE.start()
+# do not leave trace of this method for the public API
+del check_update
+
+# --------------------------------------------------------------------------------------
+# Lazily import modules, class, methods and constants when needed
+# --------------------------------------------------------------------------------------
+try:
+    # noinspection PyUnresolvedReferences
+    import spectrochempy._api
+except ImportError:
+    pass  # this can happen during automatic creation of this file
 
 
+def _import_nddataset():
+    # start the import process in the background
+    # this can make the difference when working
+    # in jupyter notebooks interactively
+
+    from spectrochempy import NDDataset
+
+    return True
+
+
+IMPORT = threading.Thread(target=_import_nddataset, args=())
+IMPORT.start()
+
+# --------------------------------------------------------------------------------------
+# Search for name in the API
+# --------------------------------------------------------------------------------------
 def __getattr__(name):
-    # NDDataset method accessible from the API
-    from spectrochempy.core.dataset.nddataset import NDDataset
+    try:
+        return getattr(spectrochempy._api, name)
+    except:
+        raise AttributeError
 
-    if hasattr(NDDataset, name):
-        return getattr(NDDataset, name)
-    raise AttributeError
+
+def __dir__():
+    dir = [
+        "name",
+        "icon",
+        "description",
+        "long_description",
+        "version",
+        "release",
+        "release_date",
+        "copyright",
+        "url",
+        "authors",
+        "contributors",
+        "license",
+        "cite",
+    ]
+    return dir + spectrochempy._api.__dir__()
+
+
+# ======================================================================================
+if __name__ == "__main__":
+    """TEST"""
+
+    import spectrochempy as scp
+
+    print(scp.__dir__())

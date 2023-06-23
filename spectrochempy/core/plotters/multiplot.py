@@ -18,8 +18,8 @@ __all__ = [
     "multiplot_with_transposed",
     "plot_with_transposed",
 ]
+__dataset_methods__ = ["plot_with_transposed"]
 
-__dataset_methods__ = []
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -31,10 +31,10 @@ from matplotlib._tight_layout import (  # get_renderer,
     get_tight_layout_figure,
 )
 
-from spectrochempy.utils.misc import is_sequence
+from spectrochempy.utils.compare import is_sequence
 from spectrochempy.utils.plots import _Axes
 
-# from spectrochempy.core import preferences, project_preferences
+# from spectrochempy.application import preferences, project_preferences
 
 
 def multiplot_scatter(datasets, **kwargs):

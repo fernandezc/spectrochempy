@@ -42,16 +42,12 @@ from spectrochempy.core.units import (
     ur,
 )
 from spectrochempy.extern.traittypes import Array
+from spectrochempy.utils.compare import is_number, is_sequence
 from spectrochempy.utils.constants import INPLACE, MASKED, NOMASK, MaskedConstant
 from spectrochempy.utils.docstrings import _docstring
-from spectrochempy.utils.file import pathclean
-from spectrochempy.utils.misc import (
-    TYPE_FLOAT,
-    TYPE_INTEGER,
-    is_number,
-    is_sequence,
-    make_new_object,
-)
+from spectrochempy.utils.dtypes import TYPE_FLOAT, TYPE_INTEGER
+from spectrochempy.utils.misc import make_new_object
+from spectrochempy.utils.paths import pathclean
 from spectrochempy.utils.print import (
     convert_to_html,
     insert_masked_print,
@@ -1287,8 +1283,10 @@ class NDArray(HasTraits):
         Return the data type.
         """
         if self.is_empty:
-            return None
-        return self._data.dtype
+            self._dtype = None
+        else:
+            self._dtype = self._data.dtype
+        return self._dtype
 
     @property
     def filename(self):
@@ -1306,14 +1304,12 @@ class NDArray(HasTraits):
 
     def get_axis(self, *args, **kwargs):
         """
-        Helper function to determine an axis index whatever the syntax used (axis index
-        or dimension names).
+        Helper function to determine an axis index whatever the syntax used (axis index or dimension names).
 
         Parameters
         ----------
         dim, axis, dims : str, int, or list of str or index
-            The axis indexes or dimensions names - they can be specified as argument or
-            using keyword 'axis', 'dim'
+            The axis indexes or dimensions names - they can be specified as argument or using keyword 'axis', 'dim'
             or 'dims'.
         negative_axis : bool, optional, default=False
             If True a negative index is returned for the axis value (-1 for the last
@@ -1958,7 +1954,7 @@ class NDArray(HasTraits):
         return new
 
     swapaxes = swapdims
-    swapaxes.__doc__ = "Alias of `swapdims` ."
+    swapaxes.__doc__ = "Alias of `swapdims`."
 
     @property
     def T(self):

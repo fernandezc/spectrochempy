@@ -5,11 +5,11 @@
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
 """
-This module defines functions related to NDDataset alignment.
+This module defines functions related to NDDataset's alignment.
 """
 
 __all__ = ["align"]
-__dataset_methods__ = __all__
+
 
 # import scipy.interpolate
 import numpy as np
@@ -17,7 +17,7 @@ import numpy as np
 from spectrochempy.application import error_, warning_
 from spectrochempy.utils import exceptions
 from spectrochempy.utils.constants import MASKED
-from spectrochempy.utils.misc import get_n_decimals
+from spectrochempy.utils.numutils import get_n_decimals
 
 
 def can_merge_or_align(coord1, coord2):
@@ -83,7 +83,7 @@ def align(dataset, *others, **kwargs):
         * 'first' means that the first dataset is used as reference.
         * 'last' means that the last dataset is used as reference.
         * 'interpolate' means that interpolation is performed relative to
-          the first dataset.
+        the first dataset.
 
     interpolate_method : enum ['linear','pchip']. Optional, default='linear'
         Method of interpolation to performs for the alignment.

@@ -9,6 +9,7 @@ In this module, we define basic functions adapted from numpy but able to
 handle our NDDataset objects.
 """
 __all__ = ["dot"]
+__dataset_methods = __all__
 
 import numpy as np
 

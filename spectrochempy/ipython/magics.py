@@ -12,7 +12,7 @@ from IPython.core.magic import Magics, line_cell_magic, magics_class
 from IPython.core.magics.code import extract_symbols
 from IPython.utils.text import get_text_list
 
-from spectrochempy import error_, warning_
+from spectrochempy.application import error_, warning_
 
 __all__ = ["SpectroChemPyMagics"]
 

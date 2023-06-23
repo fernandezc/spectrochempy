@@ -8,7 +8,6 @@
 Plugin module to perform automatic subtraction of ref on a dataset.
 """
 __all__ = ["autosub"]
-
 __dataset_methods__ = __all__
 
 import numpy as np

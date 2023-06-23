@@ -8,10 +8,12 @@
 SpectroChemPy specific exceptions
 """
 import inspect
+import logging
+import sys
 from contextlib import contextmanager
+from pathlib import Path
 
 import pint
-import pytz
 
 
 # ======================================================================================
@@ -184,12 +186,6 @@ class NotHyperComplexArrayError(SpectroChemPyError):
     array"""
 
 
-class UnknownTimeZoneError(pytz.UnknownTimeZoneError):
-    """
-    Exception raised when Timezone code is not recognized.
-    """
-
-
 class UnitsCompatibilityError(SpectroChemPyError):
     """
     Exception raised when units are not compatible,
@@ -259,7 +255,7 @@ class InvalidDimensionNameError(SpectroChemPyError):
     def __init__(self, name, available_names=DEFAULT_DIM_NAME):
         self.message = (
             f"dim name must be one of {tuple(available_names)} "
-            f"with an optional subdir indication (e.g., 'x_2') but axis=`"
+            f"with an optional subdir indication (e.g., 'x_2') but dim=`"
             f"{name}` was given!"
         )
         super().__init__(self.message)
@@ -297,7 +293,6 @@ class ProtocolError(SpectroChemPyError):
     """
 
     def __init__(self, protocol, available_protocols):
-
         self.message = (
             f"IO - The `{protocol}` protocol is unknown or not yet implemented.\n"
             f"It is expected to be one of {tuple(available_protocols)}"
@@ -324,7 +319,7 @@ def ignored(*exc):
 
     Parameters
     ----------
-    \*exc : Exception
+    *exc : Exception
         One or several exceptions to ignore.
 
     Examples
@@ -341,3 +336,44 @@ def ignored(*exc):
         yield
     except exc:
         pass
+
+
+def _get_trace_info(*args):
+    import traceback
+
+    typ, val, tb = args
+    info = traceback.extract_tb(tb)[-1]
+    return (
+        f"{info.name}[{Path(info.filename).name}:{info.lineno}] - {typ.__name__}"
+        f" : {val}"
+    )
+
+
+def handle_exception(*args):
+    """
+    Custom handling of the uncaught exceptions
+
+    Parameters
+    ----------
+    *args
+        Arguments received from the caught exception.
+    """
+
+    from spectrochempy.application import app
+
+    stg = _get_trace_info(*args)
+    app.logs.handlers[0].setFormatter(logging.Formatter("%(message)s"))
+    app.logs.handlers[1].setFormatter(logging.Formatter("[%(asctime)s - %(message)s]"))
+    app.logs.error(stg)
+    sys.exit(1)
+
+
+def send_warnings_to_log(*args, **kwargs):
+    from spectrochempy.application import _format_args, app
+
+    if len(args) > 1:
+        kwargs["category"] = args[1]  # priority to arg
+    category = kwargs.pop("category", UserWarning)
+    # stack = inspect.stack()
+    stg = _format_args(f"{category.__name__}: ", str(args[0]), stacklevel=-3)
+    app.logs.warning(stg)

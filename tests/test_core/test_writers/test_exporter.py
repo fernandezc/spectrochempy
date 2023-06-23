@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 import spectrochempy as scp
-from spectrochempy.core import preferences as prefs
+from spectrochempy.application import preferences as prefs
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.utils import testing
 from spectrochempy.utils.file import pathclean

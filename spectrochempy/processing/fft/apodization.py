@@ -759,3 +759,7 @@ def blackmanharris(dataset, **kwargs):
     x = dataset
 
     return x * windows.blackmanharris(len(x), sym=True)
+
+
+if __name__ == "__main__":
+    """ """

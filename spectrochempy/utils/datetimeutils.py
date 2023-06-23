@@ -239,7 +239,3 @@ def windows_time_to_dt64(wt):
     base = datetime.datetime(1601, 1, 1, 0, 0, 0, 0)
     delta = datetime.timedelta(microseconds=wt / 10)
     return np.datetime64(base + delta)
-
-
-if __name__ == "__main__":
-    pass

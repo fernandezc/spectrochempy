@@ -141,17 +141,9 @@ class Importer(HasTraits):
                 # here files are read / or remotely from the disk using filenames
                 self._switch_protocol(key, self.files, **kwargs)
 
-        # now we will reset preference for this newly loaded datasets
         if len(self.datasets) > 0:
-
             if all(self.datasets) is None:
                 return None
-
-            try:
-                prefs = self.datasets[0].preferences
-                prefs.reset()
-            except (FileNotFoundError, AttributeError):
-                pass
         else:
             return None
 
@@ -205,12 +197,10 @@ class Importer(HasTraits):
                 protocol = [protocol]
             if key and key[1:] not in protocol and self.alias[key[1:]] not in protocol:
                 return
-
         datasets = []
         for filename in files[key]:
-
+            filename = pathclean(filename)
             read_ = getattr(self, f"_read_{key[1:]}")
-
             dataset = None
             try:
                 # read locally or using url if filename is an url
@@ -746,7 +736,7 @@ def _get_url_content_and_save(url, dst, replace, read_only=False):
 
 
 def _download_full_testdata_directory():
-    from spectrochempy.core import preferences as prefs
+    from spectrochempy.application import preferences as prefs
 
     datadir = prefs.datadir
 
@@ -818,7 +808,7 @@ def _relative_to(path, base):
 
 @_importer_method
 def _read_remote(*args, **kwargs):
-    from spectrochempy.core import preferences as prefs
+    from spectrochempy.application import preferences as prefs
 
     datadir = prefs.datadir
     dataset, path = args
