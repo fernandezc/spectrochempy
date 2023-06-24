@@ -35,7 +35,7 @@ def list_packages(package):
 
 def generate_api(api_path, configurables=False):
     # from spectrochempy.application import debug_
-    from spectrochempy.core.dataset.nddataset import NDDataset
+    # from spectrochempy.core.dataset.nddataset import NDDataset
 
     # name of the package
     dirname, name = os.path.split(os.path.split(api_path)[0])
@@ -65,9 +65,9 @@ def generate_api(api_path, configurables=False):
             continue
 
         # Some  methods are classmethod of NDDatasets
-        dmethods = getattr(pkg, "__dataset_methods__", [])
-        for item in dmethods:
-            setattr(NDDataset, item, getattr(pkg, item))
+        # dmethods = getattr(pkg, "__dataset_methods__", [])
+        # for item in dmethods:
+        #    setattr(NDDataset, item, getattr(pkg, item))
 
         # set general method for the current package API
         a = getattr(pkg, "__all__", [])

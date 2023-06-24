@@ -8,18 +8,16 @@
 Display the info string at API startup
 """
 import subprocess
-import sys
 
 import numpy as np
 import traitlets as tr
-from IPython import get_ipython
 from IPython.display import clear_output, publish_display_data
 from jinja2 import Template
 from pkg_resources import DistributionNotFound, get_distribution
 from setuptools_scm import get_version
 
 
-class Info(tr.HasTraits):
+class ApiInfo(tr.HasTraits):
     version = tr.Unicode(help="Version string of this package")
     release = tr.Unicode(help="Release version string of this package")
     release_date = tr.Unicode(help="Last release date of the package")
@@ -187,21 +185,5 @@ class Info(tr.HasTraits):
         clear_output()
         publish_display_data(data={"text/html": html})
 
-    def __init__(self, show_info_on_loading=True):
-        if show_info_on_loading:
-            info_string = (
-                f"SpectroChemPy's API - v.{self.version}\n© Copyright {self.copyright}"
-            )
-            ipy = get_ipython()
-            if ipy is not None and "TerminalInteractiveShell" not in str(
-                ipy
-            ):  # pragma: no cover
-                self._display_info_string(message=info_string.strip())
 
-            else:
-                if "/bin/scpy" not in sys.argv[0]:  # deactivate for console scripts
-                    print(info_string.strip())
-
-
-if __name__ == "__main__":
-    """ """
+api_info = ApiInfo()

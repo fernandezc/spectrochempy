@@ -19,6 +19,7 @@ import numpy as np
 from numpy.lib.npyio import zipfile_factory
 from traitlets import HasTraits, Instance, Unicode, Union
 
+from spectrochempy.application import preferences
 from spectrochempy.utils import exceptions
 from spectrochempy.utils.dtypes import TYPE_BOOL
 from spectrochempy.utils.file import check_filename_to_save, pathclean
@@ -63,7 +64,7 @@ class NDIO(HasTraits):
         """
         if self._filename:
             try:
-                return self._filename.relative_to(self.preferences.datadir)
+                return self._filename.relative_to(preferences.datadir)
             except ValueError:
                 return self._filename
         else:
@@ -463,4 +464,4 @@ class NDIO(HasTraits):
         return filename
 
 
-load = NDIO.load  # make plot accessible directly from the scp API
+load = NDIO.load

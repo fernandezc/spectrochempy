@@ -34,7 +34,7 @@ def test_coord():
         Coord(1)
 
     # init with a list of values
-    a = Coord([1, 2, 3], name="x")
+    a = Coord([1, 2, 3], name="x", dtype=float)
     assert_array_equal(a.data, np.array([1, 2, 3]))
     assert a.dtype == np.dtype(float)
     assert a.is_1d

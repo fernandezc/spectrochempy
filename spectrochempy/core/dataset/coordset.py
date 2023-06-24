@@ -31,7 +31,7 @@ from traitlets import (
 
 from spectrochempy.core.dataset.baseobjects.ndarray import DEFAULT_DIM_NAME, NDArray
 from spectrochempy.core.dataset.coord import Coord
-from spectrochempy.utils.misc import is_sequence
+from spectrochempy.utils.compare import is_sequence
 from spectrochempy.utils.print import colored_output, convert_to_html
 
 

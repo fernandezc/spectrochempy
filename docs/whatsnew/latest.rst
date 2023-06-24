@@ -18,3 +18,25 @@ Bug fixes
 
 * Fix a bug when slicing dataset with an array or list of index: Multi-coordinates
   were not correctly handled.
+
+Deprecations
+~~~~~~~~~~~~
+
+* The use of a reader as a NDDataset classmethod is deprecated. Use instead the generic
+  :func:`~spectrochempy.read` function or the specialized functions `read_<protocol>`\ , e.g.
+
+    .. code-block:: python
+
+         >>> from spectrochempy import read_jcamp
+         >>> dataset = read_jcamp('path/to/file.jdx')
+
+  or
+
+     .. code-block:: python
+
+            >>> import spectrochempy as scp
+            >>> dataset = scp.read('path/to/file.jdx')
+
+
+* The use of writer as NDDataset methods is deprecated. Use instead the :func:`~spectrochempy.write`
+  function.

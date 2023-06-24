@@ -6,7 +6,6 @@
 # ======================================================================================
 # flake: noqa
 
-from spectrochempy.processing.transformation import api  # noqa: E402
-from spectrochempy.processing.transformation.api import *  # noqa: E402,F403,F401
+from spectrochempy.utils.packages import generate_api
 
-__all__ = api.__all__
+__all__ = generate_api(__file__)

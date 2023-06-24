@@ -12,7 +12,9 @@
 from spectrochempy.application.envsetup import setup_environment
 
 NO_DISPLAY, SCPY_STARTUP_LOGLEVEL = setup_environment()
-__all__ = ["NO_DISPLAY"]
+NO_DIALOG = NO_DISPLAY  # for backward compatibility
+
+__all__ = ["NO_DISPLAY", "NO_DIALOG"]
 
 # --------------------------------------------------------------------------------------
 # Define an instance of the SpectroChemPy application.

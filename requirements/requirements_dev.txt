@@ -17,6 +17,7 @@ docrep
 ipython
 jinja2
 matplotlib
+lazy_loader
 numba
 numpy
 numpydoc>=1.2

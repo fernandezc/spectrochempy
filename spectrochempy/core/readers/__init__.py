@@ -6,20 +6,7 @@
 # ======================================================================================
 # flake: noqa
 
-# from .importer import *
-# from .read_matlab import *
-# from .read_omnic import *
-# from .read_jcamp import *
-# -*- coding: utf-8 -*-
-# ======================================================================================
-# Copyright (©) 2015-2023 LCS - Laboratoire Catalyse et Spectrochimie, Caen, France.
-# CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
-# See full LICENSE agreement in the root directory.
-# ======================================================================================
-# from spectrochempy.utils.packages import generate_api
-#
-# __all__ = generate_api(__file__)
+from spectrochempy.core.readers import api  # noqa: E402
+from spectrochempy.core.readers.api import *  # noqa: E402,F403,F401
 
-# ======================================================================================
-if __name__ == "__main__":
-    pass
+__all__ = api.__all__

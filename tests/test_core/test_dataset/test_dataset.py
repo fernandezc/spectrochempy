@@ -6,7 +6,6 @@
 # ======================================================================================
 # flake8: noqa
 from os import environ
-from zoneinfo import ZoneInfoNotFoundError
 
 import numpy as np
 import pytest
@@ -16,7 +15,7 @@ from quaternion import quaternion
 import spectrochempy as scp
 from spectrochempy.core.dataset.baseobjects.meta import Meta
 from spectrochempy.core.units import ur
-from spectrochempy.utils.exceptions import SpectroChemPyError, UnknownTimeZoneError
+from spectrochempy.utils.exceptions import SpectroChemPyError, ZoneInfoNotFoundError
 from spectrochempy.utils.system import get_user_and_node
 from spectrochempy.utils.testing import (
     RandomSeedContext,

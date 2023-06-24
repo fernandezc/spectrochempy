@@ -14,8 +14,8 @@ from functools import wraps
 import dill
 import traitlets as tr
 
+from spectrochempy.core.dataset.arraymixins.ndio import NDIO
 from spectrochempy.core.dataset.baseobjects.meta import Meta
-from spectrochempy.core.dataset.nddataset import NDIO
 from spectrochempy.core.project.abstractproject import AbstractProject
 from spectrochempy.core.script import Script
 from spectrochempy.utils.traits import NDDatasetType

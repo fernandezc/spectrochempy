@@ -27,8 +27,8 @@ from spectrochempy.utils.decorators import (
     signature_has_configurable_traits,
 )
 from spectrochempy.utils.docstrings import _docstring
+from spectrochempy.utils.dtypes import TYPE_FLOAT, TYPE_INTEGER
 from spectrochempy.utils.exceptions import NotFittedError
-from spectrochempy.utils.misc import TYPE_FLOAT, TYPE_INTEGER
 from spectrochempy.utils.plots import NBlue, NGreen, NRed
 from spectrochempy.utils.traits import NDDatasetType
 

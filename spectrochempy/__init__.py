@@ -49,9 +49,6 @@ It is a cross-platform software, running on Linux, Windows or OS X.
 import threading
 import warnings
 
-# from spectrochempy.extern.lazy_imports import LazyImporter
-
-
 # setup warnings
 # --------------
 # warnings.filterwarnings(action="error", category=DeprecationWarning)
@@ -62,16 +59,15 @@ warnings.filterwarnings(
 warnings.filterwarnings(action="ignore", module="jupyter")  # , category=UserWarning)
 warnings.filterwarnings(action="ignore", module="pykwalify")  # , category=UserWarning)
 
-# --------------------------------------------------------------------------------------
-# Display API info
-# --------------------------------------------------------------------------------------
-from spectrochempy._info import Info
 
-info = Info()
+# --------------------------------------------------------------------------------------
+# get API info
+# --------------------------------------------------------------------------------------
+from spectrochempy._api_info import api_info as info
+
 name = info.name
 icon = info.icon
 description = info.description
-long_description = info.long_description
 version = info.version
 release = info.release
 release_date = info.release_date
@@ -81,6 +77,8 @@ authors = info.authors
 contributors = info.contributors
 license = info.license
 cite = info.cite
+long_description = info.long_description
+
 
 # --------------------------------------------------------------------------------------
 # Check for new release in a separate thread
@@ -88,45 +86,54 @@ cite = info.cite
 from spectrochempy._check_update import check_update
 
 DISPLAY_UPDATE = threading.Thread(target=check_update, args=(version,))
-DISPLAY_UPDATE.start()
+# DISPLAY_UPDATE.start()
 # do not leave trace of this method for the public API
 del check_update
 
 # --------------------------------------------------------------------------------------
-# Lazily import modules, class, methods and constants when needed
+# Set preferences (this also start the application
+# --------------------------------------------------------------------------------------
+from spectrochempy.application import preferences
+
+# --------------------------------------------------------------------------------------
+# Create the _api module if needed
 # --------------------------------------------------------------------------------------
 try:
-    # noinspection PyUnresolvedReferences
-    import spectrochempy._api
-except ImportError:
-    pass  # this can happen during automatic creation of this file
+    from spectrochempy._api import _api_methods
+    from spectrochempy._dataset_methods import _dataset_methods
+except (ImportError, ModuleNotFoundError):
+    from spectrochempy._create_api import create_api
 
-
-def _import_nddataset():
-    # start the import process in the background
-    # this can make the difference when working
-    # in jupyter notebooks interactively
-
-    from spectrochempy import NDDataset
-
-    return True
-
-
-IMPORT = threading.Thread(target=_import_nddataset, args=())
-IMPORT.start()
+    _api_methods, _dataset_methods = create_api()
 
 # --------------------------------------------------------------------------------------
-# Search for name in the API
+# Lazily import objects when needed
 # --------------------------------------------------------------------------------------
+import lazy_loader
+import traitlets as tr
+
+subpackages = ["core", "analysis", "processing", "widgets"]
+
+_getattr, _dir, _ = lazy_loader.attach(__name__, subpackages)
+
+
 def __getattr__(name):
     try:
-        return getattr(spectrochempy._api, name)
-    except:
-        raise AttributeError
+        return _getattr(name)
+    except AttributeError:
+        if name in _api_methods:
+            return tr.import_item(_api_methods[name] + "." + name)
+        else:
+            # look also NDDataset attribute which can be used as API methods
+            if name in _dataset_methods:
+                from spectrochempy.core.dataset.nddataset import NDDataset
+
+                return getattr(NDDataset, name)
+        raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
 def __dir__():
-    dir = [
+    d = [
         "name",
         "icon",
         "description",
@@ -140,14 +147,6 @@ def __dir__():
         "contributors",
         "license",
         "cite",
+        "preferences",
     ]
-    return dir + spectrochempy._api.__dir__()
-
-
-# ======================================================================================
-if __name__ == "__main__":
-    """TEST"""
-
-    import spectrochempy as scp
-
-    print(scp.__dir__())
+    return d + _dir() + list(_api_methods.keys()) + list(_dataset_methods.keys())

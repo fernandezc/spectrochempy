@@ -31,6 +31,7 @@ from traitlets.config.application import Application
 from traitlets.config.configurable import Config
 from traitlets.config.manager import BaseJSONConfigManager
 
+from spectrochempy._api_info import api_info
 from spectrochempy.application.datadir import DataDir
 
 
@@ -374,6 +375,19 @@ class SpectroChemPy(Application):
         # self._make_default_config_file(configurables=configurables)
 
         self._running = True
+
+        welcome_string = (
+            f"SpectroChemPy's API - v.{api_info.version}\n"
+            f"©Copyright {api_info.copyright}"
+        )
+        ipy = get_ipython()
+        if ipy is not None and "TerminalInteractiveShell" not in str(
+            ipy
+        ):  # pragma: no cover
+            api_info._display_info_string(message=welcome_string.strip())
+        else:
+            if "/bin/scpy" not in sys.argv[0]:  # deactivate for console scripts
+                print(welcome_string.strip())
 
         self.debug_(
             f"API loaded with log level set to "

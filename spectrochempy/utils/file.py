@@ -20,9 +20,9 @@ import numpy as np
 # Utility functions
 # ======================================================================================
 def download_testdata():
-    from spectrochempy.core import preferences
+    from spectrochempy.application import preferences
     from spectrochempy.core.readers.importer import read
-    from spectrochempy.utils.file import pathclean
+    from spectrochempy.utils.paths import pathclean
 
     datadir = pathclean(preferences.datadir)
     # this process is relatively long, so we do not want to do it several time:
@@ -201,7 +201,7 @@ def check_filenames(*args, **kwargs):
     --------
     """
     # from spectrochempy.application import info_
-    from spectrochempy.core import preferences as prefs
+    from spectrochempy.application import preferences as prefs
 
     datadir = pathclean(prefs.datadir)
 
@@ -391,7 +391,7 @@ def get_filenames(*filenames, **kwargs):
     """
 
     from spectrochempy import NO_DIALOG
-    from spectrochempy.core import preferences as prefs
+    from spectrochempy.application import preferences as prefs
 
     NODIAL = (
         NO_DIALOG or "DOC_BUILDING" in environ
@@ -417,7 +417,7 @@ def get_filenames(*filenames, **kwargs):
         except OSError:
             f = None
         if f and f.is_dir():
-            # this specify a directory not a filename
+            # this specifies a directory not a filename
             directory = f
             filenames = None
             NODIAL = True
@@ -488,7 +488,7 @@ def get_filenames(*filenames, **kwargs):
             # we open a dialogue to select one or several files manually
             if not NODIAL:
 
-                from spectrochempy.core.common.dialogs import open_dialog
+                from spectrochempy.application import open_dialog
 
                 filenames = open_dialog(
                     single=False, directory=directory, filters=filetypes, **kwargs
@@ -504,7 +504,7 @@ def get_filenames(*filenames, **kwargs):
         else:
 
             if not NODIAL:
-                from spectrochempy.core.common.dialogs import open_dialog
+                from spectrochempy.application import open_dialog
 
                 directory = open_dialog(
                     directory=directory, filters="directory", **kwargs
@@ -613,7 +613,7 @@ def get_directory_name(directory, **kwargs):
     """
 
     from spectrochempy import NO_DIALOG
-    from spectrochempy.core import preferences as prefs
+    from spectrochempy.application import preferences as prefs
 
     data_dir = pathclean(prefs.datadir)
     working_dir = Path.cwd()
@@ -643,7 +643,7 @@ def get_directory_name(directory, **kwargs):
         # open a file dialog
         directory = data_dir
         if not NO_DIALOG:  # this is for allowing test to continue in the background
-            from spectrochempy.core.common.dialogs import open_dialog
+            from spectrochempy.application import open_dialog
 
             directory = open_dialog(
                 single=False, directory=working_dir, filters="directory", **kwargs
@@ -666,7 +666,7 @@ def check_filename_to_save(
 
     if not filename or save_as or filename.exists():
 
-        from spectrochempy.core.common.dialogs import save_dialog
+        from spectrochempy.application import save_dialog
 
         # no filename provided
         open_diag = True

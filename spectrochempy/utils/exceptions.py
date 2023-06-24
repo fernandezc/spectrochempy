@@ -64,6 +64,26 @@ class SpectroChemPyError(Exception):
 
 
 # ======================================================================================
+# TimeZone
+# ======================================================================================
+from zoneinfo import ZoneInfoNotFoundError as _ZoneInfoNotFoundError
+
+
+class ZoneInfoNotFoundError(_ZoneInfoNotFoundError):
+    """
+    Exception raised when a time zone is not found.
+    """
+
+    def __init__(self, timezone):
+        message = (
+            f"Time zone {timezone} was not found.\n"
+            "You can get a list of valid timezones in "
+            "https://en.wikipedia.org/wiki/tr.List_of_tz_database_time_zones "
+        )
+        super().__init__(message)
+
+
+# ======================================================================================
 # Exceptions for configurable models
 # ======================================================================================
 class NotTransformedError(SpectroChemPyError):

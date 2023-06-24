@@ -9,7 +9,7 @@
 import pytest
 
 import spectrochempy as scp
-from spectrochempy.core import preferences as prefs
+from spectrochempy.application import preferences as prefs
 
 DATADIR = prefs.datadir
 IRDATA = DATADIR / "irdata"

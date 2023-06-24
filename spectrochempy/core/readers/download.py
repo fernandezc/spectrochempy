@@ -19,7 +19,7 @@ from spectrochempy.application import error_, info_
 from spectrochempy.core.dataset.coord import Coord
 from spectrochempy.core.dataset.nddataset import NDDataset
 from spectrochempy.core.readers.read_jcamp import read_jcamp
-from spectrochempy.utils.misc import is_iterable
+from spectrochempy.utils.compare import is_iterable
 
 
 def load_iris():

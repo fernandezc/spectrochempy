@@ -1,7 +1,6 @@
 import numpy as np
 
-from spectrochempy.application import error_, info_, warning_
-from spectrochempy.core import get_loglevel
+from spectrochempy.application import error_, get_loglevel, info_, warning_
 
 __dataset_methods__ = [
     "denoise",

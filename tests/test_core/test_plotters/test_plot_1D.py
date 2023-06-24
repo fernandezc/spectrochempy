@@ -8,7 +8,7 @@
 
 import os
 
-from spectrochempy import NDDataset
+import spectrochempy as scp
 from spectrochempy.utils.plots import show
 
 # TODO: from spectrochempy.utils.testing import figures_dir, same_images
@@ -19,7 +19,7 @@ from spectrochempy.utils.plots import show
 # @pytest.mark.skip
 def test_plot_1D():
 
-    dataset = NDDataset.read_omnic(os.path.join("irdata", "nh4y-activation.spg"))
+    dataset = scp.read_omnic(os.path.join("irdata", "nh4y-activation.spg"))
 
     # get first 1D spectrum
     nd0 = dataset[0, 1550.0:1600.0]
@@ -28,7 +28,7 @@ def test_plot_1D():
     nd0.plot()
     nd0.plot_scatter(plottitle=True)
     nd0.plot_scatter(marker="^", markevery=10, title="scatter+marker")
-    prefs = nd0.preferences
+    prefs = scp.preferences
     prefs.method_1D = "scatter+pen"
 
     nd0.plot(title="xxxx")
@@ -49,7 +49,7 @@ def test_issue_375():
 
     color1, color2 = "b", "r"
 
-    ratio = NDDataset([1, 2, 3])
+    ratio = scp.NDDataset([1, 2, 3])
     cum = ratio.cumsum()
 
     ax1 = ratio.plot_bar(color=color1, title="Scree plot")

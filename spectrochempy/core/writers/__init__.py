@@ -4,6 +4,9 @@
 # CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
-"""
-Package defining exporters for the n-dimensional datasets and projects.
-"""
+# flake: noqa
+
+from spectrochempy.core.writers import api  # noqa: E402
+from spectrochempy.core.writers.api import *  # noqa: E402,F403,F401
+
+__all__ = api.__all__

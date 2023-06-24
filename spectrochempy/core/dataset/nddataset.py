@@ -12,8 +12,8 @@ __all__ = ["NDDataset"]
 
 import sys
 import textwrap
+import zoneinfo
 from datetime import datetime, tzinfo
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 import traitlets as tr
@@ -31,16 +31,15 @@ from spectrochempy.core.dataset.coordset import CoordSet
 from spectrochempy.extern.traittypes import Array
 from spectrochempy.utils.datetimeutils import utcnow
 from spectrochempy.utils.decorators import deprecated
-from spectrochempy.utils.exceptions import SpectroChemPyError
+from spectrochempy.utils.exceptions import SpectroChemPyError, ZoneInfoNotFoundError
 from spectrochempy.utils.optional import import_optional_dependency
 from spectrochempy.utils.print import colored_output
 from spectrochempy.utils.system import get_user_and_node
 
-try:
-    from spectrochempy.core.dataset._dataset_methods import dataset_methods
-except ImportError:
-    # occurs when the API is first created
-    pass
+# ======================================================================================
+# CONSTANTS
+# ======================================================================================
+SCPY_SUFFIX = {"NDDataset": ".scp", "Project": ".pscp"}
 
 
 # ======================================================================================
@@ -317,12 +316,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             "roi",
             "transposed",
             "modeldata",
-            # "processeddata",
-            # "referencedata",
-            # "baselinedata",
-            # "state",
-            # "ranges",
-        ] + NDIO().__dir__()
+        ] + NDIO.__dir__(self)
 
     def __getitem__(self, items, **kwargs):
 
@@ -397,12 +391,17 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             # will be handled correctly
             raise AttributeError
 
-        # plugin method?
-        if item in dataset_methods:
-            api_method = tr.import_item(f"spectrochempy.{item}")
-            from functools import partial
-
-            return partial(api_method, self)
+        # # plugin method?
+        # try:
+        #     from spectrochempy.core.dataset._dataset_methods import dataset_methods
+        # except ImportError:
+        #     # occurs when the API is first created
+        #     pass
+        # if item in dataset_methods:
+        #     api_method = tr.import_item(f"spectrochempy.{item}")
+        #     from functools import partial
+        #
+        #     return partial(api_method, self)
 
         # syntax such as ds.x, ds.y, etc...
         if item[0] in self.dims or self._coordset:
@@ -438,7 +437,8 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
                         raise err
             elif attribute is not None:
                 if attribute == "size":
-                    # we want the size but there is no coords, get it from the data shape
+                    # we want the size but there is no coords,
+                    # get it from the data shape
                     return self.shape[index]
                 else:
                     raise AttributeError(
@@ -510,7 +510,8 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             "state",
             "ranges",
         ):
-            # These attributes are not used for comparison (comparison based on data and units!)
+            # These attributes are not used for comparison
+            # (comparison based on data and units!)
             try:
                 attrs.remove(attr)
             except ValueError:
@@ -525,62 +526,6 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     # ----------------------------------------------------------------------------------
     # Private methods and properties
     # ----------------------------------------------------------------------------------
-    @tr.default("_coordset")
-    def _coordset_default(self):
-        return None
-
-    @tr.default("_modeldata")
-    def _modeldata_default(self):
-        return None
-
-    # @tr.default("_processeddata")
-    # def _processeddata_default(self):
-    #     return None
-    #
-    # @tr.default("_baselinedata")
-    # def _baselinedata_default(self):
-    #     return None
-    #
-    # @tr.default("_referencedata")
-    # def _referencedata_default(self):
-    #     return None
-    #
-    # @tr.default("_ranges")
-    # def _ranges_default(self):
-    #     ranges = Meta()
-    #     for dim in self.dims:
-    #         ranges[dim] = dict(masks={}, baselines={}, integrals={}, others={})
-    #     return ranges
-
-    @tr.default("_timezone")
-    def _timezone_default(self):
-        # Return the default timezone (local timezone)
-        return get_localzone()
-
-    # @tr.validate("_created")
-    # def _created_validate(self, proposal):
-    #     date = proposal["value"]
-    #     if date.tzinfo is not None:
-    #         # make the date utc naive
-    #         date = date.replace(tzinfo=None)
-    #     return date
-
-    @tr.validate("_history")
-    def _history_validate(self, proposal):
-        history = proposal["value"]
-        if isinstance(history, list) or history is None:
-            # reset
-            self._history = None
-        return history
-
-    # @tr.validate("_modified")
-    # def _modified_validate(self, proposal):
-    #     date = proposal["value"]
-    #     if date.tzinfo is not None:
-    #         # make the date utc naive
-    #         date = date.replace(tzinfo=None)
-    #     return date
-
     @tr.observe(tr.All)
     def _anytrait_changed(self, change):
         # ex: change {
@@ -597,6 +542,27 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
         # all the time -> update modified date
         self._modified = utcnow()
         return
+
+    @tr.default("_coordset")
+    def _coordset_default(self):
+        return None
+
+    @tr.default("_modeldata")
+    def _modeldata_default(self):
+        return None
+
+    @tr.default("_timezone")
+    def _timezone_default(self):
+        # Return the default timezone (local timezone)
+        return get_localzone()
+
+    @tr.validate("_history")
+    def _history_validate(self, proposal):
+        history = proposal["value"]
+        if isinstance(history, list) or history is None:
+            # reset
+            self._history = None
+        return history
 
     def _cstr(self):
         # Display the metadata of the object and partially the data
@@ -710,14 +676,16 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             ):
                 continue
 
-            # For coord to be acceptable, we require at least a NDArray, a NDArray subclass or a CoordSet
+            # For coord to be acceptable, we require at least a NDArray,
+            # a NDArray subclass or a CoordSet
             if not isinstance(coord, (Coord, CoordSet)):
                 if isinstance(coord, NDArray):
                     coord = coords[k] = Coord(coord)
                 else:
                     raise TypeError(
-                        "Coordinates must be an instance or a subclass of Coord class or NDArray, or of "
-                        f" CoordSet class, but an instance of {type(coord)} has been passed"
+                        "Coordinates must be an instance or a subclass of Coord class "
+                        "or NDArray, or of CoordSet class, but an instance of "
+                        f"{type(coord)} has been passed"
                     )
 
             if self.dims and coord.name in self.dims:
@@ -748,7 +716,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
         return _dict
 
     # ----------------------------------------------------------------------------------
-    # Public methods and property
+    # Public methods and properties
     # ----------------------------------------------------------------------------------
     # @property
     # def acquisition_date(self):
@@ -825,34 +793,6 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     def author(self, value):
         self._author = value
 
-    @property
-    def history(self):
-        """
-        Describes the history of actions made on this array (List of strings).
-        """
-
-        history = []
-        for date, value in self._history:
-            date = date.astimezone(self._timezone).isoformat(
-                sep=" ", timespec="seconds"
-            )
-            value = value[0].capitalize() + value[1:]
-            history.append(f"{date}> {value}")
-        return history
-
-    @history.setter
-    def history(self, value):
-        if value is None:
-            return
-        if isinstance(value, list):
-            # history will be replaced
-            self._history = []
-            if len(value) == 0:
-                return
-            value = value[0]
-        date = datetime.utcnow()
-        self._history.append((date, value))
-
     def coord(self, dim="x"):
         """
         Return the coordinates along the given dimension.
@@ -887,6 +827,16 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             return None
 
     @property
+    def coordnames(self):
+        """
+        List of the  `Coord` names.
+
+        Read only property.
+        """
+        if self._coordset is not None:
+            return self._coordset.names
+
+    @property
     def coordset(self):
         """
         `CoordSet` instance.
@@ -905,16 +855,6 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             self.set_coordset(**coords)
         else:
             self.set_coordset(coords)
-
-    @property
-    def coordnames(self):
-        """
-        List of the  `Coord` names.
-
-        Read only property.
-        """
-        if self._coordset is not None:
-            return self._coordset.names
 
     @property
     def coordtitles(self):
@@ -976,10 +916,37 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     comment = description
     comment.__doc__ = """Provides a comment (Alias to the description attribute)."""
 
-    # ..........................................................................
     @description.setter
     def description(self, value):
         self._description = value
+
+    @property
+    def history(self):
+        """
+        Describes the history of actions made on this array (List of strings).
+        """
+
+        history = []
+        for date, value in self._history:
+            date = date.astimezone(self._timezone).isoformat(
+                sep=" ", timespec="seconds"
+            )
+            value = value[0].capitalize() + value[1:]
+            history.append(f"{date}> {value}")
+        return history
+
+    @history.setter
+    def history(self, value):
+        if value is None:
+            return
+        if isinstance(value, list):
+            # history will be replaced
+            self._history = []
+            if len(value) == 0:
+                return
+            value = value[0]
+        date = datetime.utcnow()
+        self._history.append((date, value))
 
     @property
     def local_timezone(self):
@@ -1301,12 +1268,9 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
     @timezone.setter
     def timezone(self, val):
         try:
-            self._timezone = ZoneInfo(val)
-        except ZoneInfoNotFoundError as e:
-            raise ZoneInfoNotFoundError(
-                "You can get a list of valid timezones in "
-                "https://en.wikipedia.org/wiki/tr.List_of_tz_database_time_zones ",
-            ) from e
+            self._timezone = zoneinfo.ZoneInfo(val)
+        except zoneinfo.ZoneInfoNotFoundError as e:
+            raise ZoneInfoNotFoundError(val) from e
 
     def to_array(self):
         """
@@ -1446,78 +1410,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
 
         return new
 
-    # # ----------------------------------------------------------------------------------
-    # # DASH GUI options  (Work in Progress - not used for now)
-    # # ----------------------------------------------------------------------------------
-    # #
-    # # TODO: refactor the spectrochempy preference system to have a common basis
-    #
-    #
-    # @property
-    # def ranges(self):
-    #     return self._ranges
-    #
-    # @ranges.setter
-    # def ranges(self, value):
-    #     self._ranges = value
-    #
-    # @property
-    # def state(self):
-    #     """
-    #     State of the controller window for this dataset.
-    #     """
-    #     return self._state
-    #
-    # @state.setter
-    # def state(self, val):
-    #     self._state = val
-    #
-    # @property
-    # def processeddata(self):
-    #     """
-    #     Data after processing (optionaly used).
-    #     """
-    #     return self._processeddata
-    #
-    # @processeddata.setter
-    # def processeddata(self, val):
-    #     self._processeddata = val
-    #
-    # @property
-    # def processedmask(self):
-    #     """
-    #     Mask for the optional processed data.
-    #     """
-    #     return self._processedmask
-    #
-    # @processedmask.setter
-    # def processedmask(self, val):
-    #     self._processedmask = val
-    #
-    # @property
-    # def baselinedata(self):
-    #     """
-    #     Data for an optional baseline.
-    #     """
-    #     return self._baselinedata
-    #
-    # @baselinedata.setter
-    # def baselinedata(self, val):
-    #     self._baselinedata = val
-    #
-    # @property
-    # def referencedata(self):
-    #     """
-    #     Data for an optional reference spectra.
-    #     """
-    #     return self._referencedata
-    #
-    # @referencedata.setter
-    # def referencedata(self, val):
-    #     self._referencedata = val
-
     #                             #### DEPRECATIONS #####
-
     @classmethod
     def read(cls, *args, **kwargs):
         from spectrochempy import read as _read
@@ -1529,7 +1422,7 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
 
 
 # ======================================================================================
-# module function
+# API functions form NDDataset methods
 # ======================================================================================
 # make some NDDataset operation accessible from the spectrochempy API
 thismodule = sys.modules[__name__]
@@ -1561,10 +1454,6 @@ for funcname in api_funcs:
     setattr(thismodule, funcname, getattr(NDDataset, funcname))
     __all__.append(funcname)
 
-# import also npy functions  # TODO: this will be changed with __array_functions__
-from spectrochempy.processing.transformation.npy import dot
-
-NDDataset.dot = dot
 
 # ======================================================================================
 # Set the operators

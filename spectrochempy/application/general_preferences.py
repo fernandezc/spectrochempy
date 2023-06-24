@@ -29,51 +29,45 @@ class GeneralPreferences(MetaConfigurable):
     # Configuration entries
     # ----------------------------------------------------------------------------------
     # NON GUI
-    show_info_on_loading = tr.Bool(True, help="Display info on loading").tag(
-        config=True
-    )
     use_qt = tr.Bool(
         False,
         help="Use QT for dialog instead of TK which is the default. "
         "If True the PyQt libraries must be installed",
     ).tag(config=True)
 
-    # GUI
-    # databases_directory = tr.Union(
-    #     (tr.Instance(Path), tr.Unicode()),
-    #     help="Directory where to look for database files such as csv",
-    # ).tag(config=True, gui=True, kind="folder")
-
     datadir = tr.Union(
         (tr.Instance(Path), tr.Unicode()),
         help="Directory where to look for data by default",
     ).tag(config=True, gui=True, kind="folder")
 
-    workspace = tr.Union(
-        (tr.Instance(Path), tr.Unicode()), help="Workspace directory by default"
-    ).tag(config=True, gui=True, kind="folder")
-
-    autoload_project = tr.Bool(
-        True, help="Automatic loading of the last project at startup"
-    ).tag(config=True, gui=True)
-
-    autosave_project = tr.Bool(
-        True, help="Automatic saving of the current project"
-    ).tag(config=True, gui=True)
+    # GUI
+    # ---
+    # workspace = tr.Union(
+    #     (tr.Instance(Path), tr.Unicode()), help="Workspace directory by default"
+    # ).tag(config=True, gui=True, kind="folder")
+    #
+    # autoload_project = tr.Bool(
+    #     True, help="Automatic loading of the last project at startup"
+    # ).tag(config=True, gui=True)
+    #
+    # autosave_project = tr.Bool(
+    #     True, help="Automatic saving of the current project"
+    # ).tag(config=True, gui=True)
+    #
 
     project_directory = tr.Union(
         (tr.Instance(Path), tr.Unicode()),
         help="Directory where projects are stored by default",
     ).tag(config=True, kind="folder")
 
-    last_project = tr.Union(
-        (tr.Instance(Path, allow_none=True), tr.Unicode()), help="Last used project"
-    ).tag(config=True, gui=True, kind="file")
-
-    show_close_dialog = tr.Bool(
-        True,
-        help="Display the close project dialog project changing or on application exit",
-    ).tag(config=True, gui=True)
+    # last_project = tr.Union(
+    #     (tr.Instance(Path, allow_none=True), tr.Unicode()), help="Last used project"
+    # ).tag(config=True, gui=True, kind="file")
+    #
+    # show_close_dialog = tr.Bool(
+    #     True,
+    #     help="Display the close project dialog project changing or on application exit",
+    # ).tag(config=True, gui=True)
 
     csv_delimiter = tr.Enum(
         [",", ";", r"\t", " "], default_value=",", help="CSV data delimiter"
@@ -109,10 +103,11 @@ class GeneralPreferences(MetaConfigurable):
 
         return pscp
 
-    @tr.default("workspace")
-    def _get_workspace_default(self):
-        # the spectra path in package data
-        return Path.home()
+    #
+    # @tr.default("workspace")
+    # def _get_workspace_default(self):
+    #     # the spectra path in package data
+    #     return Path.home()
 
     # @tr.default("databases_directory")
     # def _get_databases_directory_default(self):

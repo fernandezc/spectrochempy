@@ -10,7 +10,7 @@ import pytest
 
 import spectrochempy
 import spectrochempy as scp
-from spectrochempy.core.common import dialogs
+from spectrochempy import application
 from spectrochempy.utils import testing
 from spectrochempy.utils.exceptions import NotFittedError
 
@@ -242,10 +242,10 @@ def test_baselinecorrector_save_clicked(X, monkeypatch):
         "KEEP_DIALOGS", "True"
     )  # we ask to display dialogs as we will mock them.
 
-    monkeypatch.setattr(spectrochempy.core.common.dialogs, "save_dialog", dialog_cancel)
+    monkeypatch.setattr(application, "save_dialog", dialog_cancel)
     assert out._save_clicked() is None
 
-    monkeypatch.setattr(spectrochempy.core.common.dialogs, "save_dialog", dialog_save)
+    monkeypatch.setattr(application, "save_dialog", dialog_save)
     filename = out._save_clicked()
     assert filename == scp.pathclean("spec.scp")  # <-
     assert filename.exists()

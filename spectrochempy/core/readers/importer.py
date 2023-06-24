@@ -606,6 +606,10 @@ def _read_dir(*args, **kwargs):
     _, directory = args
     directory = get_directory_name(directory)
     files = get_filenames(directory, **kwargs)
+    if not files or files is None:
+        # empty directory
+        raise FileNotFoundError(f"No file found in directory {directory}")
+
     datasets = []
     valid_extensions = list(zip(*FILETYPES))[0] + list(zip(*ALIAS))[0]
     for key in [key for key in files.keys() if key[1:] in valid_extensions]:

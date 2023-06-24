@@ -93,8 +93,7 @@ class BaseConfigurable(MetaConfigurable):
         """ """
         # An empty __doc__ is placed here, else Configurable.__doc__
         # will appear when there is no __init___.doc in subclass
-        from spectrochempy.application import app
-        from spectrochempy.core import set_loglevel
+        from spectrochempy.application import app, set_loglevel
 
         # Reset default configuration if not warm_start
         reset = not self._warm_start
