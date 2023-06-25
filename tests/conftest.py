@@ -295,7 +295,7 @@ dataset = spectrochempy.read(datadir / "irdata" / "nh4y-activation.spg")
 
 @pytest.fixture(scope="function")
 def IR_dataset_2D():
-    nd = dataset[0:10, 4000.0:3000.0]
+    nd = dataset[0:10]
     nd.name = "IR_2D"
     return nd
 

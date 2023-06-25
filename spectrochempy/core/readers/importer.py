@@ -17,7 +17,7 @@ from zipfile import ZipFile
 
 import requests
 import yaml
-from traitlets import Dict, HasTraits, List, Type, Unicode
+import traitlets  as tr
 
 from spectrochempy.application import info_, warning_
 from spectrochempy.utils.docstrings import _docstring
@@ -28,6 +28,11 @@ from spectrochempy.utils.file import (
     get_filenames,
     pathclean,
 )
+from spectrochempy.processing.transformation import concatenate
+try:
+    from spectrochempy.core.readers._importer_methods import _importer_methods
+except ImportError:
+    pass  # happen when building the API
 
 FILETYPES = [
     ("scp", "SpectroChemPy files (*.scp)"),
@@ -71,17 +76,17 @@ ALIAS = [
 
 
 # --------------------------------------------------------------------------------------
-class Importer(HasTraits):
+class Importer(tr.HasTraits):
     # Private Importer class
 
-    objtype = Type()
-    datasets = List()
-    files = Dict()
-    default_key = Unicode()
-    protocol = Unicode()
+    objtype = tr.Type()
+    datasets = tr.List()
+    files = tr.Dict()
+    default_key = tr.Unicode()
+    protocol = tr.Unicode()
 
-    protocols = Dict()
-    filetypes = Dict()
+    protocols = tr.Dict()
+    filetypes = tr.Dict()
 
     def __init__(self):
 
@@ -168,6 +173,11 @@ class Importer(HasTraits):
                 nds, key=str
             )  # return a sorted list (sorted according to their string representation)
 
+    def __getattr__(self, item):
+        if item in _importer_methods:
+            return tr.import_item(f"{_importer_methods[item]}.{item}")
+        else:
+            raise AttributeError(f"Attribute {item} not found in {self.__class__.__name__}")
     def _setup_objtype(self, *args, **kwargs):
         # check if the first argument is an instance of NDDataset or Project
 
@@ -263,7 +273,7 @@ class Importer(HasTraits):
         if merged:
             # Try to stack the dataset into a single one
             try:
-                dataset = self.objtype.concatenate(datasets, axis=0)
+                dataset = concatenate(datasets, axis=0)
                 if dataset.coordset is not None and kwargs.pop("sortbydate", True):
                     dataset.sort(dim="y", inplace=True)
                     dataset.history = "Sorted by date"
@@ -277,7 +287,18 @@ class Importer(HasTraits):
 
 def _importer_method(func):
     # Decorator to define a given read function as belonging to Importer
-    setattr(Importer, func.__name__, staticmethod(func))
+    #  setattr(Importer, func.__name__, staticmethod(func))  # with the new lazy import procedure we cannot use this
+    # Let's create a new file with all the importers methods
+    from pathlib import Path
+    _importer_methods_file = Path(__file__).parent / "_importer_methods.py"
+    if _importer_methods_file.exists():
+        from spectrochempy.core.readers._importer_methods import _importer_methods
+    else:
+        _importer_methods = {}
+        _importer_methods_file.touch()
+    _importer_methods[func.__name__] = func.__module__
+    with open(_importer_methods_file, "w") as f:
+        f.write("_importer_methods = " + str(_importer_methods).replace(",",",\n\t").replace("{","{\n\t").replace("}","\n}"))
     return func
 
 

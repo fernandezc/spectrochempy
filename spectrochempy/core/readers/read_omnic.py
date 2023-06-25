@@ -9,7 +9,6 @@ This module extend NDDataset with the import method for OMNIC generated data
 files.
 """
 __all__ = ["read_omnic", "read_spg", "read_spa", "read_srs"]
-__dataset_methods__ = __all__
 
 import io
 import re

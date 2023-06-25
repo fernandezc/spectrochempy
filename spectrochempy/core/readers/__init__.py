@@ -4,9 +4,3 @@
 # CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
-# flake: noqa
-
-from spectrochempy.core.readers import api  # noqa: E402
-from spectrochempy.core.readers.api import *  # noqa: E402,F403,F401
-
-__all__ = api.__all__

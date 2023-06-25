@@ -6,13 +6,11 @@
 # ======================================================================================
 # flake8: noqa
 
-from spectrochempy import NDDataset
-from spectrochempy import preferences as prefs
-from spectrochempy import show
-
+from spectrochempy import read_omnic, show, preferences
 
 def test_plot2D():
-    A = NDDataset.read_omnic("irdata/nh4y-activation.spg")
+
+    A = read_omnic("irdata/nh4y-activation.spg")
     A.y -= A.y[0]
     A.y.to("hour", inplace=True)
     A.y.title = "Acquisition time"
@@ -21,7 +19,7 @@ def test_plot2D():
     A.copy().plot_image(style=["sans", "paper"], fontsize=9)
 
     # use preferences
-    prefs = A.preferences
+    prefs = preferences
     prefs.reset()
     prefs.image.cmap = "magma"
     prefs.font.size = 10

@@ -9,7 +9,6 @@ This module extend NDDataset with the import method for Labspec \*.txt generated
 """
 
 __all__ = ["read_labspec"]
-__dataset_methods__ = __all__
 
 import datetime
 

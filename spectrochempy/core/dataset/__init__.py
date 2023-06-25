@@ -4,8 +4,3 @@
 # CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
-# flake8: noqa
-
-# ======================================================================================
-if __name__ == "__main__":
-    """ """

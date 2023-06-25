@@ -7,8 +7,7 @@
 # flake8: noqa
 
 import pytest
-
-from spectrochempy import NDDataset
+import spectrochempy as scp
 from spectrochempy import preferences as prefs
 
 MATLABDATA = prefs.datadir / "matlabdata"
@@ -20,10 +19,10 @@ MATLABDATA = prefs.datadir / "matlabdata"
 # )
 def test_read_matlab():
 
-    A = NDDataset.read_matlab(MATLABDATA / "als2004dataset.MAT")
+    A = scp.read_matlab(MATLABDATA / "als2004dataset.MAT")
     assert len(A) == 6
     assert A[3].shape == (4, 96)
 
-    A = NDDataset.read_matlab(MATLABDATA / "dso.mat")
+    A = scp.read_matlab(MATLABDATA / "dso.mat")
     assert A.name == "Group sust_base line withoutEQU.SPG"
     assert A.shape == (20, 426)

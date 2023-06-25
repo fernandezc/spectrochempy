@@ -20,7 +20,7 @@ path = os.path.dirname(os.path.abspath(__file__))
 
 def test_baseline(IR_dataset_2D):
     # define a 1D test dataset (1 spectrum)
-    dataset = IR_dataset_2D[10].squeeze()
+    dataset = IR_dataset_2D[-1].squeeze()
     # minimal process
     blc = Baseline()
     blc.fit(dataset)

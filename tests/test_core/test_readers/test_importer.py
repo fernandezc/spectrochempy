@@ -11,8 +11,8 @@ import pathlib
 
 import pytest
 
+import spectrochempy as scp
 import spectrochempy.utils.exceptions
-from spectrochempy import NDDataset  # , preferences as prefs
 from spectrochempy.application import preferences as prefs
 from spectrochempy.core.readers.importer import (
     ALIAS,
@@ -36,7 +36,7 @@ def read_fake(*paths, **kwargs):
 
 
 read_fk = read_fake
-setattr(NDDataset, "read_fk", read_fk)
+setattr(scp.NDDataset, "read_fk", read_fk)
 
 
 @_importer_method
@@ -71,9 +71,9 @@ def _read_fk(*args, **kwargs):
 
 def fake_dataset(*args, size=3, **kwargs):
     if not args:
-        ds = NDDataset([range(size)])
+        ds = scp.NDDataset([range(size)])
     else:
-        ds = NDDataset(
+        ds = scp.NDDataset(
             [[range(4)]],
         )
     return ds
@@ -125,7 +125,7 @@ def test_importer(monkeypatch, fs):
 
     # make fake file
     fs.create_file(f)
-    monkeypatch.setattr(NDDataset, "load", fake_dataset)
+    monkeypatch.setattr(scp.NDDataset, "load", fake_dataset)
 
     nd = read(f, local_only=True)
     assert nd == fake_dataset(f)
@@ -137,7 +137,7 @@ def test_importer(monkeypatch, fs):
     assert nd == fake_dataset(f)
 
     # Generic read without parameters and dialog cancel
-    monkeypatch.setattr(spectrochempy.core.common.dialogs, "open_dialog", dialog_cancel)
+    monkeypatch.setattr(spectrochempy.application, "open_dialog", dialog_cancel)
     monkeypatch.setenv(
         "KEEP_DIALOGS", "True"
     )  # we ask to display dialogs as we will mock them.
@@ -145,12 +145,8 @@ def test_importer(monkeypatch, fs):
     nd = read(local_only=True)
     assert nd is None
 
-    # read as class method
-    nd1 = NDDataset.read(local_only=True)
-    assert nd1 is None
-
     # NDDataset instance as first arguments
-    nd = NDDataset()
+    nd = scp.NDDataset()
     nd2 = nd.read(local_only=True)
     assert nd2 is None
 
@@ -191,11 +187,11 @@ def test_importer(monkeypatch, fs):
     assert nd == fake_dataset()
 
     # should also be a Class function
-    nd = NDDataset.read_fk(f, local_only=True)
+    nd = scp.NDDataset.read_fk(f, local_only=True)
     assert nd == fake_dataset()
 
     # and a NDDataset instance function
-    nd = NDDataset().read_fk(f, local_only=True)
+    nd = scp.NDDataset().read_fk(f, local_only=True)
     assert nd == fake_dataset()
 
     # single file without protocol inferred from filename
@@ -247,7 +243,7 @@ def test_importer(monkeypatch, fs):
     nd = read([f1, f2, f3], names=["a", "c"], merge=False, local_only=True)
     assert nd[0].name.startswith("NDDataset")
 
-    monkeypatch.setattr(spectrochempy.core.common.dialogs, "open_dialog", dialog_open)
+    monkeypatch.setattr(spectrochempy.application, "open_dialog", dialog_open)
     nd = read(
         local_only=True
     )  # should open a dialog (but to selects individual filename (here only simulated)

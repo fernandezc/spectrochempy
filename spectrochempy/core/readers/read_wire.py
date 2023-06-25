@@ -45,7 +45,6 @@ See also gwyddion for the DATA types
 https://sourceforge.net/p/gwyddion/code/HEAD/tree/trunk/gwyddion/modules/file/renishaw.c
 """
 __all__ = ["read_wdf", "read_wire"]
-__dataset_methods__ = __all__
 
 import datetime
 import io

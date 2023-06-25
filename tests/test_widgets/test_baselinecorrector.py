@@ -49,15 +49,15 @@ def test_baselinecorrector_load_clicked(X, monkeypatch):
         "KEEP_DIALOGS", "True"
     )  # we ask to display dialogs as we will mock them.
 
-    monkeypatch.setattr(spectrochempy.core.common.dialogs, "open_dialog", open_cancel)
+    monkeypatch.setattr(spectrochempy.application, "open_dialog", open_cancel)
     assert out._load_clicked() is None
 
-    monkeypatch.setattr(spectrochempy.core.common.dialogs, "open_dialog", open_ok)
+    monkeypatch.setattr(spectrochempy.application, "open_dialog", open_ok)
     out._load_clicked()
     assert out.original.name == "nh4y-activation"
 
     out = scp.BaselineCorrector()
-    monkeypatch.setattr(spectrochempy.core.common.dialogs, "open_dialog", open_wrong)
+    monkeypatch.setattr(spectrochempy.application, "open_dialog", open_wrong)
     out._load_clicked()
     assert out.original.is_empty
 

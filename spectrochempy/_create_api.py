@@ -128,7 +128,7 @@ def create_api():
         # print(module)
         for member in members:
             print("-> ", member)
-            if member in _api_methods:
+            if member in _api_methods.keys():
                 print(f"Duplicate API method: {member} - skipping")
                 continue
             _api_methods[member] = module

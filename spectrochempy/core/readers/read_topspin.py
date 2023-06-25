@@ -9,7 +9,6 @@ Bruker file (single dimension FID or multidimensional SER) importers.
 """
 
 __all__ = ["read_topspin"]
-__dataset_methods__ = __all__
 
 import re
 

@@ -4,8 +4,3 @@
 # CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
-# flake8: noqa
-
-# This is necessary for a correct generation of the core API
-# from spectrochempy.core.dataset.arraymixins.ndmath import *
-# from spectrochempy.core.dataset.arraymixins.ndmath import __all__

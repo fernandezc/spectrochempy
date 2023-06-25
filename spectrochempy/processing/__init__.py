@@ -4,16 +4,3 @@
 # CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
-# flake: noqa
-
-subpackages = [
-    "alignment",
-    "fft",
-    "filter",
-    "interpolation",
-    "transformation",
-]
-
-import lazy_loader as lazy
-
-__getattr__, __dir__, _ = lazy.attach(__name__, subpackages)

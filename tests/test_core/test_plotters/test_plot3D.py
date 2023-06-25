@@ -8,11 +8,11 @@
 
 import os
 
-from spectrochempy import Coord, NDDataset, show
+from spectrochempy import Coord, read_matlab, show
 
 
 def test_plot2D_as_3D():
-    data = NDDataset.read_matlab(os.path.join("matlabdata", "als2004dataset.MAT"))
+    data = read_matlab(os.path.join("matlabdata", "als2004dataset.MAT"))
 
     X = data[0]
 

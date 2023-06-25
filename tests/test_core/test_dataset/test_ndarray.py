@@ -17,7 +17,7 @@ from spectrochempy.core.dataset.baseobjects.ndarray import NDArray
 from spectrochempy.core.units import Quantity, ur
 from spectrochempy.utils.constants import INPLACE, MASKED
 from spectrochempy.utils.dtypes import TYPE_FLOAT, TYPE_INTEGER
-from spectrochempy.utils.testing import assert_array_equal, assert_equal, raises
+from spectrochempy.utils.testing import assert_array_equal, assert_equal, raises, catch_warnings
 
 
 # --------------------------------------------------------------------------------------
@@ -287,7 +287,7 @@ def test_ndarray_methods(refarray, ndarray, ndarrayunit):
     assert nd.unitless  # no units
     assert not nd.dimensionless  # no unit so dimensionless has no sense
 
-    with warnings.catch_warnings() as w:
+    with catch_warnings() as w:
         # try to change to an array with units
         nd.to("m")  # should not change anything (but raise a warning)
         assert w[-1].category == UserWarning

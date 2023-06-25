@@ -18,7 +18,7 @@ import inspect
 import operator
 import re
 import sys
-from warnings import catch_warnings
+from spectrochempy.utils.testing import catch_warnings
 
 import numpy as np
 from quaternion import as_float_array
@@ -3037,7 +3037,7 @@ class NDMath(object):
         # perform operation on magnitudes
         # ------------------------------------------------------------------------------
         if isufunc:
-            with catch_warnings(record=True) as ws:
+            with catch_warnings() as ws:
                 # try to apply the ufunc
                 if fname == "log1p":
                     fname = "log"

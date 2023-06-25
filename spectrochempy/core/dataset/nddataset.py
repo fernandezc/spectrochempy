@@ -391,17 +391,17 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
             # will be handled correctly
             raise AttributeError
 
-        # # plugin method?
-        # try:
-        #     from spectrochempy.core.dataset._dataset_methods import dataset_methods
-        # except ImportError:
-        #     # occurs when the API is first created
-        #     pass
-        # if item in dataset_methods:
-        #     api_method = tr.import_item(f"spectrochempy.{item}")
-        #     from functools import partial
-        #
-        #     return partial(api_method, self)
+        # Try to find a method in the _dataset_methods (i.e., from readers, etc...)
+        try:
+            from spectrochempy._dataset_methods import _dataset_methods
+        except ImportError:
+            # occurs when the API is first created
+            pass
+        if item in _dataset_methods:
+            api_method = tr.import_item(f"spectrochempy.{item}")
+            from functools import partial
+
+            return partial(api_method, self)
 
         # syntax such as ds.x, ds.y, etc...
         if item[0] in self.dims or self._coordset:
@@ -1410,16 +1410,6 @@ class NDDataset(NDMath, NDIO, NDPlot, NDComplexArray):
 
         return new
 
-    #                             #### DEPRECATIONS #####
-    @classmethod
-    def read(cls, *args, **kwargs):
-        from spectrochempy import read as _read
-
-        dataset = deprecated(removed="0.6.1", replace="API method `read`")(_read)(
-            *args, **kwargs
-        )
-        return dataset
-
 
 # ======================================================================================
 # API functions form NDDataset methods
@@ -1459,3 +1449,4 @@ for funcname in api_funcs:
 # Set the operators
 # ======================================================================================
 _set_operators(NDDataset, priority=100000)
+

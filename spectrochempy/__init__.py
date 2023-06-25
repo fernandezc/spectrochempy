@@ -106,30 +106,28 @@ except (ImportError, ModuleNotFoundError):
 
     _api_methods, _dataset_methods = create_api()
 
-# --------------------------------------------------------------------------------------
-# Lazily import objects when needed
-# --------------------------------------------------------------------------------------
-import lazy_loader
+# # --------------------------------------------------------------------------------------
+# # Lazily import objects when needed
+# # --------------------------------------------------------------------------------------
+# import lazy_loader
+#
+# subpackages = ["core" , "analysis", "processing", "widgets"]
+#
+# _getattr, _dir, _ = lazy_loader.attach(__name__, subpackages)
+
 import traitlets as tr
 
-subpackages = ["core", "analysis", "processing", "widgets"]
-
-_getattr, _dir, _ = lazy_loader.attach(__name__, subpackages)
-
-
 def __getattr__(name):
-    try:
-        return _getattr(name)
-    except AttributeError:
-        if name in _api_methods:
-            return tr.import_item(_api_methods[name] + "." + name)
-        else:
-            # look also NDDataset attribute which can be used as API methods
-            if name in _dataset_methods:
-                from spectrochempy.core.dataset.nddataset import NDDataset
 
-                return getattr(NDDataset, name)
-        raise AttributeError(f"module {__name__} has no attribute {name}")
+    if name in _api_methods:
+        return tr.import_item(_api_methods[name] + "." + name)
+    else:
+        # look also NDDataset attribute which can be used as API methods
+        if name in _dataset_methods:
+            from spectrochempy.core.dataset.nddataset import NDDataset
+
+            return getattr(NDDataset, name)
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
 def __dir__():
@@ -149,4 +147,4 @@ def __dir__():
         "cite",
         "preferences",
     ]
-    return d + _dir() + list(_api_methods.keys()) + list(_dataset_methods.keys())
+    return d + _dir() # + list(_api_methods.keys()) + list(_dataset_methods.keys())

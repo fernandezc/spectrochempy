@@ -9,7 +9,6 @@ This module to extend NDDataset with the import methods.
 """
 
 __all__ = ["read_jcamp"]
-__dataset_methods__ = __all__
 
 import io
 import re

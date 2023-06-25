@@ -40,14 +40,19 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 .. Add here new breaking changes (do not delete this comment)
 
+* `preferences` are no longer an attribute of `NDDataset`. Code like this:
 
-.. section
+    .. code-block:: python
 
-Deprecations
-~~~~~~~~~~~~
-.. Add here new deprecations (do not delete this comment)
+        >>> prefs = dataset.preferences
 
-* The use of a reader as a NDDataset classmethod is deprecated. Use instead the generic
+  should be replaced by:
+
+    .. code-block:: python
+
+        >>> prefs = scp.preferences
+
+* The use of a reader as a NDDataset classmethod has been removed. Use instead the generic
   :func:`~spectrochempy.read` function or the specialized functions `read_<protocol>`\ , e.g.
 
     .. code-block:: python
@@ -65,3 +70,10 @@ Deprecations
 
 * The use of writer as NDDataset methods is deprecated. Use instead the :func:`~spectrochempy.write`
   function.
+
+.. section
+
+Deprecations
+~~~~~~~~~~~~
+.. Add here new deprecations (do not delete this comment)
+

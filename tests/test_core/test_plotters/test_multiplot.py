@@ -9,7 +9,7 @@
 import os
 
 from spectrochempy.application import preferences
-from spectrochempy.core.dataset.nddataset import NDDataset
+from spectrochempy.core.readers import read_omnic
 from spectrochempy.core.plotters.multiplot import (
     multiplot,
     multiplot_map,
@@ -21,7 +21,7 @@ prefs = preferences
 
 
 def test_multiplot():
-    dataset = NDDataset.read_omnic(
+    dataset = read_omnic(
         os.path.join(prefs.datadir, "irdata", "nh4y-activation.spg")
     )[:, 0:100]
 

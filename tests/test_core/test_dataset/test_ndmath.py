@@ -98,7 +98,7 @@ def test_ndmath_unary_ufuncs_simple_data(nd2d, name, comment):
 def test_bug_lost_dimensionless_units():
     import os
 
-    dataset = NDDataset.read_omnic(os.path.join("irdata", "nh4y-activation.spg"))
+    dataset = scp.read_omnic(os.path.join("irdata", "nh4y-activation.spg"))
     assert dataset.units == "absorbance"
     dataset = dataset - 2.0 - 50.0  # artificially negate some values
     assert dataset.units == "absorbance"
@@ -520,7 +520,7 @@ def test_simple_arithmetic_on_full_dataset():
     # due to a bug in notebook with the following
     import os
 
-    dataset = NDDataset.read_omnic(os.path.join("irdata", "nh4y-activation.spg"))
+    dataset = scp.read_omnic(os.path.join("irdata", "nh4y-activation.spg"))
     (
         dataset - dataset[0]
     )  # suppress the first spectrum to all other spectra in the series
@@ -774,10 +774,10 @@ def test_ndmath_and_api_methods(IR_dataset_1D, IR_dataset_2D):
     assert nd2m.shape == (1, 5549)
 
     nd2m = nd2.max("x", keepdims=True)
-    assert nd2m.shape == (55, 1)
+    assert nd2m.shape == (10, 1)
 
     mx = nd2.min()  # no axis specified
-    assert mx == Quantity(-0.022955093532800674, "absorbance")
+    assert mx == Quantity(0.47743961215019226, "absorbance")
     mxk = nd2.min(keepdims=True)
     assert str(mxk) == "NDDataset: [float64] a.u. (shape: (y:1, x:1))"
 
@@ -792,7 +792,7 @@ def test_ndmath_and_api_methods(IR_dataset_1D, IR_dataset_2D):
     assert nd2m.shape == (1, 5549)
 
     nd2m = nd2.min("x", keepdims=True)
-    assert nd2m.shape == (55, 1)
+    assert nd2m.shape == (10, 1)
 
     # CLIP
     # ----
