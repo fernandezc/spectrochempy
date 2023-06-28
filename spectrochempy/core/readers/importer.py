@@ -28,7 +28,7 @@ from spectrochempy.utils.file import (
     get_filenames,
     pathclean,
 )
-from spectrochempy.processing.transformation import concatenate
+from spectrochempy.processing.transformation.concatenate import concatenate
 try:
     from spectrochempy.core.readers._importer_methods import _importer_methods
 except ImportError:

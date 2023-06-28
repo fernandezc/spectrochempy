@@ -9,7 +9,7 @@
 import os
 
 from spectrochempy.application import preferences
-from spectrochempy.core.readers import read_omnic
+from spectrochempy.core.readers.read_omnic import read_omnic
 from spectrochempy.core.plotters.multiplot import (
     multiplot,
     multiplot_map,

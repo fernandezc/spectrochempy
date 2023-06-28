@@ -304,27 +304,27 @@ class SpectroChemPy(Application):
         # (such that those from jupyter which cause problems here)
         ipy = get_ipython() if InteractiveShell.initialized() else None
 
-        if ipy is None:
-            # remove argument not known by spectrochempy
-            if (
-                "make.py" in sys.argv[0]
-                or "pytest" in sys.argv[0]
-                or "validate_docstrings" in sys.argv[0]
-            ):  # building docs
-                options = []
-                for item in sys.argv[:]:
-                    for k in list(self.flags.keys()):
-                        if item.startswith("--" + k) or k in ["--help", "--help-all"]:
-                            options.append(item)
-                        continue
-                    for k in list(self.aliases.keys()):
-                        if item.startswith("-" + k) or k in [
-                            "h",
-                        ]:
-                            options.append(item)
-                self.parse_command_line(options)
-            else:  # pragma: no cover
-                self.parse_command_line(sys.argv)
+        # if ipy is None:
+        # # remove argument not known by spectrochempy
+        # if (
+        #     "make.py" in sys.argv[0]
+        #     or "pytest" in sys.argv[0]
+        #     or "validate_docstrings" in sys.argv[0]
+        # ):  # building docs
+        #     options = []
+        #     for item in sys.argv[:]:
+        #         for k in list(self.flags.keys()):
+        #             if item.startswith("--" + k) or k in ["--help", "--help-all"]:
+        #                 options.append(item)
+        #             continue
+        #         for k in list(self.aliases.keys()):
+        #             if item.startswith("-" + k) or k in [
+        #                 "h",
+        #             ]:
+        #                 options.append(item)
+        #     self.parse_command_line(options)
+        # else:  # pragma: no cover
+        #     self.parse_command_line(sys.argv)
 
         # Warning handler
         # we catch warnings and error for a lighter display to the end-user.

@@ -128,7 +128,7 @@ def download_nist_ir(CAS, index="all"):
             response = requests.get(url, stream=True, timeout=10)
             if b"Spectrum not found" in response.content[:30]:
                 error_(
-                    IOError, f"NIST IR: Spectrum {i} does not exist... please check !"
+                    IOError, f"NIST IR: Spectrum {url} does not exist... please check !"
                 )
                 if i == index[-1] and out == []:
                     return None

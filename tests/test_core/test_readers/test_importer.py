@@ -36,7 +36,7 @@ def read_fake(*paths, **kwargs):
 
 
 read_fk = read_fake
-setattr(scp.NDDataset, "read_fk", read_fk)
+setattr(scp, "read_fk", read_fk)
 
 
 @_importer_method
