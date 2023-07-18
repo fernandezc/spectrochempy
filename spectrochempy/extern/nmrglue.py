@@ -1065,7 +1065,7 @@ def read_fid(
         try:
             dic["pprog"] = read_pprog(os.path.join(dir, pprog_file))
         except Exception:
-            warn("Error reading the pulse program")
+            pass  # warn("Error reading the pulse program")
 
     # determine file size and add to the dictionary
     dic["FILE_SIZE"] = os.stat(os.path.join(dir, bin_file)).st_size

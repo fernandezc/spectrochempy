@@ -279,7 +279,7 @@ class Importer(HasTraits):
                 else:
                     dataset = self.objtype.concatenate(datasets, axis=0)
                     dataset.history = "Merged from several files"
-
+                dataset.name = pathclean(datasets[0].filename).stem
                 if dataset.coordset is not None and kwargs.pop("sortbydate", True):
                     dataset.sort(dim=0, inplace=True)
                     #  dataset.history = "Sorted"  (this not always by date:

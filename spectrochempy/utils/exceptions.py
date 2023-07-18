@@ -84,7 +84,7 @@ class NotTransformedError(SpectroChemPyError):
         caller = frame.f_code.co_name if attr is None else attr
         model = frame.f_locals["self"].name
         message = (
-            f"To use `{caller}` ,  the method `apply` of model `{model}`"
+            f"To use `{caller}` ,  the method `transform` of model `{model}`"
             f" should be executed first"
         )
         super().__init__(message)
@@ -297,7 +297,6 @@ class ProtocolError(SpectroChemPyError):
     """
 
     def __init__(self, protocol, available_protocols):
-
         self.message = (
             f"IO - The `{protocol}` protocol is unknown or not yet implemented.\n"
             f"It is expected to be one of {tuple(available_protocols)}"

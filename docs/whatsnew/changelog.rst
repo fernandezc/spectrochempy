@@ -47,6 +47,11 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 .. Add here new breaking changes (do not delete this comment)
 
+* Warning: The default coordinates names for Analysis methods have been changed !
+  Use the `dims` attribute of the NDDataset to check the actual names in case of
+  problems.
+* Remove previouly deprecated `force_stack` option in `concatenate` method. 
+  Use `stack` instead.
 
 .. section
 

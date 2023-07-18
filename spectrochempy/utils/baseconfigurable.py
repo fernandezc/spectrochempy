@@ -147,18 +147,6 @@ class BaseConfigurable(MetaConfigurable):
             d = d.copy()
         return d
 
-    def _make_unsqueezed_dataset(self, d):
-        # add a dimension to 1D Dataset
-        if d.ndim == 1:
-            coordset = d.coordset
-            d._data = d._data[np.newaxis]
-            if np.any(d.mask):
-                d._mask = d._mask[np.newaxis]
-            d.dims = ["y", "x"]  # "y" is the new dimension
-            coordx = coordset[0] if coordset is not None else None
-            d.set_coordset(x=coordx, y=None)
-        return d
-
     def _get_masked_rc(self, mask):
         # Get the mask by row and columns.
         # -------------------------------
@@ -294,7 +282,7 @@ class BaseConfigurable(MetaConfigurable):
 
         # for the following we need X with two dimensions
         # So let's generate the un-squeezed X
-        X = X.atleast_2d()  # self._make_unsqueezed_dataset(X)
+        X = X.atleast_2d()
 
         # if X is complex or quaternion, we will work on the real part only
         if X.is_complex or X.is_quaternion:

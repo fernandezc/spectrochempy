@@ -79,11 +79,6 @@ def concatenate(*datasets, **kwargs):
     ((55, 5549), (55, 5549), (55, 11098))
     """
 
-    # check uise
-    if "force_stack" in kwargs:
-        deprecated("force_stack", replace="method stack()")
-        return stack(datasets)
-
     # get a copy of input datasets in order that input data are not modified
     datasets = _get_copy(datasets)
 
@@ -164,7 +159,7 @@ def concatenate(*datasets, **kwargs):
     coords = datasets[0].coordset
 
     if coords is not None:
-        if not coords[dim].is_empty:
+        if not coords[dim].is_empty and not "newcoords" in kwargs:
             labels = []
             if coords[dim].is_labeled:
                 for ds in datasets:
@@ -182,12 +177,16 @@ def concatenate(*datasets, **kwargs):
                             coord._labels = np.concatenate(
                                 [label for label in labels[:, i]]
                             )
+
             coord_data_tuple = tuple((ds.coordset[dim].data for ds in datasets))
             none_coord = len([x for x in coord_data_tuple if x is None])
             if not none_coord:
                 coords[dim]._data = np.concatenate(coord_data_tuple)
             else:
                 warn(f"Some dataset(s) coordinates in the {dim} dimension are None.")
+
+        if "newcoords" in kwargs:
+            coords[dim] = kwargs["newcoords"]
 
     out = dataset.copy()
     out._data = data
@@ -227,7 +226,7 @@ def concatenate(*datasets, **kwargs):
     return out
 
 
-def stack(*datasets):
+def stack(*datasets, **kwargs):
     """
     Stack of `NDDataset` objects along a new dimension.
 

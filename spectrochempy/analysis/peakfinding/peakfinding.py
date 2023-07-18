@@ -10,15 +10,26 @@ Peak finding module.
 Contains wrappers of `scipy.signal` peak finding functions.
 """
 
-__all__ = ["find_peaks"]
-
+__all__ = ["PeakFinder", "find_peaks"]
+__configurables__ = ["PeakFinder"]
 __dataset_methods__ = ["find_peaks"]
 
 import numpy as np
 import scipy
 
+import traitlets as tr
+
 from spectrochempy.application import warning_
 from spectrochempy.core.units import Quantity
+from spectrochempy.utils.baseconfigurable import BaseConfigurable
+from spectrochempy.utils.docstrings import _docstring
+from spectrochempy.extern.traittypes import Array
+from spectrochempy.utils import exceptions
+from spectrochempy.core.dataset.nddataset import NDDataset
+from spectrochempy.core.dataset.coord import Coord
+from spectrochempy.core.dataset.coordset import CoordSet
+from spectrochempy.utils.objects import Adict
+from spectrochempy.processing.transformation.concatenate import stack, concatenate
 
 # Todo:
 # find_peaks_cwt(vector, widths[, wavelet, ...]) Attempt to find the peaks in a 1-D array.
@@ -27,10 +38,326 @@ from spectrochempy.core.units import Quantity
 # argrelextrema(data, comparator[, axis, ...]) 	Calculate the relative extrema of data.
 
 
+class PeakFinder(BaseConfigurable):
+    __doc__ = _docstring.dedent(
+        r"""
+    Peak finder class.
+
+    The PeakFinder class is a wrapper of `scipy.signal` peak finding functions.
+    It can be used to find peaks inside a `NDDataset` based on peak properties.
+
+    If the NDDataSet has more than one dimension, the peak finding is performed
+    along the last dimensions, except if the `dim` argument
+    is given. 
+
+    Parameters
+    ----------
+    %(BaseConfigurable.parameters)s
+
+    See Also
+    --------
+    find_peaks: Find peaks inside a 1D `NDDataset` based on peak properties.
+    """
+    )
+
+    use_coord = tr.Bool(
+        default_value=True,
+        help="Set whether the dimension coordinates (when it exists) should be used instead of indices for the positions and width. If True, the units of the other parameters are interpreted according to the coordinates.",
+    ).tag(config=True)
+
+    height = tr.Union(
+        (tr.Float(), tr.Instance(Quantity), tr.List(), Array()),
+        default_value=None,
+        allow_none=True,
+        help="Required height of peaks. Either a number, None, a list or array matching the x-coordinate size or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied, as the maximal required height.",
+    ).tag(config=True)
+
+    threshold = tr.Union(
+        (tr.Float(), tr.Instance(Quantity), tr.List(), Array()),
+        default_value=None,
+        allow_none=True,
+        help="Required threshold of peaks, the vertical distance to its neighbouring samples. Either a number, None, an array matching the x-coordinate size or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied, as the maximal required threshold.",
+    ).tag(config=True)
+
+    distance = tr.Union(
+        (tr.Float(), tr.Instance(Quantity)),
+        default_value=None,
+        allow_none=True,
+        help="Required minimal horizontal distance in samples between neighbouring peaks. Smaller peaks are removed first until the condition is fulfilled for all remaining peaks.",
+    ).tag(config=True)
+
+    prominence = tr.Union(
+        (tr.Float(), tr.Instance(Quantity), tr.List(), Array()),
+        default_value=None,
+        allow_none=True,
+        help="Required prominence of peaks. Either a number, None, an array matching the x-coordinate size or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied, as the maximal required prominence.",
+    ).tag(config=True)
+
+    width = tr.Union(
+        (tr.Float(), tr.Instance(Quantity), tr.List(), Array()),
+        default_value=None,
+        allow_none=True,
+        help="Required width of peaks in samples. Either a number, None, an array matching the x-coordinate size or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied, as the maximal required width. Floats are interpreted as width measured along the 'x' Coord; ints are interpreted as a number of points.",
+    ).tag(config=True)
+
+    wlen = tr.Union(
+        (tr.Float(), tr.Instance(Quantity), tr.List(), Array()),
+        default_value=None,
+        allow_none=True,
+        help="Used for calculation of the peaks prominences, thus it is only used if one of the arguments prominence or width is given. Floats are interpreted as measured along the 'x' Coord; ints are interpreted as a number of points. See argument len in peak_prominences of the scipy documentation for a full description of its effects.",
+    ).tag(config=True)
+
+    rel_height = tr.Float(
+        default_value=0.5,
+        allow_none=True,
+        help="Used for calculation of the peaks width, thus it is only used if width is given. See argument rel_height in peak_widths of the scipy documentation for a full description of its effects.",
+    ).tag(config=True)
+
+    plateau_size = tr.Union(
+        (tr.Float(), tr.Instance(Quantity), tr.List(), Array()),
+        default_value=None,
+        allow_none=True,
+        help="Required size of the flat top of peaks in samples. Either a number, None, an array matching the x-coordinate size or a 2-element sequence of the former. The first element is always interpreted as the minimal and the second, if supplied as the maximal required plateau size. Floats are interpreted as measured along the 'x' Coord; ints are interpreted as a number of points.",
+    ).tag(config=True)
+
+    window_length = tr.Integer(
+        default_value=5,
+        help="The length of the filter window used to interpolate the maximum. window_length must be a positive odd integer. If set to one, the actual maximum is returned.",
+    ).tag(config=True)
+
+    # =================================================================================
+    # Runtime parameters
+    # =================================================================================
+    _dim = tr.Union((tr.Integer(), tr.Unicode()), allow_none=True, default_value=None)
+
+    _coord = tr.Instance(Coord)
+    _use_coord = tr.Bool()
+
+    _distance = tr.Integer(allow_none=True)
+    _width = tr.Integer(allow_none=True)
+    _wlen = tr.Integer(allow_none=True)
+    _plateau_size = tr.Integer(allow_none=True)
+
+    _outsearch = tr.List(tr.Instance(Adict))
+
+    # ==================================================================================
+    # Initialisation
+    # ==================================================================================
+    def __init__(
+        self,
+        log_level="WARNING",
+        **kwargs,
+    ):
+        # call the super class for initialisation of the configuration parameters
+        # to do before anything else!
+        super().__init__(
+            log_level=log_level,
+            **kwargs,
+        )
+
+    def __call__(self, X, dim=None):
+        return self.search(X, dim)
+
+    # =================================================================================
+    # Private methods
+    # =================================================================================
+    def _check_unit_compatibility(self, X, par, axis):
+        # check units compatibility, convert to units of data and return magnitude
+        units = X.coord(axis).units if X.coordset is not None else None
+        parunits = par.units if hasattr(par, "units") else None
+        if parunits is None:
+            return par  # we assume that the parameters has the units of the data
+        elif units is None and parunits is not None:
+            raise exceptions.UnitsCompatibilityError(  # pragma: no cover
+                f"Units of the data are None. The parameter {par.name} should have no units"
+            )
+        elif units is not None and parunits is not None:
+            if units.dimensionality != parunits.dimensionality:
+                raise exceptions.UnitsCompatibilityError(
+                    f"Units of the data ({units}) and parameter {par.name}"
+                    f" ({parunits}) are not compatible."
+                )
+            # should be compatible, so convert
+            par.ito(units)
+            return par.magnitude
+
+    @tr.validate(
+        "height", "threshold", "distance", "prominence", "width", "wlen", "plateau_size"
+    )
+    def _par_validate(self, proposal):
+        if proposal.value is None or self._X_is_missing:
+            return proposal.value
+
+        if isinstance(proposal.value, (list, tuple)):
+            for i, val in enumerate(proposal.value):
+                proposal.value[i] = self._check_unit_compatibility(
+                    self._X, val, self._dim
+                )
+        else:
+            proposal.value = self._check_unit_compatibility(
+                self._X, proposal.value, self._dim
+            )
+        return proposal.value
+
+    @tr.observe("_X_coordset")
+    def _X_coordset_changed(self, change):
+        coordset = change.new
+        self._coord = coordset[self._dim].default if coordset is not None else None
+
+        # Check if we can work with the coordinates
+        self._use_coord = self.use_coord and self._coord is not None
+
+        # init variable step in case we do not use coordinates
+        step = 1
+
+        if self._use_coord:
+            # assume linear x coordinates
+            if not self._coord.linear:
+                warning_(
+                    f"The {self._dim} coordinates are not linear. "
+                    "The peak finding might be erroneous."
+                )
+                spacing = np.mean(self._coord.spacing)
+            else:
+                spacing = self._coord.spacing
+            if isinstance(spacing, Quantity):
+                spacing = spacing.magnitude
+            step = np.abs(spacing)
+
+        self._distance = (
+            int(round(self.distance / step)) if self.distance is not None else None
+        )
+        self._width = int(round(self.width / step)) if self.width is not None else None
+        self._wlen = int(round(self.wlen / step)) if self.wlen is not None else None
+        self._plateau_size = (
+            int(round(self.plateau_size / step))
+            if self.plateau_size is not None
+            else None
+        )
+
+    def _quadratic_interpolation(self, peaks, data, mode):
+        # quadratic interpolation to find the maximum
+
+        window_length = (
+            self.window_length
+            if self.window_length % 2 == 0
+            else self.window_length - 1
+        )
+
+        pos = []
+        heights = []
+        for peak in peaks:
+            if window_length > 1:
+                start = peak - window_length // 2
+                end = peak + window_length // 2 + 1
+                sle = slice(start, end)
+                y = data[sle]
+                x = range(start, end) if not self._use_coord else self._coord[sle]
+                coef = np.polyfit(x, y, 2)
+                x_at_max = -coef[1] / (2 * coef[0])
+                if mode == "1D":  # the input was a 1D dataset
+                    # thus take maximum of the interpolated peak
+                    y_at_max = np.poly1d(coef)(x_at_max)
+                else:
+                    # the input was a 2D dataset
+                    # thus take the x coordinate of the maximum of the interpolated peak
+                    # but the intensity at this position for each individal spectra
+                    y_at_max = self._X[..., x_at_max]
+                pos.append(x_at_max)
+            else:
+                pos.append(peak if not self._use_coord else self._coord[peak])
+                y_at_max = self._X[..., peak]
+
+            heights.append(y_at_max)
+
+        return pos, heights
+
+    # ===============================================================================
+    # Public methods
+    # ===============================================================================
+    def search(self, X, dim=None):
+        """
+        Search for peak's position.
+
+        Parameters
+        ----------
+        X : `NDDataset` or :term:`array-like` of shape (:term:`n_observations`\ , :term:`n_features`\ )
+            The data to find peaks in.
+
+        Returns
+        -------
+        `NDDataset`
+            Peak's properties.
+        """
+        # get the name of the last axis
+        self._dim = X.get_axis(-1)[1]
+
+        # fire the validation process
+        self._X = X
+
+        # if X is a 2D dataset, we take the projection along the last dimension
+        if self._X_preprocessed.squeeze().ndim > 1:
+            mode = "2D"
+            data = self._X_preprocessed.sum(axis=0)
+        else:
+            mode = "1D"
+            data = self._X_preprocessed.squeeze()
+
+        # now the distance, width ... parameters are given in data points
+        # and the dataset is reduced to a 1D dataset
+
+        # find peaks and properties
+        peaks, properties = scipy.signal.find_peaks(
+            data,
+            height=self.height,
+            threshold=self.threshold,
+            distance=self._distance,
+            prominence=self.prominence,
+            width=self._width,
+            wlen=self._wlen,
+            rel_height=self.rel_height,
+            plateau_size=self._plateau_size,
+        )
+
+        pos, heights = self._quadratic_interpolation(peaks, data, mode)
+
+        coords = Coord(
+            pos, name="x", units=self._coord.units if self._use_coord else None
+        )
+        heights = concatenate(heights, newcoord=coords)
+
+        outsearch = NDDataset()
+
+        self._outsearch.append(outsearch)
+
+        if len(self._outsearch) > 1:
+            return self._outsearch[0]
+        else:
+            return self._outsearch
+
+
+"""
+        `~numpy.ndarray`
+            Indices of peaks in `dataset` that satisfy all given conditions.
+            The shape of the results depends on the dimensionality of `X` and
+            the `dim` argument of the PeakFinder object.
+
+            * If `X` is 1D and `dim` is None, the result is a 1D array of indices.
+            * If `X` is 2D and `dim` is None, the result is a 2D array of indices of
+                shape (2, n_peaks) where the first row contains the indices along the
+                first dimension and the second row contains the indices along the second
+                dimension.
+            * If `X` is 2D and `dim` is 0 or `y`, the result is a 1D array of indices
+                along the first dimension.
+            * If `X` is 2D and `dim` is 1 or `x`, the result is a 1D array of indices
+                along the second dimension.
+"""
+
+
 def find_peaks(
     dataset,
     height=None,
-    window_length=3,
+    window_length=5,
     threshold=None,
     distance=None,
     prominence=None,

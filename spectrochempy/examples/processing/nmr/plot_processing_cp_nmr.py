@@ -60,7 +60,7 @@ nd2 = scp.fft(nd1, si=4096)
 
 # %%
 # perform a phase correction of order 0 (need to be tuned carefully)
-nd3 = scp.pk(nd2, phc0=-118)
+nd3 = scp.pk(nd2, phc0=-121)
 
 # %%
 # plot
@@ -76,9 +76,22 @@ _ = ax.set_xlim(225, 25)
 _ = ax.set_ylim(-1, 10)
 
 # %%
+nd5 = scp.snip(nd3.sum(dim=0), snip_width=200)
+ax = nd5.plot()
+_ = ax.set_xlim(225, 25)
+_ = ax.set_ylim(-1, 10)
+
+# %%
 # ## Peak peaking
+
+# %%
+peakfinder = scp.PeakFinder(height=0.5, width=5, wlen=33.0)
+dok = peakfinder.search(nd4)
+print(dok)
+
+# %%
 # we will use here the max of each spectra
-peaks, properties = nd4.max(dim=0).find_peaks(height=2.0, width=0.5, wlen=33.0)
+peaks, properties = nd4.max(dim=0).find_peaks(width=0, wlen=33.0)
 print(f"position of the peaks : {peaks.x.data}")
 
 # %%
