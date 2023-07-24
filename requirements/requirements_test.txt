@@ -8,7 +8,6 @@
 #
 # ======================================================================================
 brukeropusreader
-quadprog
 numpy-quaternion
 cffconvert
 colorama
@@ -20,13 +19,15 @@ matplotlib
 numba
 numpy
 numpydoc>=1.2
+osqp
+packaging
 pint>=0.20
 requests
 scipy
 tqdm
 traitlets
 tzlocal
-scikit-learn
+scikit-learn==1.2
 xlrd
 pyyaml
 setuptools

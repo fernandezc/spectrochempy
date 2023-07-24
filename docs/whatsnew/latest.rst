@@ -32,6 +32,9 @@ Bug fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
+* Changed the default QP solver (quadprog -> osqp): The new solver is compatible with
+  python 3.11. Fastness and robusteness are improved. The quadprog solver can still be
+  used if available
 * Warning: The default coordinates names for Analysis methods have been changed !
   Use the `dims` attribute of the NDDataset to check the actual names in case of
   problems.
