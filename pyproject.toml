@@ -33,6 +33,7 @@ dependencies = [
   "numpy-quaternion >= 2024.0.7",
   "osqp",
   "pint",
+  "pluggy",
   "pyyaml",
   "requests",
   "scikit-learn",

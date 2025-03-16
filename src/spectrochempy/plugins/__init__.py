@@ -3,25 +3,11 @@
 # CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
+#
 
-# ruff: noqa
+import lazy_loader as _lazy_loader
 
-__all__ = [
-    "analysis",
-    "application",
-    "core",
-    "extern",
-    "ipython",
-    "plugins",
-    "processing",
-    "utils",
-]
-
-from . import analysis
-from . import application
-from . import core
-from . import extern
-from . import ipython
-from . import plugins
-from . import processing
-from . import utils
+# --------------------------------------------------------------------------------------
+# Lazy loading of sub-packages
+# --------------------------------------------------------------------------------------
+__getattr__, __dir__, __all__ = _lazy_loader.attach_stub(__name__, __file__)

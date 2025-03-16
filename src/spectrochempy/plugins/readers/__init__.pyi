@@ -7,21 +7,11 @@
 # ruff: noqa
 
 __all__ = [
-    "analysis",
-    "application",
-    "core",
-    "extern",
-    "ipython",
-    "plugins",
-    "processing",
-    "utils",
+    "filetypes",
+    "read_omnic",
+    "readermanager",
 ]
 
-from . import analysis
-from . import application
-from . import core
-from . import extern
-from . import ipython
-from . import plugins
-from . import processing
-from . import utils
+from . import filetypes
+from . import read_omnic
+from . import readermanager

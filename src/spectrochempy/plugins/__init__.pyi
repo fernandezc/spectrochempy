@@ -3,25 +3,16 @@
 # CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 # See full LICENSE agreement in the root directory.
 # ======================================================================================
+#
 
 # ruff: noqa
 
 __all__ = [
-    "analysis",
-    "application",
-    "core",
-    "extern",
-    "ipython",
-    "plugins",
-    "processing",
-    "utils",
+    "hookspecs",
+    "pluginmanager",
+    "readers",
 ]
 
-from . import analysis
-from . import application
-from . import core
-from . import extern
-from . import ipython
-from . import plugins
-from . import processing
-from . import utils
+from . import hookspecs
+from . import pluginmanager
+from . import readers

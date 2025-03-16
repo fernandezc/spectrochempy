@@ -44,6 +44,7 @@ SpectroChemPy is a framework for processing, analyzing and modeling Spectroscopi
 for Chemistry with Python. It is a cross-platform software, running on Linux, Windows or OS X.
 
 This module serves as the main entry point for the SpectroChemPy package, providing:
+
 - Configuration of warning filters
 - Import of the public API
 - Dynamic attribute access to NDDataset methods
@@ -74,22 +75,6 @@ application.start.display_loading_message(3)
 # --------------------------------------------------------------------------------------
 application.start.set_warnings()
 
-
-# --------------------------------------------------------------------------------------
-# Plugin manager
-# --------------------------------------------------------------------------------------
-# from .plugins.pluginmanager import PluginManager
-
-# plugin_manager = PluginManager()
-# plugin_manager.discover_plugins()
-
-# # initialize all auto-initializable plugins
-# for plugin in plugin_manager.available_plugins.values():
-#     if plugin.auto_initialize:
-#         plugin.initialize(manager=plugin_manager)
-
-# __all__.append("plugin_manager")
-
 # ------------------------------------------------------------------------------
 # Display welcome message
 # ------------------------------------------------------------------------------
@@ -108,8 +93,17 @@ else:
     if "/bin/" not in sys.argv[0]:  # deactivate for console scripts
         print(welcome_string.strip())  # noqa: T201
 
+# --------------------------------------------------------------------------------------
+# Create a single ReaderManager instance
+# --------------------------------------------------------------------------------------
+from spectrochempy.plugins.readers.readermanager import ReaderManager
 
-# Override __getattr__ to handle both submodules and direct class access
+_reader_manager = ReaderManager()
+
+
+# ------------------------------------------------------------------------------
+# Lazy loading of sub-modules
+# ------------------------------------------------------------------------------
 def __getattr__(name):
     """
     Lazily import modules or classes when accessed.
@@ -117,6 +111,25 @@ def __getattr__(name):
     This function enables direct access to classes like `scp.Coord`
     without importing them until they are actually used.
     """
+    # Plugins lookup
+    # --------------
+    # look for a reader
+    from spectrochempy.plugins.readers.filetypes import registry as fr
+
+    # Check if the requested attribute is a reader method
+    if name.startswith("read_") and (
+        name in fr.reader_methods.values() or name in fr.aliases
+    ):
+        if hasattr(_reader_manager, name):
+            return getattr(_reader_manager, name)
+        if name in fr.aliases:
+            return getattr(_reader_manager, fr.aliases.get(name))
+
+    # Standard reader manager
+    if hasattr(_reader_manager, name):
+        return getattr(_reader_manager, name)
+
+    # Lazy imports
     if name in _LAZY_IMPORTS:
         module_path = _LAZY_IMPORTS[name]
         module = __import__(module_path, fromlist=[name])
@@ -139,7 +152,7 @@ def __getattr__(name):
 
 # we don't use __all__ and __dir__ returned _lazy_loader.attach_stub
 
-__all__ = list(_LAZY_IMPORTS.keys())
+__all__ = list(_LAZY_IMPORTS.keys())  # TODO; add the plugins???
 
 
 def __dir__() -> list[str]:
