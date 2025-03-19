@@ -122,5 +122,5 @@ class ReaderManager(PluginManager):
             supported = "unknown"
 
         raise ValueError(
-            f"No reader found for {filename}. Supported extensions: {supported}"
+            f"No reader found for {files}. Supported extensions: {supported}"
         )

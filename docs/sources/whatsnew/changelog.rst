@@ -19,13 +19,15 @@ New Features
 ~~~~~~~~~~~~
 .. Add here new public features (do not delete this comment)
 
-* **Lazy Import Mechanism**: SpectroChemPy now uses a lazy import mechanism to improve startup time.
+* **Plugin System**: SpectroChemPy now supports a plugin system that allows users to extend the functionality of the software.
+  - **Plugin Architecture**: The plugin system is based on the `pluggy` package, which provides a simple and flexible way to create and manage plugins.
+  - **Custom Plugins**: Users can create custom plugins to add new features or modify existing ones.
+  - **Plugin Hooks**: SpectroChemPy provides a set of predefined hooks that plugins can use to interact with the software.
+  - **Plugin Registry**: Plugins are registered in a central registry, making it easy to manage and load them.
+  - **Plugin Discovery**: SpectroChemPy automatically discovers and loads plugins from the user's environment.
 
-  - **Optimized Import Process**: When importing SpectroChemPy, only a minimal set of packages and functions is loaded initially.
-  - Additional functionality is loaded on demand when first accessed.
+  This new feature opens up a wide range of possibilities for extending and customizing SpectroChemPy to suit specific needs.
 
-  This approach does not reduce the overall loading time but significantly improves the initial import speed.
-  It is particularly beneficial for notebook workflows, where the first execution cell runs much faster.
 
 .. section
 
@@ -39,8 +41,7 @@ Dependency Updates
 ~~~~~~~~~~~~~~~~~~
 .. Add here new dependency updates (do not delete this comment)
 
-* ``lazy-loader`` package is required
-* ``numpydoc`` package has been added to required dependency list.
+* ``pluggy`` package is required.
 
 .. section
 
@@ -48,53 +49,7 @@ Breaking Changes
 ~~~~~~~~~~~~~~~~
 .. Add here new breaking changes (do not delete this comment)
 
-* **Global Preferences**: SpectroChemPy preferences are now global, so there is no need to store them in `NDDataset` objects.
-  As a result, the `"preferences"` attribute has been removed from `NDDataset`.
-
-  This means that old scripts written like the following:
-
-   .. code-block:: python
-
-         import spectrochempy as scp
-
-         ... existing code ...
-
-         prefs = X.preferences  # where X is an NDDataset, and preferences is an attribute of NDDataset
-         prefs.figure.figsize = (7, 3)
-
-         ... existing code ...
-
-   should be modified as follows:
-
-   .. code-block:: python
-
-         import spectrochempy as scp
-
-         ... existing code ...
-
-         prefs = scp.preferences  # Preferences are now accessed directly from the "scp" object
-         prefs.figure.figsize = (7, 3)
-
-         ... existing code ...
-
-* **Impact of Lazy Loading on Method Calls**: Some methods that were previously accessible as class methods are now only available as API or instance methods.
-  This is because class methods are not loaded until the class is instantiated.
-
-  For example, the following will no longer work:
-
-   .. code-block:: python
-
-         NDDataset.read("something")  # ❌ This will no longer work
-
-  Instead, use one of the following:
-
-   .. code-block:: python
-
-         scp.read("something")        # ✅ API method
-         scp.NDDataset().read("something")  # ✅ Instance method
-
-  Code should be updated accordingly.
-
+*
 .. section
 
 Deprecations

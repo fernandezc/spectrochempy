@@ -191,142 +191,202 @@ def _get_file_for_protocol(f, **kwargs):
     return None
 
 
-def check_filenames(*args, **kwargs):
+def check_filenames(*args, **kwargs) -> list | dict:
     """
-    Return a list or a dictionary of filenames.
+    Process and validate input filenames, returning a standardized list or dictionary.
+
+    This function handles various input formats for specifying files, including strings,
+    Path objects, URLs, byte contents, or mixed collections. If no filenames are provided,
+    it can open a file dialog to allow user selection.
 
     Parameters
     ----------
-    *args
-        If passed it is a str, a list of str or a dictionary containing filenames or a byte's contents.
-    **kwargs
-        Optional keywords parameters. See Other parameters
+    *args : str, Path, bytes, list, tuple, dict, optional
+        Input specification for files:
+        - str/Path: Path to a file
+        - bytes: File content
+        - list/tuple of str/Path: Multiple file paths
+        - list of bytes: Multiple file contents
+        - dict: Already formatted filename-to-content mapping
+        - URL string (starting with "http://" or "https://"): Remote resource
+
+    **kwargs : dict, optional
+        Additional parameters to control file handling.
+
+    Returns
+    -------
+    list or dict
+        - A list of Path objects for the files
+        - A dictionary mapping filenames to content for byte data or URLs
 
     Other Parameters
     ----------------
-    filename :
-    filetypes :
-    content :
-    protocol :
-    processed :
-    expno :
-    procno :
-    iterdir :
-    glob :
+    filename : str or Path, optional
+        Path to a file if not provided in args.
+    content : bytes, optional
+        The content of a file as bytes.
+    protocol : list, optional
+        Supported protocols for file handling.
+    directory : str or Path, optional
+        Base directory to search for files.
+    processed : bool, optional
+        For TopSpin data: whether to use processed data.
+    expno : int, optional
+        For TopSpin data: experiment number.
+    procno : int, optional
+        For TopSpin data: processing number.
+    iterdir : bool, optional
+        Whether to iterate through directory contents.
+    glob : str, optional
+        Pattern for matching multiple files.
+
+    Notes
+    -----
+    The function searches for files in the following order:
+    1. In the specified directory
+    2. In the current working directory
+    3. In the application's data directory
+
+    For TopSpin NMR data, directories can be treated as files with appropriate parameters.
 
     See Also
     --------
-    check_filename_to_open
-    check_filename_to_save
+    check_filename_to_open : Process filenames specifically for opening
+    check_filename_to_save : Process filenames specifically for saving
     """
-    # from spectrochempy.application.application import info_
     from spectrochempy.application.preferences import preferences as prefs
 
-    datadir = pathclean(prefs.datadir)
-
-    filenames = None
+    filenames = []
+    i = 0
 
     if args:
-        if (
-            isinstance(args[0], str)
-            and (args[0].startswith("http://") or args[0].startswith("https://"))
-            # and kwargs.get("remote")
-        ):
-            # return url
-            return args
-        if isinstance(args[0], (str, Path, PosixPath, WindowsPath)):  # noqa: UP038
-            # one or several filenames are passed - make Path objects
-            filenames = pathclean(args)
-        elif isinstance(args[0], bytes):
-            # in this case, one or several byte contents has been passed instead of filenames
-            # as filename where not given we passed the 'unnamed' string
-            # return a dictionary
-            return {pathclean(f"no_name_{i}"): arg for i, arg in enumerate(args)}
-        elif isinstance(args[0], (list, tuple)) and (  # noqa: UP038
-            isinstance(  # noqa: UP038
-                args[0][0], (str, Path, PosixPath, WindowsPath)
-            )
-        ):
-            filenames = pathclean(args[0])
-        elif isinstance(args[0], list) and isinstance(args[0][0], bytes):
-            return {pathclean(f"no_name_{i}"): arg for i, arg in enumerate(args[0])}
-        elif isinstance(args[0], dict):
-            # return directly the dictionary
-            return args[0]
+        for arg in args:
+            if (isinstance(arg, str)) and (
+                arg.startswith("http://") or arg.startswith("https://")
+            ):
+                # remote resource
+                filenames.append(arg)
+            elif isinstance(arg, str | Path | PosixPath | WindowsPath):
+                # local file: allways converted to Path object
+                arg = pathclean(arg)
+                filenames.append(arg)
 
-    if not filenames:
-        # look into keywords (only the case where a str or pathlib filename is given are
-        # accepted)
-        filenames = kwargs.pop("filename", None)
-        filenames = [pathclean(filenames)] if pathclean(filenames) is not None else None
+            if isinstance(arg, list | tuple):
+                # add filenames recursively
+                filenames.extend(check_filenames(*arg))
+
+            if isinstance(arg, bytes):
+                # in this case, one or several byte contents has been passed instead of filenames
+                # as filename where not given we passed the 'unnamed' string
+                # return a dictionary
+                i = i + 1
+                filenames.append({f"no_name_{i}": arg})
+
+            if isinstance(arg, dict):
+                # get directly the dictionary if it is in the form: name:bytecontent
+                for key, value in arg.items():
+                    if isinstance(value, bytes):
+                        filenames.append({key: value})
+                    else:
+                        raise ValueError(
+                            "A dictionary passed should contain only bytes"
+                        )
 
     # Look for content in kwargs
     content = kwargs.pop("content", None)
     if content:
-        if not filenames:
-            filenames = [pathclean("no_name")]
-        return {filenames[0]: content}
+        # if filename is also provided
+        filename = kwargs.pop("filename", None)
+        if filename is None:
+            i = i + 1
+            filenames.append({f"no_name_{i}": arg})
+        else:
+            filenames.append({filename: content})
 
-    if not filenames:
-        # no filename specified open a dialog
-        filetypes = kwargs.pop("filetypes", ["all files (*)"])
-        directory = pathclean(kwargs.pop("directory", None))
-        filenames = get_filenames(
-            directory=directory,
-            dictionary=True,
-            filetypes=filetypes,
-            **kwargs,
+    # look into keyword filename
+    filename = kwargs.pop("filename", None)
+    if filename is not None:
+        filenames.append(check_filenames(filename))
+
+    # look into keyword directory
+    kw_directory = pathclean(kwargs.pop("directory", None))
+    if kw_directory and not kw_directory.is_dir():
+        raise ValueError(
+            f"Directory {kw_directory} does not exist. Did you provide the full path?"
         )
-    if filenames and not isinstance(filenames, dict):
-        filenames_ = []
-        for filename in filenames:
-            # in which directory ?
-            directory = filename.parent
 
-            if directory.resolve() == Path.cwd() or directory == Path():
-                directory = ""
-            kw_directory = pathclean(kwargs.get("directory"))
-            if directory and kw_directory and directory != kw_directory:
-                # conflict we do not take into account the kw.
-                warnings.warn(
-                    "Two different directory where specified (from args and keywords arg). "
-                    "Keyword `directory` will be ignored!",
-                    stacklevel=2,
-                )
-            elif not directory and kw_directory:
-                filename = pathclean(kw_directory / filename)
+    # process filenames and directories
 
-            # check if the file exists here
-            if not directory or str(directory).startswith("."):
-                # search first in the current directory
-                directory = Path.cwd()
+    files = []
+    datadir = pathclean(prefs.datadir)
 
-            f = pathclean(directory / filename)
+    for filename in filenames:
+        # if filename is a dictionary
+        if isinstance(filename, dict):
+            files.append(filename)  # no changes
+            continue
 
+        # in which directory ?
+        directory = filename.parent
+
+        if directory.resolve() == Path.cwd() or directory == Path():
+            directory = ""
+
+        if directory and kw_directory and directory != kw_directory:
+            # conflict we do not take into account the kw.
+            warnings.warn(
+                "Two different directory where specified (from args and keywords arg). "
+                "Keyword `directory` will be ignored!",
+                stacklevel=2,
+            )
+        elif not directory and kw_directory:
+            # kw_directory is used if provided and directory is not
+            filename = pathclean(kw_directory / filename)
+
+        # check if the file exists here
+        if not directory or str(directory).startswith("."):
+            # search first in the current directory
+            directory = Path.cwd()
+
+        f = pathclean(directory / filename)
+
+        fexist = f if f.exists() else _get_file_for_protocol(f, **kwargs)
+        if fexist is None:
+            f = pathclean(datadir / filename)
             fexist = f if f.exists() else _get_file_for_protocol(f, **kwargs)
-            # info_(f"fexist  {fexist}")
-            if fexist is None:
-                f = pathclean(datadir / filename)
-                # info_(f"f (line 255) {f}")
-                fexist = f if f.exists() else _get_file_for_protocol(f, **kwargs)
-                # info_(f"fexist  {fexist}")
 
-            if fexist:
-                filename = fexist
+        if fexist:
+            filename = fexist
 
+        if filename.is_dir():
             # Particular case for topspin where filename can be provided
             # as a directory only
-            if filename.is_dir() and "topspin" in kwargs.get("protocol", []):
+            if "topspin" in kwargs.get("protocol", []):
                 filename = _topspin_check_filename(filename, **kwargs)
+            else:
+                # we list the directory if iterdir is not False
+                if kwargs.get("iterdir", True):
+                    pattern = kwargs.get("glob", "*.*")
+                    if kwargs.get("recursive", True):
+                        files.extend(
+                            check_filenames(
+                                list(filename.glob(f"**/{pattern}"), **kwargs)
+                            )
+                        )
+                    else:
+                        files.extend(list(filename.glob(pattern)))
+                else:
+                    warnings.warn(
+                        f"Directory ‘{filename}’ will be ignored as parameter `iterdir=False`",
+                        stacklevel=2,
+                    )
 
-            if not isinstance(filename, list):
-                filename = [filename]
+        if not isinstance(filename, list):
+            filename = [filename]
 
-            filenames_.extend(filename)
+        files.extend(filename)
 
-        filenames = filenames_
-
-    return filenames
+    return files
 
 
 def _topspin_check_filename(filename, **kwargs):
@@ -675,37 +735,40 @@ def check_filename_to_open(*args, **kwargs):
     filenames = check_filenames(*args, **kwargs)
 
     if filenames is None:  # not args and
-        # this is probably due to a cancel action for an open dialog.
         return None
 
-    if not isinstance(filenames, dict):
-        if len(filenames) == 1 and filenames[0] is None:
-            raise (FileNotFoundError)
+    # filenames returned by check_filenames are always a list or a dictionary
+    if not isinstance(filenames, list):
+        raise ValueError("filenames should be a list")
 
-        # deal with some specific cases
-        if isinstance(filenames[0], Path):
-            # all filename should be Path, except case of urls
-            key = filenames[0].suffix.lower()
-        elif filenames[0].startswith("http://") or filenames[0].startswith("https://"):
-            key = pathclean(filenames[0]).suffix.lower()
+    files = {}
 
-        if (
-            not key
-            and re.match(r"^fid$|^ser$|^[1-3][ri]*$", filenames[0].name) is not None
-        ):
-            key = ".topspin"
-        if key[1:].isdigit():
+    if filenames[0] is None:
+        raise FileNotFoundError("No filename provided")
+
+    for filename in filenames:
+        if isinstance(filename, dict):
+            ext = "frombytes"
+        elif isinstance(filename, Path | PosixPath | WindowsPath):
+            ext = filename.suffix.lower()
+        else:
+            raise ValueError("filename should be a Path object or a dictionary")
+
+        # deal first with special case
+        if not ext and re.match(r"^fid$|^ser$|^[1-3][ri]*$", filename.name) is not None:
+            # probably a TopSpin file
+            ext = ".topspin"
+
+        elif ext[1:].isdigit():
             # probably an opus file
-            key = ".opus"
-        return {key: filenames}
+            ext = ".opus"
 
-    if len(args) > 0 and args[0] is not None:
-        # args where passed so in this case we have directly byte contents instead of filenames only
-        contents = filenames
-        return {"frombytes": contents}
+        # update the files dictionary
+        if ext not in files:
+            files[ext] = []
+        files[ext].append(filename)
 
-    # probably no args (which means that we are coming from a dialog or from a full list of a directory
-    return filenames
+    return files
 
 
 # endregion utility

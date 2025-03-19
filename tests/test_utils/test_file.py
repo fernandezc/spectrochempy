@@ -583,26 +583,61 @@ class TestFilenameChecks:
         with pytest.raises(FileExistsError):
             check_filename_to_save(mock_dataset, mock_filename)
 
-    @patch("spectrochempy.utils.file.check_filenames")
-    def test_check_filename_to_open(self, mock_check_filenames):
-        """Test check_filename_to_open function."""
-        mock_check_filenames.return_value = [Path("test.txt")]
+    @pytest.mark.parametrize(
+        "args, expected",
+        [
+            # a single name
+            (("test.txt",), {".txt": [Path("test.txt")]}),
+            (
+                ("test1.txt", "test2.txt"),
+                {".txt": [Path("test1.txt"), Path("test2.txt")]},
+            ),
+            # a list/tuple of filename (between brakets)
+            (
+                (["test1.txt", "test2.txt"]),
+                {".txt": [Path("test1.txt"), Path("test2.txt")]},
+            ),
+            # a list/tuple of filename with no brakets
+            (
+                ("test1.txt", "test2.txt"),
+                {".txt": [Path("test1.txt"), Path("test2.txt")]},
+            ),
+            # a content
+            ((b"content",), {"frombytes": [{"no_name_1": b"content"}]}),
+            # a dictionary
+            (({"test.txt": b"content"},), {"frombytes": [{"test.txt": b"content"}]}),
+            # several dictionaries
+            (
+                ({"test.txt": b"content"}, {"test.spa": b"spacontent"}),
+                {"frombytes": [{"test.txt": b"content"}, {"test.spa": b"spacontent"}]},
+            ),
+            # a dictionary and a filename
+            (
+                ({"test.txt": b"content"}, "test.spa"),
+                {"frombytes": [{"test.txt": b"content"}], ".spa": [Path("test.spa")]},
+            ),
+            # heteregeneous list of file with various types
+            (
+                ("test1.txt", "test2.spa", "test3.txt"),
+                {
+                    ".txt": [Path("test1.txt"), Path("test3.txt")],
+                    ".spa": [Path("test2.spa")],
+                },
+            ),
+            # Already path objects
+            (
+                (Path("test1.txt"), Path("test2.spa"), Path("test3.txt")),
+                {
+                    ".txt": [Path("test1.txt"), Path("test3.txt")],
+                    ".spa": [Path("test2.spa")],
+                },
+            ),
+            # dirs
+            (("irdata/subdir",), {".spc": [Path("irdata/subdir")]}),
+        ],
+    )
+    def test_check_filename_to_open(self, args, expected):
+        """Test check_filename_to_open function with various inputs."""
 
-        result = check_filename_to_open("test.txt")
-        assert isinstance(result, dict)
-
-    @patch("spectrochempy.utils.file.check_filenames")
-    def test_check_filename_to_open_none(self, mock_check_filenames):
-        """Test check_filename_to_open with None result."""
-        mock_check_filenames.return_value = None
-
-        result = check_filename_to_open()
-        assert result is None
-
-    @patch("spectrochempy.utils.file.check_filenames")
-    def test_check_filename_to_open_dict(self, mock_check_filenames):
-        """Test check_filename_to_open returning a dictionary."""
-        mock_check_filenames.return_value = {"key": "value"}
-
-        result = check_filename_to_open()
-        assert result == {"key": "value"}
+        result = check_filename_to_open(*args)
+        assert result == expected
