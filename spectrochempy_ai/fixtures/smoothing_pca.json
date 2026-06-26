@@ -1,0 +1,115 @@
+{
+  "schema_version": "0.1.0",
+  "spectrochempy_version": "0.9.4",
+  "plugin_version": "0.1.0",
+  "planner_id": "HumanPlanner",
+  "planner_config": {},
+  "scientific_context": {
+    "goal": "Smooth noisy data before PCA to improve component stability.",
+    "analytical_strategy": "Apply Savitzky-Golay smoothing, then perform PCA and inspect scores/loadings.",
+    "data_assumptions": [
+      "2D NDDataset with moderate noise along the spectral axis",
+      "Smoothing does not obliterate real spectral features"
+    ],
+    "validation_criteria": [
+      "Smoothed dataset has same shape as input",
+      "PCA converges and explained variance is stable"
+    ],
+    "expected_outputs": [
+      "Smoothed dataset",
+      "PCA score plot",
+      "PCA loading plot"
+    ],
+    "limitations": [
+      "Window length is fixed; optimal value depends on data",
+      "Edge effects from convolution are ignored"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "dataset",
+      "type": "dataset",
+      "source": "synthetic",
+      "summary": "Noisy synthetic 2D NDDataset for smoothing + PCA"
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "s1",
+      "operation_id": "read",
+      "display_label": "Generate noisy synthetic dataset",
+      "rationale": "Create reproducible noisy 2D data.",
+      "input_refs": [],
+      "parameters": {
+        "shape": [40, 120],
+        "random_seed": 7
+      },
+      "output_var": "dataset"
+    },
+    {
+      "step_id": "s2",
+      "operation_id": "smooth",
+      "display_label": "Savitzky-Golay smoothing",
+      "rationale": "Reduce noise before variance decomposition.",
+      "input_refs": ["dataset"],
+      "parameters": {
+        "method": "savgol",
+        "window_length": 5,
+        "polyorder": 2
+      },
+      "output_var": "dataset_smoothed"
+    },
+    {
+      "step_id": "s3",
+      "operation_id": "pca",
+      "display_label": "Principal Component Analysis",
+      "rationale": "Decompose variance after noise reduction.",
+      "input_refs": ["dataset_smoothed"],
+      "parameters": {
+        "n_components": 4
+      },
+      "output_var": "pca_result"
+    },
+    {
+      "step_id": "s4",
+      "operation_id": "score_plot",
+      "display_label": "PCA score plot",
+      "rationale": "Visualise sample distribution in PC space.",
+      "input_refs": ["pca_result"],
+      "parameters": {},
+      "output_var": ""
+    },
+    {
+      "step_id": "s5",
+      "operation_id": "loading_plot",
+      "display_label": "PCA loading plot",
+      "rationale": "Visualise variable contributions after smoothing.",
+      "input_refs": ["pca_result"],
+      "parameters": {},
+      "output_var": ""
+    }
+  ],
+  "outputs": [
+    {
+      "name": "dataset_smoothed",
+      "type": "dataset",
+      "description": "Smoothed dataset"
+    },
+    {
+      "name": "pca_result",
+      "type": "dataset",
+      "description": "PCA result object"
+    }
+  ],
+  "reproducibility": {
+    "package_versions": {
+      "spectrochempy": "0.9.4",
+      "numpy": "1.26.4"
+    },
+    "random_seeds": {
+      "dataset_generation": 7
+    }
+  },
+  "warnings": [],
+  "timestamp": "2026-06-26T00:00:00Z"
+}

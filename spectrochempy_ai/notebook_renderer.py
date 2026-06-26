@@ -89,12 +89,156 @@ def _generate_loading_plot(step: OperationStep) -> str:
     )
 
 
+def _generate_smooth(step: OperationStep) -> str:
+    """Generate code for smoothing."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    method = step.parameters.get("method", "savgol")
+    size = step.parameters.get("window_length", 5)
+    order = step.parameters.get("polyorder", 2)
+    return (
+        f"# Smoothing ({method})\n"
+        f"{step.output_var} = scp.processing.filter.filter.{method}({inp}, size={size}, order={order})\n"
+        f"print('Smoothed shape:', {step.output_var}.shape)"
+    )
+
+
+def _generate_integrate(step: OperationStep) -> str:
+    """Generate code for integration."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    method = step.parameters.get("method", "trapezoid")
+    return (
+        f"# Integration ({method})\n"
+        f"{step.output_var} = scp.analysis.integration.integrate.{method}({inp})\n"
+        f"print('Integrated shape:', {step.output_var}.shape)"
+    )
+
+
+def _generate_plot(step: OperationStep) -> str:
+    """Generate generic plot code."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    plot_type = step.parameters.get("plot_type", "line")
+    if plot_type == "line":
+        return (
+            f"# Plot ({plot_type})\n"
+            f"{inp}.plot()\n"
+            f"scp.show()"
+        )
+    return (
+        f"# Plot ({plot_type})\n"
+        f"{inp}.plot()\n"
+        f"scp.show()"
+    )
+
+
+def _generate_nmf(step: OperationStep) -> str:
+    """Generate code for NMF."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    n_components = step.parameters.get("n_components", 2)
+    max_iter = step.parameters.get("max_iter", 500)
+    return (
+        f"# Non-negative Matrix Factorisation\n"
+        f"nmf = scp.analysis.decomposition.nmf.NMF(n_components={n_components}, max_iter={max_iter})\n"
+        f"nmf.fit({inp})\n"
+        f"{step.output_var} = nmf\n"
+        f"print('NMF components shape:', nmf.components.shape)"
+    )
+
+
+def _generate_nmf_components_plot(step: OperationStep) -> str:
+    """Generate code for NMF components plot."""
+    inp = step.input_refs[0] if step.input_refs else "nmf_result"
+    return (
+        f"# NMF components plot\n"
+        f"{inp}.components.plot(cmap='viridis')\n"
+        f"scp.show()"
+    )
+
+
+def _generate_nmf_reconstruction_plot(step: OperationStep) -> str:
+    """Generate code for NMF reconstruction plot."""
+    inp = step.input_refs[0] if step.input_refs else "nmf_result"
+    return (
+        f"# NMF reconstruction plot\n"
+        f"{inp}.reconstruct().plot(cmap='viridis')\n"
+        f"scp.show()"
+    )
+
+
+def _generate_mcrals(step: OperationStep) -> str:
+    """Generate code for MCR-ALS."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    y = step.input_refs[1] if len(step.input_refs) > 1 else "conc_guess"
+    max_iter = step.parameters.get("max_iter", 100)
+    return (
+        f"# MCR-ALS decomposition\n"
+        f"mcr = scp.analysis.decomposition.mcrals.MCRALS()\n"
+        f"mcr.fit({inp}, {y})\n"
+        f"{step.output_var} = mcr\n"
+        f"print('MCR-ALS C shape:', mcr.C.shape)\n"
+        f"print('MCR-ALS St shape:', mcr.St.shape)"
+    )
+
+
+def _generate_mcrals_conc_plot(step: OperationStep) -> str:
+    """Generate code for MCR-ALS concentration plot."""
+    inp = step.input_refs[0] if step.input_refs else "mcrals_result"
+    return (
+        f"# MCR-ALS concentration profiles\n"
+        f"{inp}.C.plot(cmap='viridis')\n"
+        f"scp.show()"
+    )
+
+
+def _generate_mcrals_spec_plot(step: OperationStep) -> str:
+    """Generate code for MCR-ALS spectra plot."""
+    inp = step.input_refs[0] if step.input_refs else "mcrals_result"
+    return (
+        f"# MCR-ALS resolved spectra\n"
+        f"{inp}.St.plot(cmap='viridis')\n"
+        f"scp.show()"
+    )
+
+
+def _generate_inspect(step: OperationStep) -> str:
+    """Generate code for dataset inspection."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    return (
+        f"# Dataset inspection\n"
+        f"print('Shape:', {inp}.shape)\n"
+        f"print('Dimensions:', {inp}.dims)\n"
+        f"print('Coordset:', {inp}.coordset)"
+    )
+
+
+def _generate_export(step: OperationStep) -> str:
+    """Generate code for dataset export."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    filename = step.parameters.get("filename", "output.scp")
+    fmt = step.parameters.get("format", "scp")
+    return (
+        f"# Export dataset\n"
+        f"scp.write({inp}, '{filename}')\n"
+        f"print('Exported to: {filename}')"
+    )
+
+
 _OPERATION_GENERATORS: dict[str, Any] = {
     "read": _generate_read,
     "baseline": _generate_baseline,
+    "smooth": _generate_smooth,
     "pca": _generate_pca,
     "score_plot": _generate_score_plot,
     "loading_plot": _generate_loading_plot,
+    "integrate": _generate_integrate,
+    "plot": _generate_plot,
+    "nmf": _generate_nmf,
+    "nmf_components_plot": _generate_nmf_components_plot,
+    "nmf_reconstruction_plot": _generate_nmf_reconstruction_plot,
+    "mcrals": _generate_mcrals,
+    "mcrals_conc_plot": _generate_mcrals_conc_plot,
+    "mcrals_spec_plot": _generate_mcrals_spec_plot,
+    "inspect": _generate_inspect,
+    "export": _generate_export,
 }
 
 
