@@ -15,9 +15,20 @@ from spectrochempy_ai.workflow_plan import WorkflowPlan
 ALLOWLIST: set[str] = {
     "read",
     "baseline",
+    "smooth",
     "pca",
     "score_plot",
     "loading_plot",
+    "integrate",
+    "plot",
+    "nmf",
+    "nmf_components_plot",
+    "nmf_reconstruction_plot",
+    "mcrals",
+    "mcrals_conc_plot",
+    "mcrals_spec_plot",
+    "inspect",
+    "export",
 }
 
 
