@@ -1,35 +1,13 @@
 """Deterministic validator for WorkflowPlan.
 
-The validator enforces a hard-coded allowlist and structural rules.
-It is deterministic, provider-independent, and fails closed.
-
-No AI repair loop. No runtime execution.
+Validates WorkflowPlans using OperationSpecifications from the registry.
+No hard-coded allowlists. No provider-dependent logic.
 """
 
 from __future__ import annotations
 
+from spectrochempy_ai.operation_registry import get_spec, is_registered
 from spectrochempy_ai.workflow_plan import WorkflowPlan
-
-# Hard-coded allowlist for the Phase 0 prototype.
-# This is intentionally minimal. A real operation registry belongs to Phase 1.
-ALLOWLIST: set[str] = {
-    "read",
-    "baseline",
-    "smooth",
-    "pca",
-    "score_plot",
-    "loading_plot",
-    "integrate",
-    "plot",
-    "nmf",
-    "nmf_components_plot",
-    "nmf_reconstruction_plot",
-    "mcrals",
-    "mcrals_conc_plot",
-    "mcrals_spec_plot",
-    "inspect",
-    "export",
-}
 
 
 class ValidationError(Exception):
@@ -41,7 +19,7 @@ class ValidationError(Exception):
 
 
 def validate(plan: WorkflowPlan) -> None:
-    """Validate a WorkflowPlan against the Phase 0 rules.
+    """Validate a WorkflowPlan against OperationSpecifications.
 
     Raises:
         ValidationError: if any rule is violated.
@@ -66,7 +44,7 @@ def validate(plan: WorkflowPlan) -> None:
         if not sci.analytical_strategy:
             violations.append("scientific_context.analytical_strategy is required")
 
-    # 3. Operation allowlist
+    # 3. Operation validation using registry specs
     step_ids: set[str] = set()
     for step in plan.steps:
         if not step.step_id:
@@ -76,18 +54,50 @@ def validate(plan: WorkflowPlan) -> None:
             violations.append(f"duplicate step_id: {step.step_id}")
         step_ids.add(step.step_id)
 
-        if step.operation_id not in ALLOWLIST:
+        if not is_registered(step.operation_id):
             violations.append(
-                f"operation_id '{step.operation_id}' is not in the allowlist"
+                f"operation_id '{step.operation_id}' is not in the registry"
+            )
+            continue
+
+        spec = get_spec(step.operation_id)
+
+        # 3a. Required inputs present
+        required_count = sum(1 for inp in spec.inputs if inp.required)
+        provided_count = len(step.input_refs)
+        if provided_count < required_count:
+            violations.append(
+                f"step '{step.step_id}' ({spec.operation_id}) "
+                f"has {provided_count} input(s) but requires {required_count}"
             )
 
-    # 4. Input reference resolution
+        # 3b. Parameters match spec
+        spec_params = {p.name for p in spec.parameters}
+        for param_name in step.parameters:
+            if param_name not in spec_params:
+                violations.append(
+                    f"step '{step.step_id}' ({spec.operation_id}) "
+                    f"has unknown parameter '{param_name}'"
+                )
+
+        # 3c. Output variable naming
+        # If spec declares outputs, the step should bind at least one
+        if spec.outputs and not step.output_var:
+            # Side-effect-only steps (plot, inspect, export) are allowed to have
+            # no output_var. This is checked by side_effects.
+            if not spec.side_effects:
+                violations.append(
+                    f"step '{step.step_id}' ({spec.operation_id}) "
+                    f"produces outputs but has no output_var"
+                )
+
+    # 4. Input reference resolution (variables available in pipeline)
     available_vars = {inp.name for inp in plan.inputs}
     for step in plan.steps:
         for ref in step.input_refs:
             if ref not in available_vars:
                 violations.append(
-                    f"step '{step.step_id}' references unresolved input '{ref}'"
+                    f"step '{step.step_id}' references unresolved variable '{ref}'"
                 )
         if step.output_var:
             available_vars.add(step.output_var)

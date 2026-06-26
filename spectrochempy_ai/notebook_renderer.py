@@ -14,11 +14,13 @@ from typing import Any
 import nbformat
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
+from spectrochempy_ai.operation_registry import get_spec, is_registered
 from spectrochempy_ai.workflow_plan import OperationStep, WorkflowPlan
 
 # Mapping from operation_id to the Python code generator function.
-# This is a hard-coded prototype mapping. A real operation registry
-# belongs to Phase 1.
+# The renderer owns rendering logic. It consumes OperationSpecifications
+# from the registry to validate and document operations, but the actual
+# code generation remains here.
 
 
 def _generate_read(step: OperationStep) -> str:
@@ -315,8 +317,16 @@ def render(plan: WorkflowPlan) -> nbformat.NotebookNode:
 
     # 5. Processing steps
     for step in plan.steps:
-        # Markdown cell with rationale
+        # Consume OperationSpecification from registry for documentation
+        spec_description = ""
+        if is_registered(step.operation_id):
+            spec = get_spec(step.operation_id)
+            spec_description = spec.description
+
+        # Markdown cell with rationale and optional spec description
         rationale_md = f"## {step.display_label}\n\n**Rationale:** {step.rationale}"
+        if spec_description:
+            rationale_md += f"\n\n*Description:* {spec_description}"
         cells.append(new_markdown_cell(rationale_md))
 
         # Code cell

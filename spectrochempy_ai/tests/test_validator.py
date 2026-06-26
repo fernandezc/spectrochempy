@@ -55,7 +55,7 @@ class TestValidateExploratoryPCA:
         with pytest.raises(ValidationError) as exc_info:
             validate(plan)
         assert any(
-            "unknown_op" in v and "allowlist" in v for v in exc_info.value.violations
+            "unknown_op" in v and "registry" in v for v in exc_info.value.violations
         )
 
     def test_unresolved_input_ref_fails(self) -> None:
