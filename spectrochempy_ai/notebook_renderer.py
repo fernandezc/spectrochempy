@@ -69,8 +69,7 @@ def _generate_pca(step: OperationStep) -> str:
         f"N_COMPONENTS = {n_components}\n\n"
         f"# Principal Component Analysis\n"
         f"{step.output_var} = scp.PCA(n_components=N_COMPONENTS)\n"
-        f"_ = {step.output_var}.fit({inp})\n"
-        f"{step.output_var}"
+        f"_ = {step.output_var}.fit({inp})"
     )
 
 
@@ -130,8 +129,7 @@ def _generate_nmf(step: OperationStep) -> str:
         f"MAX_ITER = {max_iter}\n\n"
         f"# Non-negative Matrix Factorisation\n"
         f"{step.output_var} = scp.NMF(n_components=N_COMPONENTS, max_iter=MAX_ITER)\n"
-        f"_ = {step.output_var}.fit({inp})\n"
-        f"{step.output_var}"
+        f"_ = {step.output_var}.fit({inp})"
     )
 
 
@@ -157,8 +155,7 @@ def _generate_mcrals(step: OperationStep) -> str:
         f"MAX_ITER = {max_iter}\n\n"
         f"# MCR-ALS decomposition\n"
         f"{step.output_var} = scp.MCRALS()\n"
-        f"_ = {step.output_var}.fit({inp}, {y})\n"
-        f"{step.output_var}"
+        f"_ = {step.output_var}.fit({inp}, {y})"
     )
 
 
