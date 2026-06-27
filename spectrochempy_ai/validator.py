@@ -1,4 +1,5 @@
-"""Deterministic validator for WorkflowPlan.
+"""
+Deterministic validator for WorkflowPlan.
 
 Validates WorkflowPlans using OperationSpecifications from the registry.
 No hard-coded allowlists. No provider-dependent logic.
@@ -6,7 +7,13 @@ No hard-coded allowlists. No provider-dependent logic.
 
 from __future__ import annotations
 
-from spectrochempy_ai.operation_registry import get_spec, is_registered
+import os
+import sys
+import traceback
+from pathlib import Path
+
+from spectrochempy_ai.operation_registry import get_spec
+from spectrochempy_ai.operation_registry import is_registered
 from spectrochempy_ai.workflow_plan import WorkflowPlan
 
 
@@ -19,9 +26,11 @@ class ValidationError(Exception):
 
 
 def validate(plan: WorkflowPlan) -> None:
-    """Validate a WorkflowPlan against OperationSpecifications.
+    """
+    Validate a WorkflowPlan against OperationSpecifications.
 
-    Raises:
+    Raises
+    ------
         ValidationError: if any rule is violated.
     """
     violations: list[str] = []
@@ -106,7 +115,9 @@ def validate(plan: WorkflowPlan) -> None:
     output_names = {out.name for out in plan.outputs}
     produced = {step.output_var for step in plan.steps if step.output_var}
     for out in plan.outputs:
-        if out.name not in produced and out.name not in {inp.name for inp in plan.inputs}:
+        if out.name not in produced and out.name not in {
+            inp.name for inp in plan.inputs
+        }:
             violations.append(
                 f"output '{out.name}' is not produced by any step or available as input"
             )
@@ -115,4 +126,68 @@ def validate(plan: WorkflowPlan) -> None:
         raise ValidationError(
             f"WorkflowPlan validation failed with {len(violations)} violation(s)",
             violations,
+        )
+
+
+class NotebookExecutionError(Exception):
+    """Raised when notebook execution validation fails."""
+
+    def __init__(self, message: str, cell_errors: list[tuple[int, str, str]]) -> None:
+        super().__init__(message)
+        self.cell_errors = cell_errors
+
+
+_CELL_EXCLUDE_PREFIXES = ("get_ipython",)
+
+
+def _should_skip(code: str) -> bool:
+    code = code.strip()
+    if not code:
+        return True
+    return any(code.startswith(p) for p in _CELL_EXCLUDE_PREFIXES)
+
+
+def validate_notebook_execution(notebook_path: str | Path) -> None:
+    """
+    Execute all code cells from a generated notebook and report errors.
+
+    Skips:
+    - markdown cells
+    - ``get_ipython`` magic
+
+    Forces ``Agg`` backend so plots are never shown on screen.
+
+    Raises
+    ------
+    NotebookExecutionError
+        If any executed cell raises an exception.
+    """
+    import matplotlib as mpl
+
+    mpl.use("Agg")
+
+    import nbformat
+
+    nb = nbformat.read(str(notebook_path), as_version=4)
+
+    cell_errors: list[tuple[int, str, str]] = []
+    ns: dict = {}
+
+    for i, cell in enumerate(nb.cells):
+        if cell.cell_type != "code":
+            continue
+        code = cell.source.strip()
+        if _should_skip(code):
+            continue
+        try:
+            exec(code, ns)
+        except Exception:
+            cls, exc, tb = sys.exc_info()
+            tb_str = "".join(traceback.format_exception(cls, exc, tb))
+            cell_errors.append((i, code.split(chr(10))[0], tb_str))
+
+    if cell_errors:
+        raise NotebookExecutionError(
+            f"Notebook execution failed in {len(cell_errors)} cell(s)",
+            cell_errors,
         )

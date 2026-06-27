@@ -1,4 +1,5 @@
-"""Tests for OperationRegistry and OperationSpecification.
+"""
+Tests for OperationRegistry and OperationSpecification.
 
 These tests verify that the registry contains the expected specifications
 and that lookup/discovery work correctly.
@@ -8,13 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from spectrochempy_ai.operation_registry import (
-    RegistryLookupError,
-    get_spec,
-    is_registered,
-    list_operation_ids,
-    list_specs,
-)
+from spectrochempy_ai.operation_registry import RegistryLookupError
+from spectrochempy_ai.operation_registry import get_spec
+from spectrochempy_ai.operation_registry import is_registered
+from spectrochempy_ai.operation_registry import list_operation_ids
+from spectrochempy_ai.operation_registry import list_specs
 
 
 class TestRegistryLookup:

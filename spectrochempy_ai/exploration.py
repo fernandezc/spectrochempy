@@ -1,4 +1,5 @@
-"""High-level exploration API for Phase 6.
+"""
+High-level exploration API for Phase 6.
 
 Thin orchestration only. Does not duplicate planner, validator, or
 renderer logic.
@@ -23,13 +24,15 @@ def explore(
     baseline_method: str | None = None,
     file_format: str | None = None,
 ) -> Path:
-    """Create a validated, reproducible exploratory notebook.
+    """
+    Create a validated, reproducible exploratory notebook.
 
     This is the minimal user-facing entry point. It selects a template,
     overrides parameters, generates a WorkflowPlan, validates it, and
     writes a runnable Jupyter notebook.
 
     Args:
+    ----
         input_path: Path to the spectral dataset file.
         output_path: Path for the output notebook. Derived from input
             filename if not provided (data.scp -> data-exploratory-pca.ipynb).
@@ -39,9 +42,11 @@ def explore(
         file_format: File format override (default from template).
 
     Returns:
+    -------
         Path to the written notebook.
 
     Raises:
+    ------
         FileNotFoundError: If input_path does not exist.
         TemplateNotFoundError: If template_id is unknown.
         UnknownParameterError: If a parameter override is invalid.
@@ -72,7 +77,8 @@ def explore(
         operation_overrides.setdefault("baseline", {})["method"] = baseline_method
 
     plan = planner.create_plan(
-        template_id, operation_overrides=operation_overrides,
+        template_id,
+        operation_overrides=operation_overrides,
     )
     validate_plan(plan)
     write_notebook(plan, str(dst))

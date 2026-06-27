@@ -1,4 +1,5 @@
-"""Phase 0 prototype of the Scientific Workflow Assistant.
+"""
+Phase 0 prototype of the Scientific Workflow Assistant.
 
 A minimal end-to-end pipeline:
 
@@ -7,6 +8,7 @@ A minimal end-to-end pipeline:
 No AI. No providers. No prompts. Only deterministic science.
 """
 
-from spectrochempy_ai.exploration import create_exploration_notebook, explore
+from spectrochempy_ai.exploration import create_exploration_notebook
+from spectrochempy_ai.exploration import explore
 
 __all__ = ["create_exploration_notebook", "explore"]

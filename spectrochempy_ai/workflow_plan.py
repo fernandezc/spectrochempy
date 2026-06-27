@@ -1,4 +1,5 @@
-"""Minimal WorkflowPlan schema for the Phase 0 prototype.
+"""
+Minimal WorkflowPlan schema for the Phase 0 prototype.
 
 This module defines the central reproducible artifact of the Scientific
 Workflow Assistant: a structured, versioned WorkflowPlan.
@@ -8,7 +9,8 @@ No AI, no providers, no prompts. Only data.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 
 

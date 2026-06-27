@@ -1,4 +1,5 @@
-"""Deterministic TemplatePlanner for Phase 2.
+"""
+Deterministic TemplatePlanner for Phase 2.
 
 Templates are predefined step sequences. The planner instantiates them into
 WorkflowPlan instances using OperationSpecifications from the registry.
@@ -9,19 +10,35 @@ No AI. No LLM. No prompts. Only deterministic template instantiation.
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import UTC
+from datetime import datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from typing import Any
 
-from spectrochempy_ai.operation_registry import REGISTRY_VERSION, get_spec, is_registered
-from spectrochempy_ai.workflow_plan import (
-    InputReference,
-    OperationStep,
-    OutputReference,
-    ReproducibilityMetadata,
-    ScientificContext,
-    WorkflowPlan,
-)
+from spectrochempy_ai.operation_registry import REGISTRY_VERSION
+from spectrochempy_ai.operation_registry import get_spec
+from spectrochempy_ai.operation_registry import is_registered
+from spectrochempy_ai.workflow_plan import InputReference
+from spectrochempy_ai.workflow_plan import OperationStep
+from spectrochempy_ai.workflow_plan import OutputReference
+from spectrochempy_ai.workflow_plan import ReproducibilityMetadata
+from spectrochempy_ai.workflow_plan import ScientificContext
+from spectrochempy_ai.workflow_plan import WorkflowPlan
+
+_PACKAGES = ("spectrochempy", "numpy")
+
+
+def _detect_package_versions() -> dict[str, str]:
+    versions: dict[str, str] = {}
+    for pkg in _PACKAGES:
+        try:
+            versions[pkg] = _pkg_version(pkg)
+        except PackageNotFoundError:
+            versions[pkg] = "unknown"
+    return versions
 
 
 class TemplateNotFoundError(KeyError):
@@ -55,7 +72,8 @@ class TemplateStep:
 
 @dataclass
 class WorkflowTemplate:
-    """A named, reusable workflow template.
+    """
+    A named, reusable workflow template.
 
     Templates define:
     - Scientific context (goal, strategy, assumptions, etc.)
@@ -108,7 +126,8 @@ class WorkflowTemplate:
 
 
 class TemplatePlanner:
-    """Creates WorkflowPlan instances from predefined templates.
+    """
+    Creates WorkflowPlan instances from predefined templates.
 
     The planner:
     - Looks up templates by template_id
@@ -122,13 +141,15 @@ class TemplatePlanner:
         self._register_default_templates()
 
     def register_template(self, template: WorkflowTemplate) -> None:
-        """Register a template.
+        """
+        Register a template.
 
         Validates at registration time:
         - Every operation_id is registered
         - Every template parameter name matches the operation spec
 
-        Raises:
+        Raises
+        ------
             TemplateOperationError: if an operation_id is unknown.
             UnknownParameterError: if a parameter name does not match the spec.
         """
@@ -168,7 +189,8 @@ class TemplatePlanner:
         template: WorkflowTemplate,
         operation_overrides: dict[str, dict[str, Any]],
     ) -> dict[str, dict[str, Any]]:
-        """Resolve operation_id-based overrides to step_id-based overrides.
+        """
+        Resolve operation_id-based overrides to step_id-based overrides.
 
         If multiple steps share the same operation_id (e.g. two plot steps),
         the override is applied to each matching step.
@@ -187,9 +209,11 @@ class TemplatePlanner:
         parameter_overrides: dict[str, dict[str, Any]] | None = None,
         operation_overrides: dict[str, dict[str, Any]] | None = None,
     ) -> WorkflowPlan:
-        """Instantiate a template into a complete WorkflowPlan.
+        """
+        Instantiate a template into a complete WorkflowPlan.
 
         Args:
+        ----
             template_id: The template to instantiate.
             parameter_overrides: Per-step parameter overrides keyed by step_id,
                 e.g. {"s3": {"n_components": 5}}.
@@ -200,14 +224,13 @@ class TemplatePlanner:
                 same step, parameter_overrides takes precedence.
 
         Returns:
+        -------
             A complete WorkflowPlan ready for validation and rendering.
         """
         template = self.get_template(template_id)
         overrides = dict(parameter_overrides or {})
         if operation_overrides:
-            resolved = self._resolve_operation_overrides(
-                template, operation_overrides
-            )
+            resolved = self._resolve_operation_overrides(template, operation_overrides)
             # operation_overrides fill in, parameter_overrides take precedence
             for step_id, params in resolved.items():
                 if step_id not in overrides:
@@ -262,18 +285,21 @@ class TemplatePlanner:
             if tstep.output_var:
                 available_vars.add(tstep.output_var)
 
+        versions = _detect_package_versions()
+        repro = deepcopy(template.reproducibility)
+        repro.package_versions = versions
         plan = WorkflowPlan(
             schema_version="0.1.0",
-            spectrochempy_version="0.9.4",
-            plugin_version="0.1.0",
+            spectrochempy_version=versions.get("spectrochempy", "unknown"),
+            plugin_version="0.1.0",  # TODO: detect dynamically once this is a proper plugin
             planner_id="TemplatePlanner",
             planner_config={"template_id": template_id},
             scientific_context=template.scientific_context,
             inputs=template.inputs,
             steps=steps,
             outputs=template.outputs,
-            reproducibility=template.reproducibility,
-            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            reproducibility=repro,
+            timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
         return plan
 

@@ -1,4 +1,5 @@
-"""Tests for the Phase 0 notebook renderer.
+"""
+Tests for the Phase 0 notebook renderer.
 
 All tests use the hand-written fixture plan. No AI required.
 """
@@ -10,10 +11,10 @@ from pathlib import Path
 
 import nbformat
 
-from spectrochempy_ai.notebook_renderer import render, write_notebook
+from spectrochempy_ai.notebook_renderer import render
+from spectrochempy_ai.notebook_renderer import write_notebook
 from spectrochempy_ai.validator import validate
 from spectrochempy_ai.workflow_plan import WorkflowPlan
-
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 
@@ -68,7 +69,7 @@ class TestRenderExploratoryPCA:
         nb2 = render(plan)
         # Compare cell sources
         assert len(nb1.cells) == len(nb2.cells)
-        for c1, c2 in zip(nb1.cells, nb2.cells):
+        for c1, c2 in zip(nb1.cells, nb2.cells, strict=False):
             assert c1.cell_type == c2.cell_type
             assert c1.source == c2.source
 

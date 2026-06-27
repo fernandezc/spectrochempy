@@ -1,4 +1,5 @@
-"""Phase 0.5 stress tests for WorkflowPlan fixtures.
+"""
+Phase 0.5 stress tests for WorkflowPlan fixtures.
 
 Every fixture must load, validate, render deterministically, and survive
 basic structural checks.
@@ -12,9 +13,9 @@ from pathlib import Path
 import pytest
 
 from spectrochempy_ai.notebook_renderer import render
-from spectrochempy_ai.validator import ValidationError, validate
+from spectrochempy_ai.validator import ValidationError
+from spectrochempy_ai.validator import validate
 from spectrochempy_ai.workflow_plan import WorkflowPlan
-
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 
@@ -61,7 +62,7 @@ class TestFixtureCoverage:
         nb1 = render(plan)
         nb2 = render(plan)
         assert len(nb1.cells) == len(nb2.cells)
-        for c1, c2 in zip(nb1.cells, nb2.cells):
+        for c1, c2 in zip(nb1.cells, nb2.cells, strict=False):
             assert c1.cell_type == c2.cell_type
             assert c1.source == c2.source
 
@@ -99,6 +100,7 @@ class TestInvalidPlansStillFail:
     def test_orphan_output_still_fails(self) -> None:
         plan = load_fixture("exploratory_pca.json")
         from spectrochempy_ai.workflow_plan import OutputReference
+
         plan.outputs = [OutputReference(name="orphan", type="dataset")]
         with pytest.raises(ValidationError) as exc_info:
             validate(plan)

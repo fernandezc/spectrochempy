@@ -1,4 +1,5 @@
-"""Tests for Phase 3 WorkflowTemplate consolidation.
+"""
+Tests for Phase 3 WorkflowTemplate consolidation.
 
 Every generated plan must:
 - be a valid WorkflowPlan (passes validator)
@@ -17,15 +18,11 @@ import pytest
 
 from spectrochempy_ai.notebook_renderer import render
 from spectrochempy_ai.operation_registry import REGISTRY_VERSION
-from spectrochempy_ai.template_planner import (
-    TemplateNotFoundError,
-    TemplateOperationError,
-    TemplatePlanner,
-    UnknownParameterError,
-    UnresolvedInputError,
-)
+from spectrochempy_ai.template_planner import TemplateNotFoundError
+from spectrochempy_ai.template_planner import TemplateOperationError
+from spectrochempy_ai.template_planner import TemplatePlanner
+from spectrochempy_ai.template_planner import UnknownParameterError
 from spectrochempy_ai.validator import validate
-
 
 TEMPLATE_IDS = ["exploratory_pca", "baseline_integrate", "nmf_exploration"]
 
@@ -71,7 +68,12 @@ class TestTemplateDiscovery:
         template = planner.get_template("nmf_exploration")
         assert len(template.steps) == 4
         op_ids = [s.operation_id for s in template.steps]
-        assert op_ids == ["read", "nmf", "nmf_components_plot", "nmf_reconstruction_plot"]
+        assert op_ids == [
+            "read",
+            "nmf",
+            "nmf_components_plot",
+            "nmf_reconstruction_plot",
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -88,8 +90,13 @@ class TestPlanGeneration:
         assert len(plan.steps) == 7
         step_ops = [s.operation_id for s in plan.steps]
         assert step_ops == [
-            "load", "inspect", "baseline", "pca",
-            "scree_plot", "score_plot", "loading_plot",
+            "load",
+            "inspect",
+            "baseline",
+            "pca",
+            "scree_plot",
+            "score_plot",
+            "loading_plot",
         ]
         assert plan.timestamp != ""
 
@@ -246,7 +253,7 @@ class TestPlanRendering:
         nb1 = render(plan)
         nb2 = render(plan)
         assert len(nb1.cells) == len(nb2.cells)
-        for c1, c2 in zip(nb1.cells, nb2.cells):
+        for c1, c2 in zip(nb1.cells, nb2.cells, strict=False):
             assert c1.cell_type == c2.cell_type
             assert c1.source == c2.source
 
@@ -280,11 +287,11 @@ class TestPlanRendering:
 
 
 class TestPlannerErrors:
-    def test_unregistered_operation_in_template_raises(self, planner: TemplatePlanner) -> None:
-        from spectrochempy_ai.template_planner import (
-            TemplateStep,
-            WorkflowTemplate,
-        )
+    def test_unregistered_operation_in_template_raises(
+        self, planner: TemplatePlanner
+    ) -> None:
+        from spectrochempy_ai.template_planner import TemplateStep
+        from spectrochempy_ai.template_planner import WorkflowTemplate
         from spectrochempy_ai.workflow_plan import ScientificContext
 
         bad_template = WorkflowTemplate(
@@ -317,10 +324,8 @@ class TestPlannerErrors:
     def test_bad_parameter_name_at_registration_raises(
         self, planner: TemplatePlanner
     ) -> None:
-        from spectrochempy_ai.template_planner import (
-            TemplateStep,
-            WorkflowTemplate,
-        )
+        from spectrochempy_ai.template_planner import TemplateStep
+        from spectrochempy_ai.template_planner import WorkflowTemplate
         from spectrochempy_ai.workflow_plan import ScientificContext
 
         bad_template = WorkflowTemplate(
@@ -347,10 +352,8 @@ class TestPlannerErrors:
     def test_register_template_with_no_params_succeeds(
         self, planner: TemplatePlanner
     ) -> None:
-        from spectrochempy_ai.template_planner import (
-            TemplateStep,
-            WorkflowTemplate,
-        )
+        from spectrochempy_ai.template_planner import TemplateStep
+        from spectrochempy_ai.template_planner import WorkflowTemplate
         from spectrochempy_ai.workflow_plan import ScientificContext
 
         # A step with zero parameters declared and zero expected should pass
@@ -402,14 +405,13 @@ class TestTemplateMetadata:
             assert restored.template_version == t.template_version
             assert restored.compatible_registry_version == t.compatible_registry_version
             assert len(restored.steps) == len(t.steps)
-            for rs, ts in zip(restored.steps, t.steps):
+            for rs, ts in zip(restored.steps, t.steps, strict=False):
                 assert rs.step_id == ts.step_id
                 assert rs.operation_id == ts.operation_id
                 assert rs.parameters == ts.parameters
 
     def test_template_from_dict_respects_defaults(self) -> None:
         from spectrochempy_ai.template_planner import WorkflowTemplate
-        from spectrochempy_ai.workflow_plan import ScientificContext
 
         minimal = {
             "template_id": "minimal",
@@ -431,7 +433,8 @@ class TestTemplateMetadata:
 
 
 class TestGoldStandardExploratoryPCA:
-    """Comprehensive tests for the gold-standard exploratory-pca template.
+    """
+    Comprehensive tests for the gold-standard exploratory-pca template.
 
     This template is the reference implementation for all future templates.
     Every new template should be judged against this standard.
@@ -526,7 +529,9 @@ class TestGoldStandardExploratoryPCA:
         )
         assert plan.steps[3].parameters["n_components"] == 3
 
-    def test_override_respects_defaults_unchanged(self, planner: TemplatePlanner) -> None:
+    def test_override_respects_defaults_unchanged(
+        self, planner: TemplatePlanner
+    ) -> None:
         plan = planner.create_plan(
             self.TEMPLATE_ID, parameter_overrides={"s4": {"n_components": 3}}
         )
@@ -604,7 +609,7 @@ class TestGoldStandardExploratoryPCA:
         nb1 = render(plan)
         nb2 = render(plan)
         assert len(nb1.cells) == len(nb2.cells)
-        for c1, c2 in zip(nb1.cells, nb2.cells):
+        for c1, c2 in zip(nb1.cells, nb2.cells, strict=False):
             assert c1.cell_type == c2.cell_type
             assert c1.source == c2.source
 
@@ -637,7 +642,7 @@ class TestGoldStandardExploratoryPCA:
         assert restored.template_id == t.template_id
         assert restored.template_version == t.template_version
         assert len(restored.steps) == len(t.steps)
-        for rs, ts in zip(restored.steps, t.steps):
+        for rs, ts in zip(restored.steps, t.steps, strict=False):
             assert rs.operation_id == ts.operation_id
             assert rs.parameters == ts.parameters
 
@@ -673,17 +678,23 @@ class TestGoldStandardExploratoryPCA:
 
 
 class TestParametrizedTemplates:
-    def test_template_registers(self, planner: TemplatePlanner, template_id: str) -> None:
+    def test_template_registers(
+        self, planner: TemplatePlanner, template_id: str
+    ) -> None:
         t = planner.get_template(template_id)
         planner.register_template(t)  # idempotent; should not raise
 
-    def test_template_instantiation(self, planner: TemplatePlanner, template_id: str) -> None:
+    def test_template_instantiation(
+        self, planner: TemplatePlanner, template_id: str
+    ) -> None:
         plan = planner.create_plan(template_id)
         assert plan.planner_id == "TemplatePlanner"
         assert plan.planner_config == {"template_id": template_id}
         assert len(plan.steps) > 0
 
-    def test_template_validates(self, planner: TemplatePlanner, template_id: str) -> None:
+    def test_template_validates(
+        self, planner: TemplatePlanner, template_id: str
+    ) -> None:
         plan = planner.create_plan(template_id)
         validate(plan)
 
@@ -693,12 +704,14 @@ class TestParametrizedTemplates:
         assert notebook.nbformat >= 4
         assert len(notebook.cells) > 0
 
-    def test_template_deterministic(self, planner: TemplatePlanner, template_id: str) -> None:
+    def test_template_deterministic(
+        self, planner: TemplatePlanner, template_id: str
+    ) -> None:
         plan = planner.create_plan(template_id)
         nb1 = render(plan)
         nb2 = render(plan)
         assert len(nb1.cells) == len(nb2.cells)
-        for c1, c2 in zip(nb1.cells, nb2.cells):
+        for c1, c2 in zip(nb1.cells, nb2.cells, strict=False):
             assert c1.cell_type == c2.cell_type
             assert c1.source == c2.source
 

@@ -1,4 +1,5 @@
-"""Tests for the Phase 0 validator.
+"""
+Tests for the Phase 0 validator.
 
 All tests use the hand-written fixture plan. No AI required.
 """
@@ -8,11 +9,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
-from spectrochempy_ai.validator import ValidationError, validate
+from spectrochempy_ai.validator import NotebookExecutionError
+from spectrochempy_ai.validator import ValidationError
+from spectrochempy_ai.validator import validate
+from spectrochempy_ai.validator import validate_notebook_execution
 from spectrochempy_ai.workflow_plan import WorkflowPlan
-
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures"
 
@@ -63,9 +67,7 @@ class TestValidateExploratoryPCA:
         plan.steps[2].input_refs = ["nonexistent_var"]
         with pytest.raises(ValidationError) as exc_info:
             validate(plan)
-        assert any(
-            "nonexistent_var" in v for v in exc_info.value.violations
-        )
+        assert any("nonexistent_var" in v for v in exc_info.value.violations)
 
     def test_duplicate_step_id_fails(self) -> None:
         plan = load_fixture("exploratory_pca.json")
@@ -90,3 +92,31 @@ class TestValidateEmptyPlan:
         assert any("schema_version" in v for v in violations)
         assert any("spectrochempy_version" in v for v in violations)
         assert any("plugin_version" in v for v in violations)
+
+
+class TestNotebookExecution:
+    def test_exploratory_pca_executes(self, tmp_path: Path) -> None:
+        import spectrochempy as scp
+        from spectrochempy_ai.exploration import explore
+
+        rng = np.random.default_rng(42)
+        data = scp.NDDataset(
+            rng.normal(size=(50, 100)).astype(np.float32),
+            title="synthetic",
+        )
+        data.y = np.arange(50)
+        data.x = np.linspace(1000, 4000, 100)
+        ds_path = tmp_path / "test_data.scp"
+        data.save_as(str(ds_path), confirm=False)
+
+        nb_path = explore(
+            input_path=str(ds_path),
+            output_path=str(tmp_path / "test_notebook.ipynb"),
+            n_components=3,
+        )
+
+        validate_notebook_execution(nb_path)
+
+    def test_not_found_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(FileNotFoundError):
+            validate_notebook_execution(tmp_path / "nonexistent.ipynb")

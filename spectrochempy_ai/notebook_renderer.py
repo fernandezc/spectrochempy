@@ -1,4 +1,5 @@
-"""Deterministic notebook renderer for WorkflowPlan.
+"""
+Deterministic notebook renderer for WorkflowPlan.
 
 Translates a validated WorkflowPlan into a Jupyter notebook using nbformat.
 The same plan produces the same notebook under the same renderer version.
@@ -8,14 +9,17 @@ No AI. No providers. No prompts. Only deterministic cell generation.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import nbformat
-from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
+from nbformat.v4 import new_code_cell
+from nbformat.v4 import new_markdown_cell
+from nbformat.v4 import new_notebook
 
-from spectrochempy_ai.operation_registry import get_spec, is_registered
-from spectrochempy_ai.workflow_plan import OperationStep, WorkflowPlan
+from spectrochempy_ai.operation_registry import get_spec
+from spectrochempy_ai.operation_registry import is_registered
+from spectrochempy_ai.workflow_plan import OperationStep
+from spectrochempy_ai.workflow_plan import WorkflowPlan
 
 # Mapping from operation_id to the Python code generator function.
 # The renderer owns rendering logic. It consumes OperationSpecifications
@@ -74,21 +78,13 @@ def _generate_pca(step: OperationStep) -> str:
 def _generate_score_plot(step: OperationStep) -> str:
     """Generate code for PCA score plot."""
     inp = step.input_refs[0] if step.input_refs else "pca_result"
-    return (
-        f"# PCA score plot\n"
-        f"{inp}.scoreplot(cmap='viridis')\n"
-        f"scp.show()"
-    )
+    return f"# PCA score plot\n" f"{inp}.plot_score(cmap='viridis')"
 
 
 def _generate_loading_plot(step: OperationStep) -> str:
     """Generate code for PCA loading plot."""
     inp = step.input_refs[0] if step.input_refs else "pca_result"
-    return (
-        f"# PCA loading plot\n"
-        f"{inp}.loadings.plot(cmap='viridis')\n"
-        f"scp.show()"
-    )
+    return f"# PCA loading plot\n{inp}.loadings.plot(cmap='viridis')"
 
 
 def _generate_smooth(step: OperationStep) -> str:
@@ -120,16 +116,8 @@ def _generate_plot(step: OperationStep) -> str:
     inp = step.input_refs[0] if step.input_refs else "dataset"
     plot_type = step.parameters.get("plot_type", "line")
     if plot_type == "line":
-        return (
-            f"# Plot ({plot_type})\n"
-            f"{inp}.plot()\n"
-            f"scp.show()"
-        )
-    return (
-        f"# Plot ({plot_type})\n"
-        f"{inp}.plot()\n"
-        f"scp.show()"
-    )
+        return f"# Plot ({plot_type})\n{inp}.plot()"
+    return f"# Plot ({plot_type})\n{inp}.plot()"
 
 
 def _generate_nmf(step: OperationStep) -> str:
@@ -149,21 +137,13 @@ def _generate_nmf(step: OperationStep) -> str:
 def _generate_nmf_components_plot(step: OperationStep) -> str:
     """Generate code for NMF components plot."""
     inp = step.input_refs[0] if step.input_refs else "nmf_result"
-    return (
-        f"# NMF components plot\n"
-        f"{inp}.components.plot(cmap='viridis')\n"
-        f"scp.show()"
-    )
+    return f"# NMF components plot\n{inp}.components.plot(cmap='viridis')"
 
 
 def _generate_nmf_reconstruction_plot(step: OperationStep) -> str:
     """Generate code for NMF reconstruction plot."""
     inp = step.input_refs[0] if step.input_refs else "nmf_result"
-    return (
-        f"# NMF reconstruction plot\n"
-        f"{inp}.reconstruct().plot(cmap='viridis')\n"
-        f"scp.show()"
-    )
+    return f"# NMF reconstruction plot\n{inp}.reconstruct().plot(cmap='viridis')"
 
 
 def _generate_mcrals(step: OperationStep) -> str:
@@ -184,21 +164,13 @@ def _generate_mcrals(step: OperationStep) -> str:
 def _generate_mcrals_conc_plot(step: OperationStep) -> str:
     """Generate code for MCR-ALS concentration plot."""
     inp = step.input_refs[0] if step.input_refs else "mcrals_result"
-    return (
-        f"# MCR-ALS concentration profiles\n"
-        f"{inp}.C.plot(cmap='viridis')\n"
-        f"scp.show()"
-    )
+    return f"# MCR-ALS concentration profiles\n{inp}.C.plot(cmap='viridis')"
 
 
 def _generate_mcrals_spec_plot(step: OperationStep) -> str:
     """Generate code for MCR-ALS spectra plot."""
     inp = step.input_refs[0] if step.input_refs else "mcrals_result"
-    return (
-        f"# MCR-ALS resolved spectra\n"
-        f"{inp}.St.plot(cmap='viridis')\n"
-        f"scp.show()"
-    )
+    return f"# MCR-ALS resolved spectra\n{inp}.St.plot(cmap='viridis')"
 
 
 def _generate_load(step: OperationStep) -> str:
@@ -217,19 +189,8 @@ def _generate_scree_plot(step: OperationStep) -> str:
     """Generate code for a PCA scree plot with explained variance."""
     inp = step.input_refs[0] if step.input_refs else "pca_result"
     return (
-        f"import matplotlib.pyplot as plt\n\n"
         f"# Scree plot: explained variance per component\n"
-        f"_ev = {inp}.explained_variance_ratio_\n"
-        f"_cum = _ev.cumsum()\n"
-        f"plt.figure(figsize=(8, 4))\n"
-        f"plt.bar(range(1, len(_ev) + 1), _ev, alpha=0.7, label='Individual')\n"
-        f"plt.step(range(1, len(_ev) + 1), _cum, where='mid',\n"
-        f"         color='red', label='Cumulative')\n"
-        f"plt.xlabel('Principal component')\n"
-        f"plt.ylabel('Explained variance ratio')\n"
-        f"plt.title('Scree plot')\n"
-        f"plt.legend()\n"
-        f"plt.show()"
+        f"{inp}.plot_scree()"
     )
 
 
@@ -279,17 +240,44 @@ _OPERATION_GENERATORS: dict[str, Any] = {
 
 
 def render(plan: WorkflowPlan) -> nbformat.NotebookNode:
-    """Render a validated WorkflowPlan into a deterministic Jupyter notebook.
+    """
+    Render a validated WorkflowPlan into a deterministic Jupyter notebook.
 
-    Returns:
+    Returns
+    -------
         An nbformat NotebookNode ready to be written to ``.ipynb``.
     """
     cells: list[Any] = []
 
-    # 1. Title and goal
+    # 1. Short title + goal summary
+    # Derive a display name from template_id
+    _DISPLAY_NAMES = {
+        "exploratory_pca": "Exploratory PCA",
+        "baseline_integrate": "Baseline + Integrate",
+        "nmf_exploration": "NMF Exploration",
+    }
+    template_id = plan.planner_config.get("template_id", "workflow")
+    display_name = _DISPLAY_NAMES.get(
+        template_id, template_id.replace("_", " ").title()
+    )
+
+    # Try to extract the dataset filename from the first step that has one
+    dataset_label = ""
+    for step in plan.steps:
+        if "filename" in step.parameters and step.parameters["filename"]:
+            dataset_label = step.parameters["filename"]
+            break
+
+    title = display_name
+    if dataset_label:
+        title += f" — {dataset_label}"
+
     cells.append(
-        new_markdown_cell(f"# {plan.scientific_context.goal}\n\n"
-                          f"**Strategy:** {plan.scientific_context.analytical_strategy}")
+        new_markdown_cell(
+            f"# {title}\n\n"
+            f"{plan.scientific_context.goal}\n\n"
+            f"**Strategy:** {plan.scientific_context.analytical_strategy}"
+        )
     )
 
     # 2. Reproducibility manifest

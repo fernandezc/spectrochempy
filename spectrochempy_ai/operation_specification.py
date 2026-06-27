@@ -1,4 +1,5 @@
-"""Operation specification dataclasses.
+"""
+Operation specification dataclasses.
 
 Pure metadata describing the contract of a single workflow operation.
 
@@ -7,7 +8,8 @@ No rendering logic. No executable validation logic. No runtime state.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 
 
@@ -32,7 +34,8 @@ class OutputSpec:
 
 @dataclass
 class Constraint:
-    """Declarative precondition for an operation.
+    """
+    Declarative precondition for an operation.
 
     Constraints are predicates, not executable code. A future constraint
     interpreter maps predicates to checks.
@@ -55,7 +58,8 @@ class ParameterSpec:
 
 @dataclass
 class OperationSpecification:
-    """Complete declarative description of a workflow operation.
+    """
+    Complete declarative description of a workflow operation.
 
     This is the single source of truth for operation metadata.
     Renderers consume it. Validators consume it. Planners consume it.

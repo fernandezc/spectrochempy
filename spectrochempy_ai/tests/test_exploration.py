@@ -1,4 +1,5 @@
-"""Tests for Phase 6 exploration API.
+"""
+Tests for Phase 6 exploration API.
 
 Tests the high-level ``explore`` function and its internal alias.
 """
@@ -10,7 +11,8 @@ from pathlib import Path
 import nbformat
 import pytest
 
-from spectrochempy_ai import create_exploration_notebook, explore
+from spectrochempy_ai import create_exploration_notebook
+from spectrochempy_ai import explore
 from spectrochempy_ai.template_planner import TemplateNotFoundError
 
 
