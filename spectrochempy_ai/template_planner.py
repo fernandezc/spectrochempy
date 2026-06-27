@@ -254,84 +254,191 @@ class TemplatePlanner:
     def _register_exploratory_pca(self) -> None:
         template = WorkflowTemplate(
             template_id="exploratory_pca",
-            description="Baseline-correct, decompose with PCA, and visualise scores and loadings.",
+            description=(
+                "Exploratory PCA: load spectral data, correct baseline, "
+                "decompose variance, and diagnose via scree, score, and "
+                "loading plots."
+            ),
             scientific_context=ScientificContext(
-                goal="Perform an exploratory Principal Component Analysis (PCA) "
-                "on a synthetic NDDataset to identify the main variance directions.",
+                goal=(
+                    "Identify the dominant variance directions in a spectral "
+                    "dataset. PCA after baseline correction is the standard "
+                    "first step in exploratory analysis of multivariate "
+                    "spectral data."
+                ),
                 analytical_strategy=(
-                    "Baseline-correct the data, then apply PCA and "
-                    "visualise scores and loadings."
+                    "Load real spectral data from file, inspect its "
+                    "structure, correct additive baseline drift (which would "
+                    "otherwise inflate early PC variance and mask chemical "
+                    "information), decompose with PCA, inspect explained "
+                    "variance via a scree plot, then visualise sample "
+                    "distributions (score plot) and variable contributions "
+                    "(loading plot)."
                 ),
                 data_assumptions=[
-                    "Dataset is a 2D NDDataset with observation x variable dimensions",
-                    "Data contains meaningful variance after baseline removal",
+                    "Data are 2D (observation × spectral variable) with a "
+                    "continuous spectral axis",
+                    "Baseline varies slowly relative to spectral features",
+                    "Variance is dominated by a small number of latent factors",
+                    "Linear combinations of original variables adequately "
+                    "capture the structure of interest",
                 ],
                 validation_criteria=[
-                    "PCA converges without error",
+                    "PCA converges without numerical error",
+                    "Scree plot shows a decreasing variance profile (if not, "
+                    "check data quality or preprocessing)",
                     "Score and loading plots render successfully",
                 ],
                 expected_outputs=[
                     "Baseline-corrected dataset",
-                    "PCA score plot",
-                    "PCA loading plot",
+                    "PCA model with scores, loadings, and explained variance",
+                    "Scree plot (bar + cumulative variance) for component "
+                    "selection decisions",
+                    "Score plot showing sample distribution in PC1–PC2 space, "
+                    "useful for clustering and outlier detection",
+                    "Loading plot identifying spectral variables that "
+                    "contribute most to each PC",
                 ],
                 limitations=[
-                    "Does not perform cross-validation or determine optimal "
-                    "number of components",
-                    "Assumes linear structure; nonlinear patterns will not be captured",
+                    "PCA is a linear method; non-linear chemical or physical "
+                    "effects (e.g., peak shifts, saturation) will not be "
+                    "captured and may distort the PC space",
+                    "The number of components is set to 5 by default; users "
+                    "should inspect the scree plot and adjust",
+                    "Outliers can dominate variance; inspect score plots "
+                    "before interpreting loadings",
+                    "Spectral alignment is assumed; peak shifts across "
+                    "observations require warping before PCA",
+                    "PCA components are mathematical axes, not necessarily "
+                    "chemically pure components (see NMF or MCR-ALS for "
+                    "mixture resolution)",
                 ],
             ),
             inputs=[
                 InputReference(
                     name="dataset",
                     type="dataset",
-                    source="synthetic",
-                    summary="Synthetic 2D NDDataset for PCA exploration",
+                    source="external",
+                    summary=(
+                        "Real spectral dataset loaded via the `load` step. "
+                        "Alternatively, an in-memory dataset may be passed "
+                        "directly as an input."
+                    ),
                 ),
             ],
             steps=[
                 TemplateStep(
                     step_id="s1",
-                    operation_id="read",
-                    display_label="Generate synthetic dataset",
-                    rationale="Create a reproducible 2D test dataset for PCA exploration.",
+                    operation_id="load",
+                    display_label="Load spectral dataset",
+                    rationale=(
+                        "Load real spectral data from a portable file "
+                        "format. Starting from external data (rather than "
+                        "synthetic generation) ensures the template "
+                        "represents a genuine scientific workflow."
+                    ),
                     input_refs=[],
-                    parameters={"shape": [50, 100], "random_seed": 42},
+                    parameters={"filename": "data.scp", "format": "scp"},
                     output_var="dataset",
                 ),
                 TemplateStep(
                     step_id="s2",
+                    operation_id="inspect",
+                    display_label="Inspect dataset quality",
+                    rationale=(
+                        "Validate dataset shape, coordinate ranges, and "
+                        "value distribution before processing. Early "
+                        "detection of anomalies (NaN, negative values, "
+                        "irregular sampling) prevents misleading results."
+                    ),
+                    input_refs=["dataset"],
+                    parameters={},
+                    output_var="",
+                ),
+                TemplateStep(
+                    step_id="s3",
                     operation_id="baseline",
                     display_label="Baseline correction",
-                    rationale="Remove baseline drift before variance analysis.",
+                    rationale=(
+                        "Remove additive baseline drift. Baseline artifacts "
+                        "inflate variance in early principal components and "
+                        "can mask genuine chemical variation. The Asymmetric "
+                        "Least Squares (asls) method is widely used for "
+                        "vibrational spectra because it adapts to smoothly "
+                        "varying baselines without requiring user-specified "
+                        "anchor points."
+                    ),
                     input_refs=["dataset"],
                     parameters={"method": "asls"},
                     output_var="dataset_corrected",
                 ),
                 TemplateStep(
-                    step_id="s3",
+                    step_id="s4",
                     operation_id="pca",
                     display_label="Principal Component Analysis",
-                    rationale="Decompose variance into principal components.",
+                    rationale=(
+                        "Decompose the baseline-corrected dataset into "
+                        "orthogonal principal components ranked by explained "
+                        "variance. PCA transforms the original spectral "
+                        "variables into a reduced set of uncorrelated "
+                        "latent variables (PCs) that capture the dominant "
+                        "patterns in the data. The first few PCs typically "
+                        "capture chemical information while later PCs "
+                        "capture noise."
+                    ),
                     input_refs=["dataset_corrected"],
-                    parameters={"n_components": 3},
+                    parameters={"n_components": 5},
                     output_var="pca_result",
                 ),
                 TemplateStep(
-                    step_id="s4",
-                    operation_id="score_plot",
-                    display_label="PCA score plot",
-                    rationale="Visualise sample distribution in PC space.",
+                    step_id="s5",
+                    operation_id="scree_plot",
+                    display_label="Variance explained (scree plot)",
+                    rationale=(
+                        "Visualise the variance explained by each PC as a "
+                        "bar plot with a cumulative variance overlay. The "
+                        "scree plot is the standard diagnostic for choosing "
+                        "the number of components to retain: look for the "
+                        "'elbow' where additional components contribute "
+                        "little additional variance, and consider components "
+                        "needed to reach a target cumulative variance "
+                        "(typically 80–95%)."
+                    ),
                     input_refs=["pca_result"],
                     parameters={},
                     output_var="",
                 ),
                 TemplateStep(
-                    step_id="s5",
+                    step_id="s6",
+                    operation_id="score_plot",
+                    display_label="PCA score plot",
+                    rationale=(
+                        "Visualise each observation projected onto the "
+                        "first two principal components. Score plots reveal "
+                        "sample groupings, gradients, and outliers. Samples "
+                        "that cluster together in PC space share similar "
+                        "spectral characteristics; samples far from the "
+                        "origin may be strong outliers or high-leverage "
+                        "points requiring investigation."
+                    ),
+                    input_refs=["pca_result"],
+                    parameters={},
+                    output_var="",
+                ),
+                TemplateStep(
+                    step_id="s7",
                     operation_id="loading_plot",
                     display_label="PCA loading plot",
-                    rationale="Visualise variable contributions to each "
-                    "principal component.",
+                    rationale=(
+                        "Visualise the contribution (weight) of each "
+                        "spectral variable to the first two principal "
+                        "components. Loading plots identify which spectral "
+                        "regions drive the observed sample separation: "
+                        "variables with high absolute loading values "
+                        "correspond to chemically relevant absorption "
+                        "bands. Loadings can be interpreted as the "
+                        "'spectral signature' captured by each PC."
+                    ),
                     input_refs=["pca_result"],
                     parameters={},
                     output_var="",
@@ -341,18 +448,24 @@ class TemplatePlanner:
                 OutputReference(
                     name="dataset_corrected",
                     type="dataset",
-                    description="Baseline-corrected dataset ready for analysis",
+                    description=(
+                        "Baseline-corrected dataset. Ready for further "
+                        "analysis or export."
+                    ),
                 ),
                 OutputReference(
                     name="pca_result",
                     type="dataset",
-                    description="PCA result object containing scores, loadings, "
-                    "and explained variance",
+                    description=(
+                        "PCA result object containing scores, loadings, "
+                        "explained variance per component, and the fitted "
+                        "PCA model."
+                    ),
                 ),
             ],
             reproducibility=ReproducibilityMetadata(
                 package_versions={"spectrochempy": "0.9.4", "numpy": "1.26.4"},
-                random_seeds={"dataset_generation": 42},
+                random_seeds={},
             ),
         )
         self._templates["exploratory_pca"] = template

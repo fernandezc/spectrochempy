@@ -18,6 +18,22 @@ from spectrochempy_ai.operation_specification import (
 # Operation specifications
 # ---------------------------------------------------------------------------
 
+_LOAD = OperationSpecification(
+    operation_id="load",
+    display_name="Load Dataset",
+    description="Load a spectral dataset from a portable file format.",
+    inputs=[],
+    outputs=[
+        OutputSpec(name="dataset", type="dataset", description="Loaded spectral dataset"),
+    ],
+    parameters=[
+        ParameterSpec(name="filename", type="str", default="data.scp", description="Path to the input data file"),
+        ParameterSpec(name="format", type="str", default="scp", description="File format (scp, csv, etc.)"),
+    ],
+    side_effects=[],
+    category="io",
+)
+
 _READ = OperationSpecification(
     operation_id="read",
     display_name="Read / Generate Dataset",
@@ -82,7 +98,7 @@ _PCA = OperationSpecification(
         OutputSpec(name="pca_result", type="result", description="PCA estimator with scores, loadings, and explained variance"),
     ],
     parameters=[
-        ParameterSpec(name="n_components", type="int", default=3, description="Number of principal components to compute"),
+        ParameterSpec(name="n_components", type="int", default=5, description="Number of principal components to compute"),
     ],
     side_effects=[],
     category="analysis",
@@ -105,6 +121,19 @@ _LOADING_PLOT = OperationSpecification(
     operation_id="loading_plot",
     display_name="PCA Loading Plot",
     description="Visualise variable contributions to each principal component.",
+    inputs=[
+        InputSpec(name="pca_result", type="result", required=True, description="Fitted PCA estimator"),
+    ],
+    outputs=[],
+    parameters=[],
+    side_effects=["plot"],
+    category="plotting",
+)
+
+_SCREE_PLOT = OperationSpecification(
+    operation_id="scree_plot",
+    display_name="PCA Scree Plot",
+    description="Visualise explained variance per principal component as a bar plot with cumulative overlay.",
     inputs=[
         InputSpec(name="pca_result", type="result", required=True, description="Fitted PCA estimator"),
     ],
@@ -275,12 +304,14 @@ REGISTRY_VERSION = "0.1"
 _REGISTRY: dict[str, OperationSpecification] = {
     spec.operation_id: spec
     for spec in [
+        _LOAD,
         _READ,
         _BASELINE,
         _SMOOTH,
         _PCA,
         _SCORE_PLOT,
         _LOADING_PLOT,
+        _SCREE_PLOT,
         _INTEGRATE,
         _PLOT,
         _NMF,

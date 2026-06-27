@@ -55,7 +55,7 @@ class TestTemplateDiscovery:
     def test_get_template_exists(self, planner: TemplatePlanner) -> None:
         template = planner.get_template("exploratory_pca")
         assert template.template_id == "exploratory_pca"
-        assert len(template.steps) == 5
+        assert len(template.steps) == 7
 
     def test_get_template_unknown_raises(self, planner: TemplatePlanner) -> None:
         with pytest.raises(TemplateNotFoundError):
@@ -85,7 +85,12 @@ class TestPlanGeneration:
         assert plan.schema_version == "0.1.0"
         assert plan.planner_id == "TemplatePlanner"
         assert plan.planner_config == {"template_id": "exploratory_pca"}
-        assert len(plan.steps) == 5
+        assert len(plan.steps) == 7
+        step_ops = [s.operation_id for s in plan.steps]
+        assert step_ops == [
+            "load", "inspect", "baseline", "pca",
+            "scree_plot", "score_plot", "loading_plot",
+        ]
         assert plan.timestamp != ""
 
     def test_create_plan_baseline_integrate(self, planner: TemplatePlanner) -> None:
@@ -137,29 +142,29 @@ class TestPlanGeneration:
 class TestParameterOverrides:
     def test_override_n_components(self, planner: TemplatePlanner) -> None:
         plan = planner.create_plan(
-            "exploratory_pca", parameter_overrides={"s3": {"n_components": 5}}
+            "exploratory_pca", parameter_overrides={"s4": {"n_components": 5}}
         )
-        pca_step = plan.steps[2]
+        pca_step = plan.steps[3]
         assert pca_step.parameters["n_components"] == 5
 
     def test_override_unknown_param_raises(self, planner: TemplatePlanner) -> None:
         with pytest.raises(UnknownParameterError):
             planner.create_plan(
                 "exploratory_pca",
-                parameter_overrides={"s3": {"nonexistent_param": 42}},
+                parameter_overrides={"s4": {"nonexistent_param": 42}},
             )
 
     def test_override_baseline_method(self, planner: TemplatePlanner) -> None:
         plan = planner.create_plan(
-            "exploratory_pca", parameter_overrides={"s2": {"method": "detrend"}}
+            "exploratory_pca", parameter_overrides={"s3": {"method": "detrend"}}
         )
-        assert plan.steps[1].parameters["method"] == "detrend"
+        assert plan.steps[2].parameters["method"] == "detrend"
 
-    def test_override_read_shape(self, planner: TemplatePlanner) -> None:
+    def test_override_load_filename(self, planner: TemplatePlanner) -> None:
         plan = planner.create_plan(
-            "exploratory_pca", parameter_overrides={"s1": {"shape": [20, 50]}}
+            "exploratory_pca", parameter_overrides={"s1": {"filename": "my_data.scp"}}
         )
-        assert plan.steps[0].parameters["shape"] == [20, 50]
+        assert plan.steps[0].parameters["filename"] == "my_data.scp"
 
     def test_override_nmf_n_components(self, planner: TemplatePlanner) -> None:
         plan = planner.create_plan(
@@ -171,13 +176,12 @@ class TestParameterOverrides:
         plan = planner.create_plan(
             "exploratory_pca",
             parameter_overrides={
-                "s1": {"shape": [10, 30], "random_seed": 7},
-                "s3": {"n_components": 2},
+                "s1": {"filename": "experiment.scp"},
+                "s4": {"n_components": 4},
             },
         )
-        assert plan.steps[0].parameters["shape"] == [10, 30]
-        assert plan.steps[0].parameters["random_seed"] == 7
-        assert plan.steps[2].parameters["n_components"] == 2
+        assert plan.steps[0].parameters["filename"] == "experiment.scp"
+        assert plan.steps[3].parameters["n_components"] == 4
 
 
 # ---------------------------------------------------------------------------
@@ -202,8 +206,8 @@ class TestPlanValidation:
         plan = planner.create_plan(
             "exploratory_pca",
             parameter_overrides={
-                "s1": {"shape": [10, 20], "random_seed": 1},
-                "s3": {"n_components": 2},
+                "s1": {"filename": "test.scp"},
+                "s4": {"n_components": 4},
             },
         )
         validate(plan)  # should not raise
@@ -261,11 +265,10 @@ class TestPlanRendering:
     def test_rendered_plan_overrides_preserved(self, planner: TemplatePlanner) -> None:
         plan = planner.create_plan(
             "exploratory_pca",
-            parameter_overrides={"s3": {"n_components": 6}},
+            parameter_overrides={"s4": {"n_components": 6}},
         )
         notebook = render(plan)
         sources = [c.source for c in notebook.cells if c.cell_type == "code"]
-        # The PCA code cell should mention n_components=6
         pca_code = [s for s in sources if "n_components" in s]
         assert len(pca_code) > 0
         assert "n_components=6" in pca_code[0]
@@ -420,6 +423,248 @@ class TestTemplateMetadata:
         assert t.template_version == "0.1.0"
         assert t.compatible_registry_version == REGISTRY_VERSION
         assert len(t.steps) == 0
+
+
+# ---------------------------------------------------------------------------
+# Gold-standard exploratory-pca tests (Phase 5)
+# ---------------------------------------------------------------------------
+
+
+class TestGoldStandardExploratoryPCA:
+    """Comprehensive tests for the gold-standard exploratory-pca template.
+
+    This template is the reference implementation for all future templates.
+    Every new template should be judged against this standard.
+    """
+
+    TEMPLATE_ID = "exploratory_pca"
+
+    # --- Structure ---
+
+    def test_expected_step_count(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        assert len(plan.steps) == 7
+
+    def test_expected_step_operations(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        ops = [s.operation_id for s in plan.steps]
+        assert ops == [
+            "load",
+            "inspect",
+            "baseline",
+            "pca",
+            "scree_plot",
+            "score_plot",
+            "loading_plot",
+        ]
+
+    def test_expected_step_ids(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        ids = [s.step_id for s in plan.steps]
+        assert ids == ["s1", "s2", "s3", "s4", "s5", "s6", "s7"]
+
+    def test_all_steps_have_rationale(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        for step in plan.steps:
+            assert step.rationale != "", f"Step {step.step_id} has empty rationale"
+
+    def test_all_steps_have_display_label(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        for step in plan.steps:
+            assert step.display_label != "", f"Step {step.step_id} has empty label"
+
+    # --- Data flow ---
+
+    def test_data_flow_chain(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        # s1 (load) → s2 (inspect) reads from s1 output
+        assert "dataset" in plan.steps[1].input_refs
+        # s3 (baseline) reads from s1 output
+        assert "dataset" in plan.steps[2].input_refs
+        # s4 (pca) reads from s3 output
+        assert "dataset_corrected" in plan.steps[3].input_refs
+        # s5,s6,s7 all read from s4 output
+        assert "pca_result" in plan.steps[4].input_refs
+        assert "pca_result" in plan.steps[5].input_refs
+        assert "pca_result" in plan.steps[6].input_refs
+
+    # --- Parameter defaults ---
+
+    def test_load_default_parameters(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        load_step = plan.steps[0]
+        assert load_step.parameters["filename"] == "data.scp"
+        assert load_step.parameters["format"] == "scp"
+
+    def test_baseline_default_parameters(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        baseline_step = plan.steps[2]
+        assert baseline_step.parameters["method"] == "asls"
+
+    def test_pca_default_parameters(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        pca_step = plan.steps[3]
+        assert pca_step.parameters["n_components"] == 5
+
+    # --- Per-step overrides ---
+
+    def test_override_load_filename(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(
+            self.TEMPLATE_ID, parameter_overrides={"s1": {"filename": "raw_data.scp"}}
+        )
+        assert plan.steps[0].parameters["filename"] == "raw_data.scp"
+
+    def test_override_baseline_method(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(
+            self.TEMPLATE_ID, parameter_overrides={"s3": {"method": "detrend"}}
+        )
+        assert plan.steps[2].parameters["method"] == "detrend"
+
+    def test_override_pca_components(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(
+            self.TEMPLATE_ID, parameter_overrides={"s4": {"n_components": 3}}
+        )
+        assert plan.steps[3].parameters["n_components"] == 3
+
+    def test_override_respects_defaults_unchanged(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(
+            self.TEMPLATE_ID, parameter_overrides={"s4": {"n_components": 3}}
+        )
+        # s1 params should remain at defaults
+        assert plan.steps[0].parameters["filename"] == "data.scp"
+        assert plan.steps[2].parameters["method"] == "asls"
+        assert plan.steps[3].parameters["n_components"] == 3
+
+    # --- Scientific context ---
+
+    def test_scientific_context_has_goal(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        ctx = plan.scientific_context
+        assert "PCA" in ctx.goal
+        assert len(ctx.goal) > 50
+
+    def test_scientific_context_completeness(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        ctx = plan.scientific_context
+        assert len(ctx.data_assumptions) >= 3
+        assert len(ctx.validation_criteria) >= 2
+        assert len(ctx.expected_outputs) >= 4
+        assert len(ctx.limitations) >= 4
+
+    # --- Inputs / Outputs ---
+
+    def test_template_declares_input(self, planner: TemplatePlanner) -> None:
+        t = planner.get_template(self.TEMPLATE_ID)
+        assert len(t.inputs) == 1
+        assert t.inputs[0].name == "dataset"
+        assert t.inputs[0].type == "dataset"
+
+    def test_template_declares_outputs(self, planner: TemplatePlanner) -> None:
+        t = planner.get_template(self.TEMPLATE_ID)
+        output_names = [o.name for o in t.outputs]
+        assert "dataset_corrected" in output_names
+        assert "pca_result" in output_names
+
+    # --- Plan outputs ---
+
+    def test_plan_outputs_match_template(self, planner: TemplatePlanner) -> None:
+        t = planner.get_template(self.TEMPLATE_ID)
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        t_output_names = {o.name for o in t.outputs}
+        plan_output_names = {o.name for o in plan.outputs}
+        assert t_output_names == plan_output_names
+
+    # --- Metadata ---
+
+    def test_template_version_is_set(self, planner: TemplatePlanner) -> None:
+        t = planner.get_template(self.TEMPLATE_ID)
+        assert t.template_version == "0.1.0"
+
+    def test_compatible_registry_version(self, planner: TemplatePlanner) -> None:
+        t = planner.get_template(self.TEMPLATE_ID)
+        assert t.compatible_registry_version == "0.1"
+
+    # --- Pipeline ---
+
+    def test_pipeline_register_instantiate_validate_render(
+        self, planner: TemplatePlanner
+    ) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        validate(plan)
+        notebook = render(plan)
+        assert notebook.nbformat >= 4
+
+    def test_deterministic_plan_generation(self, planner: TemplatePlanner) -> None:
+        p1 = planner.create_plan(self.TEMPLATE_ID)
+        p2 = planner.create_plan(self.TEMPLATE_ID)
+        assert p1.to_dict() == p2.to_dict()
+
+    def test_deterministic_plan_rendering(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        nb1 = render(plan)
+        nb2 = render(plan)
+        assert len(nb1.cells) == len(nb2.cells)
+        for c1, c2 in zip(nb1.cells, nb2.cells):
+            assert c1.cell_type == c2.cell_type
+            assert c1.source == c2.source
+
+    # --- Error behaviour ---
+
+    def test_unknown_override_rejected(self, planner: TemplatePlanner) -> None:
+        with pytest.raises(UnknownParameterError):
+            planner.create_plan(
+                self.TEMPLATE_ID,
+                parameter_overrides={"s4": {"nonexistent_param": 99}},
+            )
+
+    def test_override_wrong_step_id_ignored(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(
+            self.TEMPLATE_ID,
+            parameter_overrides={"nonexistent_step": {"n_components": 3}},
+        )
+        assert len(plan.steps) == 7
+        # All defaults remain unchanged (override was silently ignored)
+        assert plan.steps[3].parameters["n_components"] == 5
+
+    # --- Serialization ---
+
+    def test_template_serialization_roundtrip(self, planner: TemplatePlanner) -> None:
+        from spectrochempy_ai.template_planner import WorkflowTemplate
+
+        t = planner.get_template(self.TEMPLATE_ID)
+        data = t.to_dict()
+        restored = WorkflowTemplate.from_dict(data)
+        assert restored.template_id == t.template_id
+        assert restored.template_version == t.template_version
+        assert len(restored.steps) == len(t.steps)
+        for rs, ts in zip(restored.steps, t.steps):
+            assert rs.operation_id == ts.operation_id
+            assert rs.parameters == ts.parameters
+
+    def test_plan_serialization_roundtrip(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        data = plan.to_dict()
+        restored = plan.from_dict(data)
+        assert restored.schema_version == plan.schema_version
+        assert len(restored.steps) == len(plan.steps)
+        assert restored.scientific_context.goal == plan.scientific_context.goal
+
+    # --- Registration ---
+
+    def test_repeated_registration_is_idempotent(
+        self, planner: TemplatePlanner
+    ) -> None:
+        t = planner.get_template(self.TEMPLATE_ID)
+        planner.register_template(t)
+        planner.register_template(t)  # should not raise
+
+    # --- Plan header metadata ---
+
+    def test_plan_header_metadata(self, planner: TemplatePlanner) -> None:
+        plan = planner.create_plan(self.TEMPLATE_ID)
+        assert plan.planner_id == "TemplatePlanner"
+        assert plan.planner_config == {"template_id": self.TEMPLATE_ID}
+        assert plan.schema_version == "0.1.0"
 
 
 # ---------------------------------------------------------------------------
