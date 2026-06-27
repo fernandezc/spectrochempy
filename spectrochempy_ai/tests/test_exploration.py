@@ -192,3 +192,126 @@ class TestOperationOverridesInPlanner:
         )
         assert plan.steps[0].parameters["filename"] == "custom.scp"
         assert plan.steps[3].parameters["n_components"] == 6
+
+
+class TestMcralsAnalysisTemplate:
+    """Tests for the mcrals_analysis template (Phase 8)."""
+
+    def test_template_registered(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        assert "mcrals_analysis" in planner.list_templates()
+
+    def test_plan_instantiation(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan("mcrals_analysis")
+        assert plan.planner_config["template_id"] == "mcrals_analysis"
+        assert len(plan.steps) == 7
+        op_ids = [s.operation_id for s in plan.steps]
+        assert op_ids == [
+            "load",
+            "inspect",
+            "baseline",
+            "mcrals_init",
+            "mcrals",
+            "mcrals_conc_plot",
+            "mcrals_spec_plot",
+        ]
+
+    def test_dataflow_chain(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan("mcrals_analysis")
+        # s4 (mcrals_init) takes dataset_corrected from s3
+        init_step = [s for s in plan.steps if s.operation_id == "mcrals_init"][0]
+        assert init_step.input_refs == ["dataset_corrected"]
+        # s5 (mcrals) takes dataset_corrected and conc_guess
+        mcrals_step = [s for s in plan.steps if s.operation_id == "mcrals"][0]
+        assert mcrals_step.input_refs == ["dataset_corrected", "conc_guess"]
+
+    def test_parameter_defaults(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan("mcrals_analysis")
+        mcrals_step = [s for s in plan.steps if s.operation_id == "mcrals"][0]
+        assert mcrals_step.parameters["n_components"] == 3
+        assert mcrals_step.parameters["max_iter"] == 100
+        init_step = [s for s in plan.steps if s.operation_id == "mcrals_init"][0]
+        assert init_step.parameters["n_components"] == 3
+
+    def test_operation_override_n_components(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan(
+            "mcrals_analysis",
+            operation_overrides={"mcrals": {"n_components": 4}},
+        )
+        mcrals_step = [s for s in plan.steps if s.operation_id == "mcrals"][0]
+        assert mcrals_step.parameters["n_components"] == 4
+
+    def test_notebook_generation(self, tmp_path: Path) -> None:
+        input_file = tmp_path / "mixture.scp"
+        input_file.write_text("dummy mixture data")
+        output = explore(
+            str(input_file),
+            str(tmp_path / "mcrals.ipynb"),
+            template_id="mcrals_analysis",
+        )
+        assert output.exists()
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        assert nb.nbformat >= 4
+        # Check title
+        first = nb.cells[0]
+        assert "MCR-ALS" in first.source
+        # Check public API calls
+        code_sources = [c.source for c in nb.cells if c.cell_type == "code"]
+        all_code = "\n".join(code_sources)
+        assert "scp.MCRALS()" in all_code
+        assert "scp.Baseline(model='asls')" in all_code
+        assert "mcrals_result.result" in all_code
+        assert "mcrals_result.C.plot" in all_code
+        assert "mcrals_result.St.plot" in all_code
+
+    def test_notebook_has_editable_parameters(self, tmp_path: Path) -> None:
+        input_file = tmp_path / "mixture.scp"
+        input_file.write_text("dummy")
+        output = explore(
+            str(input_file),
+            str(tmp_path / "mcrals.ipynb"),
+            template_id="mcrals_analysis",
+        )
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        code_sources = [c.source for c in nb.cells if c.cell_type == "code"]
+        all_code = "\n".join(code_sources)
+        assert "N_COMPONENTS = 3" in all_code
+        assert "MAX_ITER = 100" in all_code
+
+    def test_output_filename_derived_from_template(self, tmp_path: Path) -> None:
+        input_file = tmp_path / "my_mixture.scp"
+        input_file.write_text("dummy")
+        output = explore(str(input_file), template_id="mcrals_analysis")
+        assert output.name == "my_mixture-mcrals-analysis.ipynb"
+
+    def test_scientific_context_present(self, tmp_path: Path) -> None:
+        input_file = tmp_path / "mixture.scp"
+        input_file.write_text("dummy")
+        output = explore(
+            str(input_file),
+            str(tmp_path / "mcrals.ipynb"),
+            template_id="mcrals_analysis",
+        )
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        markdowns = [c.source for c in nb.cells if c.cell_type == "markdown"]
+        combined = "\n".join(markdowns)
+        assert "MCR-ALS" in combined
+        assert "non-negative" in combined
+        assert "rotational ambiguity" in combined

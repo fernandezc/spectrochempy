@@ -362,6 +362,34 @@ _NMF_RECONSTRUCTION_PLOT = OperationSpecification(
     category="plotting",
 )
 
+_MCRALS_INIT = OperationSpecification(
+    operation_id="mcrals_init",
+    display_name="MCR-ALS Initial Guess",
+    description="Generate a simple initial concentration guess for MCR-ALS from a dataset. Uses spaced Gaussian profiles as a starting point.",
+    inputs=[
+        InputSpec(
+            name="dataset",
+            type="dataset",
+            required=True,
+            description="Dataset from which to derive initial concentration profiles",
+        ),
+    ],
+    outputs=[
+        OutputSpec(
+            name="conc_guess",
+            type="dataset",
+            description="Initial concentration guess (observations x components)",
+        ),
+    ],
+    parameters=[
+        ParameterSpec(
+            name="n_components", type="int", default=3, description="Number of components"
+        ),
+    ],
+    side_effects=[],
+    category="analysis",
+)
+
 _MCRALS = OperationSpecification(
     operation_id="mcrals",
     display_name="MCR-ALS",
@@ -388,6 +416,9 @@ _MCRALS = OperationSpecification(
         ),
     ],
     parameters=[
+        ParameterSpec(
+            name="n_components", type="int", default=3, description="Number of chemical components"
+        ),
         ParameterSpec(
             name="max_iter", type="int", default=100, description="Maximum iterations"
         ),
@@ -500,6 +531,7 @@ _REGISTRY: dict[str, OperationSpecification] = {
         _NMF,
         _NMF_COMPONENTS_PLOT,
         _NMF_RECONSTRUCTION_PLOT,
+        _MCRALS_INIT,
         _MCRALS,
         _MCRALS_CONC_PLOT,
         _MCRALS_SPEC_PLOT,

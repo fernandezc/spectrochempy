@@ -311,6 +311,7 @@ class TemplatePlanner:
         self._register_exploratory_pca()
         self._register_baseline_integrate()
         self._register_nmf_exploration()
+        self._register_mcrals_analysis()
 
     def _register_exploratory_pca(self) -> None:
         template = WorkflowTemplate(
@@ -725,3 +726,211 @@ class TemplatePlanner:
             ),
         )
         self._templates["nmf_exploration"] = template
+
+    def _register_mcrals_analysis(self) -> None:
+        template = WorkflowTemplate(
+            template_id="mcrals_analysis",
+            description=(
+                "MCR-ALS mixture resolution: load spectral mixture data, "
+                "correct baseline, generate an initial concentration guess, "
+                "and resolve pure concentration profiles and spectra using "
+                "Multivariate Curve Resolution by Alternating Least Squares."
+            ),
+            scientific_context=ScientificContext(
+                goal=(
+                    "Resolve a multivariate spectral mixture into chemically "
+                    "meaningful concentration profiles and pure component spectra "
+                    "using MCR-ALS. Unlike PCA, MCR-ALS enforces physical constraints "
+                    "(non-negativity, unimodality) and yields profiles that can be "
+                    "interpreted as real chemical components."
+                ),
+                analytical_strategy=(
+                    "Load spectral mixture data, inspect its structure, correct "
+                    "additive baseline drift, generate a simple initial concentration "
+                    "guess (spaced Gaussian profiles), and fit an MCR-ALS model. "
+                    "Visualise the resolved concentration profiles and pure spectra "
+                    "to assess whether the solution is chemically meaningful."
+                ),
+                data_assumptions=[
+                    "Data are 2D (observation x spectral variable) with a "
+                    "continuous spectral axis",
+                    "The mixture is approximately additive: X ≈ C · S^T + E",
+                    "Number of chemical components is known or can be estimated "
+                    "a priori",
+                    "Concentration profiles are non-negative and unimodal",
+                    "Pure component spectra are non-negative",
+                    "Baseline has been removed or is negligible",
+                ],
+                validation_criteria=[
+                    "MCR-ALS converges within max_iter iterations",
+                    "Resolved concentration profiles are non-negative and "
+                    "physically plausible",
+                    "Resolved spectra are non-negative and show expected "
+                    "spectral features",
+                    "Residuals are unstructured (no systematic patterns)",
+                    "Reconstruction approximates the original dataset shape",
+                ],
+                expected_outputs=[
+                    "Baseline-corrected dataset",
+                    "Resolved concentration profiles (C matrix)",
+                    "Resolved pure component spectra (S^T matrix)",
+                    "MCR-ALS result object with diagnostics (iterations, "
+                    "convergence, residual standard deviation)",
+                    "Concentration profile plot",
+                    "Pure spectra plot",
+                ],
+                limitations=[
+                    "MCR-ALS requires a good initial guess; the simple Gaussian "
+                    "profiles used here are a starting point and may not be "
+                    "optimal for all datasets. For production work, use "
+                    "chemically informed initial estimates or EFA/SIMPLISMA "
+                    "initialization.",
+                    "The solution is not unique; different initial guesses can "
+                    "lead to different resolved profiles (rotational ambiguity).",
+                    "The number of components must be specified correctly; "
+                    "underestimation merges components, overestimation introduces "
+                    "artefacts.",
+                    "MCR-ALS is sensitive to baseline residuals; incomplete "
+                    "baseline correction can distort concentration profiles.",
+                    "No closure or kinetic constraints are applied in this "
+                    "template; add them if the chemical system requires them.",
+                    "Outliers or strongly varying baselines across observations "
+                    "can prevent convergence.",
+                ],
+            ),
+            inputs=[
+                InputReference(
+                    name="dataset",
+                    type="dataset",
+                    source="external",
+                    summary=(
+                        "Real spectral mixture dataset loaded via the `load` step. "
+                        "Alternatively, synthetic data may be used for demonstration."
+                    ),
+                ),
+            ],
+            steps=[
+                TemplateStep(
+                    step_id="s1",
+                    operation_id="load",
+                    display_label="Load spectral mixture",
+                    rationale=(
+                        "Load the spectral mixture dataset from a portable file "
+                        "format. MCR-ALS operates on the full mixture matrix, "
+                        "so the dataset must contain all observations and all "
+                        "spectral variables."
+                    ),
+                    input_refs=[],
+                    parameters={"filename": "data.scp", "format": "scp"},
+                    output_var="dataset",
+                ),
+                TemplateStep(
+                    step_id="s2",
+                    operation_id="inspect",
+                    display_label="Inspect mixture quality",
+                    rationale=(
+                        "Validate dataset dimensions, coordinate ranges, and "
+                        "check for anomalies (NaN, negative values) before "
+                        "proceeding with mixture resolution."
+                    ),
+                    input_refs=["dataset"],
+                    parameters={},
+                    output_var="",
+                ),
+                TemplateStep(
+                    step_id="s3",
+                    operation_id="baseline",
+                    display_label="Baseline correction",
+                    rationale=(
+                        "Remove additive baseline drift before MCR-ALS fitting. "
+                        "Residual baseline can distort concentration profiles "
+                        "and prevent physically meaningful solutions."
+                    ),
+                    input_refs=["dataset"],
+                    parameters={"method": "asls"},
+                    output_var="dataset_corrected",
+                ),
+                TemplateStep(
+                    step_id="s4",
+                    operation_id="mcrals_init",
+                    display_label="Initial concentration guess",
+                    rationale=(
+                        "Generate a simple initial guess for concentration profiles. "
+                        "MCR-ALS requires an initial estimate for either concentrations "
+                        "or pure spectra. This template uses spaced Gaussian profiles "
+                        "as a chemically plausible starting point. For real data, "
+                        "replace with a chemically informed estimate from EFA, "
+                        "SIMPLISMA, or domain knowledge."
+                    ),
+                    input_refs=["dataset_corrected"],
+                    parameters={"n_components": 3},
+                    output_var="conc_guess",
+                ),
+                TemplateStep(
+                    step_id="s5",
+                    operation_id="mcrals",
+                    display_label="MCR-ALS mixture resolution",
+                    rationale=(
+                        "Fit the MCR-ALS model to resolve the mixture into "
+                        "concentration profiles and pure component spectra. "
+                        "MCR-ALS iteratively alternates between estimating C "
+                        "(concentrations) and S^T (spectra) under non-negativity "
+                        "and unimodality constraints until convergence."
+                    ),
+                    input_refs=["dataset_corrected", "conc_guess"],
+                    parameters={"n_components": 3, "max_iter": 100},
+                    output_var="mcrals_result",
+                ),
+                TemplateStep(
+                    step_id="s6",
+                    operation_id="mcrals_conc_plot",
+                    display_label="Concentration profiles",
+                    rationale=(
+                        "Visualise the resolved concentration profiles for each "
+                        "component. These profiles should be non-negative, unimodal, "
+                        "and chemically interpretable. Check for unexpected "
+                        "oscillations or negative values that indicate convergence "
+                        "issues or an incorrect number of components."
+                    ),
+                    input_refs=["mcrals_result"],
+                    parameters={},
+                    output_var="",
+                ),
+                TemplateStep(
+                    step_id="s7",
+                    operation_id="mcrals_spec_plot",
+                    display_label="Resolved pure spectra",
+                    rationale=(
+                        "Visualise the resolved pure component spectra. These "
+                        "spectra should show expected spectral features (peaks, "
+                        "bands) and be non-negative. Unphysical features may "
+                        "indicate an incorrect number of components or poor "
+                        "initial guess."
+                    ),
+                    input_refs=["mcrals_result"],
+                    parameters={},
+                    output_var="",
+                ),
+            ],
+            outputs=[
+                OutputReference(
+                    name="dataset_corrected",
+                    type="dataset",
+                    description="Baseline-corrected mixture dataset",
+                ),
+                OutputReference(
+                    name="mcrals_result",
+                    type="result",
+                    description=(
+                        "MCR-ALS result object with resolved concentration "
+                        "profiles (C), pure spectra (S^T), and convergence "
+                        "diagnostics"
+                    ),
+                ),
+            ],
+            reproducibility=ReproducibilityMetadata(
+                package_versions={},
+                random_seeds={},
+            ),
+        )
+        self._templates["mcrals_analysis"] = template

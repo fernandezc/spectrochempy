@@ -61,7 +61,8 @@ def explore(
 
     if output_path is None:
         stem = src.stem
-        output_path = f"{stem}-exploratory-pca.ipynb"
+        slug = template_id.replace("_", "-")
+        output_path = f"{stem}-{slug}.ipynb"
     dst = Path(output_path)
 
     planner = TemplatePlanner()

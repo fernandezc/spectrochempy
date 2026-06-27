@@ -120,3 +120,45 @@ class TestNotebookExecution:
     def test_not_found_raises(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError):
             validate_notebook_execution(tmp_path / "nonexistent.ipynb")
+
+    def test_mcrals_analysis_executes(self, tmp_path: Path) -> None:
+        import spectrochempy as scp
+        from spectrochempy_ai.exploration import explore
+
+        # Create a synthetic mixture: 3 components, 50 observations, 20 variables
+        rng = np.random.default_rng(42)
+        t = np.linspace(0, 10, 50)
+        x = np.linspace(0, 100, 20)
+
+        # Pure spectra (3 gaussians)
+        pure_spectra = np.array([
+            np.exp(-((x - 30) ** 2) / 200),
+            np.exp(-((x - 50) ** 2) / 200),
+            np.exp(-((x - 70) ** 2) / 200),
+        ])
+
+        # Concentration profiles (3 gaussians in time)
+        conc = np.array([
+            np.exp(-((t - 3) ** 2) / 2),
+            np.exp(-((t - 5) ** 2) / 2),
+            np.exp(-((t - 7) ** 2) / 2),
+        ]).T
+
+        # Mixture with small noise
+        mixture_data = conc @ pure_spectra + rng.normal(scale=0.01, size=(50, 20))
+        data = scp.NDDataset(
+            mixture_data.astype(np.float32),
+            title="synthetic_mixture",
+        )
+        data.y = np.arange(50)
+        data.x = x
+        ds_path = tmp_path / "mcrals_data.scp"
+        data.save_as(str(ds_path), confirm=False)
+
+        nb_path = explore(
+            input_path=str(ds_path),
+            output_path=str(tmp_path / "mcrals_notebook.ipynb"),
+            template_id="mcrals_analysis",
+        )
+
+        validate_notebook_execution(nb_path)

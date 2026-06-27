@@ -147,6 +147,27 @@ def _generate_nmf_reconstruction_plot(step: OperationStep) -> str:
     return f"# NMF reconstruction plot\n_ = {inp}.reconstruct().plot(cmap='viridis')"
 
 
+def _generate_mcrals_init(step: OperationStep) -> str:
+    """Generate code for MCR-ALS initial concentration guess."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    n_components = step.parameters.get("n_components", 3)
+    return (
+        f"# --- Parameters ---\n"
+        f"N_COMPONENTS = {n_components}\n\n"
+        f"# MCR-ALS initial concentration guess\n"
+        f"# Simple Gaussian profiles spaced along the observation axis\n"
+        f"_n_obs = {inp}.shape[0]\n"
+        f"_t = np.linspace(0, 1, _n_obs)\n"
+        f"{step.output_var} = scp.NDDataset(\n"
+        f"    np.array([\n"
+        f"        np.exp(-((_t - (i + 1) / (N_COMPONENTS + 1)) ** 2) / 0.05)\n"
+        f"        for i in range(N_COMPONENTS)\n"
+        f"    ]).T\n"
+        f")\n"
+        f"{step.output_var}"
+    )
+
+
 def _generate_mcrals(step: OperationStep) -> str:
     """Generate code for MCR-ALS."""
     inp = step.input_refs[0] if step.input_refs else "dataset"
@@ -229,6 +250,7 @@ _OPERATION_GENERATORS: dict[str, Any] = {
     "nmf": _generate_nmf,
     "nmf_components_plot": _generate_nmf_components_plot,
     "nmf_reconstruction_plot": _generate_nmf_reconstruction_plot,
+    "mcrals_init": _generate_mcrals_init,
     "mcrals": _generate_mcrals,
     "mcrals_conc_plot": _generate_mcrals_conc_plot,
     "mcrals_spec_plot": _generate_mcrals_spec_plot,
@@ -253,6 +275,7 @@ def render(plan: WorkflowPlan) -> nbformat.NotebookNode:
         "exploratory_pca": "Exploratory PCA",
         "baseline_integrate": "Baseline + Integrate",
         "nmf_exploration": "NMF Exploration",
+        "mcrals_analysis": "MCR-ALS Analysis",
     }
     template_id = plan.planner_config.get("template_id", "workflow")
     display_name = _DISPLAY_NAMES.get(
