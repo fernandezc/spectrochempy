@@ -53,7 +53,9 @@ def _generate_baseline(step: OperationStep) -> str:
     method = step.parameters.get("method", "asls")
     return (
         f"# Baseline correction ({method})\n"
-        f"{step.output_var} = scp.processing.baselineprocessing.baselineprocessing.{method}({inp})\n"
+        f"_bl = scp.Baseline(model='{method}')\n"
+        f"_ = _bl.fit({inp})\n"
+        f"{step.output_var} = _bl.corrected\n"
         f"{step.output_var}"
     )
 
@@ -66,8 +68,8 @@ def _generate_pca(step: OperationStep) -> str:
         f"# --- Parameters ---\n"
         f"N_COMPONENTS = {n_components}\n\n"
         f"# Principal Component Analysis\n"
-        f"{step.output_var} = scp.analysis.decomposition.pca.PCA(n_components=N_COMPONENTS)\n"
-        f"{step.output_var}.fit({inp})\n"
+        f"{step.output_var} = scp.PCA(n_components=N_COMPONENTS)\n"
+        f"_ = {step.output_var}.fit({inp})\n"
         f"{step.output_var}"
     )
 
@@ -75,13 +77,13 @@ def _generate_pca(step: OperationStep) -> str:
 def _generate_score_plot(step: OperationStep) -> str:
     """Generate code for PCA score plot."""
     inp = step.input_refs[0] if step.input_refs else "pca_result"
-    return f"# PCA score plot\n" f"{inp}.plot_score(cmap='viridis')"
+    return f"# PCA score plot\n_ = {inp}.plot_score(cmap='viridis')"
 
 
 def _generate_loading_plot(step: OperationStep) -> str:
     """Generate code for PCA loading plot."""
     inp = step.input_refs[0] if step.input_refs else "pca_result"
-    return f"# PCA loading plot\n{inp}.loadings.plot(cmap='viridis')"
+    return f"# PCA loading plot\n_ = {inp}.loadings.plot(cmap='viridis')"
 
 
 def _generate_smooth(step: OperationStep) -> str:
@@ -113,8 +115,8 @@ def _generate_plot(step: OperationStep) -> str:
     inp = step.input_refs[0] if step.input_refs else "dataset"
     plot_type = step.parameters.get("plot_type", "line")
     if plot_type == "line":
-        return f"# Plot ({plot_type})\n{inp}.plot()"
-    return f"# Plot ({plot_type})\n{inp}.plot()"
+        return f"# Plot ({plot_type})\n_ = {inp}.plot()"
+    return f"# Plot ({plot_type})\n_ = {inp}.plot()"
 
 
 def _generate_nmf(step: OperationStep) -> str:
@@ -127,8 +129,8 @@ def _generate_nmf(step: OperationStep) -> str:
         f"N_COMPONENTS = {n_components}\n"
         f"MAX_ITER = {max_iter}\n\n"
         f"# Non-negative Matrix Factorisation\n"
-        f"{step.output_var} = scp.analysis.decomposition.nmf.NMF(n_components=N_COMPONENTS, max_iter=MAX_ITER)\n"
-        f"{step.output_var}.fit({inp})\n"
+        f"{step.output_var} = scp.NMF(n_components=N_COMPONENTS, max_iter=MAX_ITER)\n"
+        f"_ = {step.output_var}.fit({inp})\n"
         f"{step.output_var}"
     )
 
@@ -136,13 +138,13 @@ def _generate_nmf(step: OperationStep) -> str:
 def _generate_nmf_components_plot(step: OperationStep) -> str:
     """Generate code for NMF components plot."""
     inp = step.input_refs[0] if step.input_refs else "nmf_result"
-    return f"# NMF components plot\n{inp}.components.plot(cmap='viridis')"
+    return f"# NMF components plot\n_ = {inp}.components.plot(cmap='viridis')"
 
 
 def _generate_nmf_reconstruction_plot(step: OperationStep) -> str:
     """Generate code for NMF reconstruction plot."""
     inp = step.input_refs[0] if step.input_refs else "nmf_result"
-    return f"# NMF reconstruction plot\n{inp}.reconstruct().plot(cmap='viridis')"
+    return f"# NMF reconstruction plot\n_ = {inp}.reconstruct().plot(cmap='viridis')"
 
 
 def _generate_mcrals(step: OperationStep) -> str:
@@ -154,8 +156,8 @@ def _generate_mcrals(step: OperationStep) -> str:
         f"# --- Parameters ---\n"
         f"MAX_ITER = {max_iter}\n\n"
         f"# MCR-ALS decomposition\n"
-        f"{step.output_var} = scp.analysis.decomposition.mcrals.MCRALS()\n"
-        f"{step.output_var}.fit({inp}, {y})\n"
+        f"{step.output_var} = scp.MCRALS()\n"
+        f"_ = {step.output_var}.fit({inp}, {y})\n"
         f"{step.output_var}"
     )
 
@@ -163,13 +165,13 @@ def _generate_mcrals(step: OperationStep) -> str:
 def _generate_mcrals_conc_plot(step: OperationStep) -> str:
     """Generate code for MCR-ALS concentration plot."""
     inp = step.input_refs[0] if step.input_refs else "mcrals_result"
-    return f"# MCR-ALS concentration profiles\n{inp}.C.plot(cmap='viridis')"
+    return f"# MCR-ALS concentration profiles\n_ = {inp}.C.plot(cmap='viridis')"
 
 
 def _generate_mcrals_spec_plot(step: OperationStep) -> str:
     """Generate code for MCR-ALS spectra plot."""
     inp = step.input_refs[0] if step.input_refs else "mcrals_result"
-    return f"# MCR-ALS resolved spectra\n{inp}.St.plot(cmap='viridis')"
+    return f"# MCR-ALS resolved spectra\n_ = {inp}.St.plot(cmap='viridis')"
 
 
 def _generate_load(step: OperationStep) -> str:
@@ -188,7 +190,7 @@ def _generate_scree_plot(step: OperationStep) -> str:
     inp = step.input_refs[0] if step.input_refs else "pca_result"
     return (
         f"# Scree plot: explained variance per component\n"
-        f"{inp}.plot_scree()"
+        f"_ = {inp}.plot_scree()"
     )
 
 
