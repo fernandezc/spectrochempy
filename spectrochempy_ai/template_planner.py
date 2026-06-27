@@ -163,10 +163,29 @@ class TemplatePlanner:
                 f"Available: {list(self._templates.keys())}"
             ) from exc
 
+    @staticmethod
+    def _resolve_operation_overrides(
+        template: WorkflowTemplate,
+        operation_overrides: dict[str, dict[str, Any]],
+    ) -> dict[str, dict[str, Any]]:
+        """Resolve operation_id-based overrides to step_id-based overrides.
+
+        If multiple steps share the same operation_id (e.g. two plot steps),
+        the override is applied to each matching step.
+        """
+        resolved: dict[str, dict[str, Any]] = {}
+        for step in template.steps:
+            if step.operation_id in operation_overrides:
+                merged = resolved.get(step.step_id, {})
+                merged.update(operation_overrides[step.operation_id])
+                resolved[step.step_id] = merged
+        return resolved
+
     def create_plan(
         self,
         template_id: str,
         parameter_overrides: dict[str, dict[str, Any]] | None = None,
+        operation_overrides: dict[str, dict[str, Any]] | None = None,
     ) -> WorkflowPlan:
         """Instantiate a template into a complete WorkflowPlan.
 
@@ -174,12 +193,28 @@ class TemplatePlanner:
             template_id: The template to instantiate.
             parameter_overrides: Per-step parameter overrides keyed by step_id,
                 e.g. {"s3": {"n_components": 5}}.
+            operation_overrides: Per-operation parameter overrides keyed by
+                operation_id, e.g. {"pca": {"n_components": 5}}.
+                Resolved to step_id-based overrides internally.
+                If both parameter_overrides and operation_overrides target the
+                same step, parameter_overrides takes precedence.
 
         Returns:
             A complete WorkflowPlan ready for validation and rendering.
         """
         template = self.get_template(template_id)
-        overrides = parameter_overrides or {}
+        overrides = dict(parameter_overrides or {})
+        if operation_overrides:
+            resolved = self._resolve_operation_overrides(
+                template, operation_overrides
+            )
+            # operation_overrides fill in, parameter_overrides take precedence
+            for step_id, params in resolved.items():
+                if step_id not in overrides:
+                    overrides[step_id] = {}
+                for key, value in params.items():
+                    if key not in overrides[step_id]:
+                        overrides[step_id][key] = value
 
         steps: list[OperationStep] = []
         available_vars = {inp.name for inp in template.inputs}

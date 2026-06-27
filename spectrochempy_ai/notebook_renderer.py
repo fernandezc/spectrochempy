@@ -201,6 +201,38 @@ def _generate_mcrals_spec_plot(step: OperationStep) -> str:
     )
 
 
+def _generate_load(step: OperationStep) -> str:
+    """Generate code for loading a dataset from file."""
+    filename = step.parameters.get("filename", "data.scp")
+    fmt = step.parameters.get("format", "scp")
+    return (
+        f"import spectrochempy as scp\n\n"
+        f"# Load spectral dataset from file\n"
+        f"{step.output_var} = scp.read('{filename}', format='{fmt}')\n"
+        f"print('Loaded: {filename}')"
+    )
+
+
+def _generate_scree_plot(step: OperationStep) -> str:
+    """Generate code for a PCA scree plot with explained variance."""
+    inp = step.input_refs[0] if step.input_refs else "pca_result"
+    return (
+        f"import matplotlib.pyplot as plt\n\n"
+        f"# Scree plot: explained variance per component\n"
+        f"_ev = {inp}.explained_variance_ratio_\n"
+        f"_cum = _ev.cumsum()\n"
+        f"plt.figure(figsize=(8, 4))\n"
+        f"plt.bar(range(1, len(_ev) + 1), _ev, alpha=0.7, label='Individual')\n"
+        f"plt.step(range(1, len(_ev) + 1), _cum, where='mid',\n"
+        f"         color='red', label='Cumulative')\n"
+        f"plt.xlabel('Principal component')\n"
+        f"plt.ylabel('Explained variance ratio')\n"
+        f"plt.title('Scree plot')\n"
+        f"plt.legend()\n"
+        f"plt.show()"
+    )
+
+
 def _generate_inspect(step: OperationStep) -> str:
     """Generate code for dataset inspection."""
     inp = step.input_refs[0] if step.input_refs else "dataset"
@@ -225,12 +257,14 @@ def _generate_export(step: OperationStep) -> str:
 
 
 _OPERATION_GENERATORS: dict[str, Any] = {
+    "load": _generate_load,
     "read": _generate_read,
     "baseline": _generate_baseline,
     "smooth": _generate_smooth,
     "pca": _generate_pca,
     "score_plot": _generate_score_plot,
     "loading_plot": _generate_loading_plot,
+    "scree_plot": _generate_scree_plot,
     "integrate": _generate_integrate,
     "plot": _generate_plot,
     "nmf": _generate_nmf,

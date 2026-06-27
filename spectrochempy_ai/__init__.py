@@ -6,3 +6,7 @@ A minimal end-to-end pipeline:
 
 No AI. No providers. No prompts. Only deterministic science.
 """
+
+from spectrochempy_ai.exploration import create_exploration_notebook, explore
+
+__all__ = ["create_exploration_notebook", "explore"]
