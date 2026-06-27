@@ -1,9 +1,14 @@
-"""Tests for Phase 2 TemplatePlanner.
+"""Tests for Phase 3 WorkflowTemplate consolidation.
 
 Every generated plan must:
 - be a valid WorkflowPlan (passes validator)
 - render deterministically (passes renderer checks)
 - use the expected step structure
+
+Template metadata:
+- carries template_version and compatible_registry_version
+- serializes to dict and back
+- catches bad parameter names at registration time
 """
 
 from __future__ import annotations
@@ -11,13 +16,23 @@ from __future__ import annotations
 import pytest
 
 from spectrochempy_ai.notebook_renderer import render
+from spectrochempy_ai.operation_registry import REGISTRY_VERSION
 from spectrochempy_ai.template_planner import (
     TemplateNotFoundError,
+    TemplateOperationError,
     TemplatePlanner,
     UnknownParameterError,
     UnresolvedInputError,
 )
 from spectrochempy_ai.validator import validate
+
+
+TEMPLATE_IDS = ["exploratory_pca", "baseline_integrate", "nmf_exploration"]
+
+
+@pytest.fixture(params=TEMPLATE_IDS)
+def template_id(request: pytest.FixtureRequest) -> str:
+    return request.param
 
 
 @pytest.fixture
@@ -264,7 +279,6 @@ class TestPlanRendering:
 class TestPlannerErrors:
     def test_unregistered_operation_in_template_raises(self, planner: TemplatePlanner) -> None:
         from spectrochempy_ai.template_planner import (
-            TemplateOperationError,
             TemplateStep,
             WorkflowTemplate,
         )
@@ -296,3 +310,155 @@ class TestPlannerErrors:
     ) -> None:
         with pytest.raises(TemplateNotFoundError):
             planner.create_plan("does_not_exist")
+
+    def test_bad_parameter_name_at_registration_raises(
+        self, planner: TemplatePlanner
+    ) -> None:
+        from spectrochempy_ai.template_planner import (
+            TemplateStep,
+            WorkflowTemplate,
+        )
+        from spectrochempy_ai.workflow_plan import ScientificContext
+
+        bad_template = WorkflowTemplate(
+            template_id="bad_params",
+            description="Has bad parameter names.",
+            scientific_context=ScientificContext(
+                goal="test", analytical_strategy="test"
+            ),
+            steps=[
+                TemplateStep(
+                    step_id="s1",
+                    operation_id="pca",
+                    display_label="PCA",
+                    rationale="",
+                    input_refs=[],
+                    parameters={"typo_n_components": 3},
+                    output_var="result",
+                ),
+            ],
+        )
+        with pytest.raises(UnknownParameterError):
+            planner.register_template(bad_template)
+
+    def test_register_template_with_no_params_succeeds(
+        self, planner: TemplatePlanner
+    ) -> None:
+        from spectrochempy_ai.template_planner import (
+            TemplateStep,
+            WorkflowTemplate,
+        )
+        from spectrochempy_ai.workflow_plan import ScientificContext
+
+        # A step with zero parameters declared and zero expected should pass
+        template = WorkflowTemplate(
+            template_id="no_params",
+            description="Step with no parameters.",
+            scientific_context=ScientificContext(
+                goal="test", analytical_strategy="test"
+            ),
+            steps=[
+                TemplateStep(
+                    step_id="s1",
+                    operation_id="score_plot",
+                    display_label="Score plot",
+                    rationale="",
+                    input_refs=[],
+                    parameters={},
+                    output_var="",
+                ),
+            ],
+        )
+        planner.register_template(template)  # should not raise
+
+
+# ---------------------------------------------------------------------------
+# Template metadata (Phase 3 consolidation)
+# ---------------------------------------------------------------------------
+
+
+class TestTemplateMetadata:
+    def test_template_has_version(self, planner: TemplatePlanner) -> None:
+        for tid in TEMPLATE_IDS:
+            t = planner.get_template(tid)
+            assert t.template_version == "0.1.0"
+
+    def test_template_has_registry_version(self, planner: TemplatePlanner) -> None:
+        for tid in TEMPLATE_IDS:
+            t = planner.get_template(tid)
+            assert t.compatible_registry_version == REGISTRY_VERSION
+
+    def test_template_serialize_roundtrip(self, planner: TemplatePlanner) -> None:
+        from spectrochempy_ai.template_planner import WorkflowTemplate
+
+        for tid in TEMPLATE_IDS:
+            t = planner.get_template(tid)
+            data = t.to_dict()
+            restored = WorkflowTemplate.from_dict(data)
+            assert restored.template_id == t.template_id
+            assert restored.template_version == t.template_version
+            assert restored.compatible_registry_version == t.compatible_registry_version
+            assert len(restored.steps) == len(t.steps)
+            for rs, ts in zip(restored.steps, t.steps):
+                assert rs.step_id == ts.step_id
+                assert rs.operation_id == ts.operation_id
+                assert rs.parameters == ts.parameters
+
+    def test_template_from_dict_respects_defaults(self) -> None:
+        from spectrochempy_ai.template_planner import WorkflowTemplate
+        from spectrochempy_ai.workflow_plan import ScientificContext
+
+        minimal = {
+            "template_id": "minimal",
+            "description": "A minimal template",
+            "scientific_context": {
+                "goal": "test",
+                "analytical_strategy": "test",
+            },
+        }
+        t = WorkflowTemplate.from_dict(minimal)
+        assert t.template_version == "0.1.0"
+        assert t.compatible_registry_version == REGISTRY_VERSION
+        assert len(t.steps) == 0
+
+
+# ---------------------------------------------------------------------------
+# Parametrized pipeline tests (Phase 3 consolidation)
+# ---------------------------------------------------------------------------
+
+
+class TestParametrizedTemplates:
+    def test_template_registers(self, planner: TemplatePlanner, template_id: str) -> None:
+        t = planner.get_template(template_id)
+        planner.register_template(t)  # idempotent; should not raise
+
+    def test_template_instantiation(self, planner: TemplatePlanner, template_id: str) -> None:
+        plan = planner.create_plan(template_id)
+        assert plan.planner_id == "TemplatePlanner"
+        assert plan.planner_config == {"template_id": template_id}
+        assert len(plan.steps) > 0
+
+    def test_template_validates(self, planner: TemplatePlanner, template_id: str) -> None:
+        plan = planner.create_plan(template_id)
+        validate(plan)
+
+    def test_template_renders(self, planner: TemplatePlanner, template_id: str) -> None:
+        plan = planner.create_plan(template_id)
+        notebook = render(plan)
+        assert notebook.nbformat >= 4
+        assert len(notebook.cells) > 0
+
+    def test_template_deterministic(self, planner: TemplatePlanner, template_id: str) -> None:
+        plan = planner.create_plan(template_id)
+        nb1 = render(plan)
+        nb2 = render(plan)
+        assert len(nb1.cells) == len(nb2.cells)
+        for c1, c2 in zip(nb1.cells, nb2.cells):
+            assert c1.cell_type == c2.cell_type
+            assert c1.source == c2.source
+
+    def test_template_overrides(
+        self, planner: TemplatePlanner, template_id: str
+    ) -> None:
+        plan = planner.create_plan(template_id, parameter_overrides={})
+        validate(plan)  # no-op overrides should not break

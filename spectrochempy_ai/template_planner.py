@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from spectrochempy_ai.operation_registry import get_spec, is_registered
+from spectrochempy_ai.operation_registry import REGISTRY_VERSION, get_spec, is_registered
 from spectrochempy_ai.workflow_plan import (
     InputReference,
     OperationStep,
@@ -62,6 +62,8 @@ class WorkflowTemplate:
     - An ordered list of steps with wiring
     - Input/output references
     - Reproducibility metadata
+
+    Version fields enable independent versioning and compatibility checking.
     """
 
     template_id: str
@@ -73,6 +75,36 @@ class WorkflowTemplate:
     reproducibility: ReproducibilityMetadata = field(
         default_factory=ReproducibilityMetadata
     )
+    template_version: str = "0.1.0"
+    compatible_registry_version: str = REGISTRY_VERSION
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a plain dict (JSON-compatible)."""
+        from dataclasses import asdict
+
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> WorkflowTemplate:
+        """Deserialize from a plain dict."""
+        sci_ctx = ScientificContext(**data["scientific_context"])
+        steps = [TemplateStep(**s) for s in data.get("steps", [])]
+        inputs = [InputReference(**i) for i in data.get("inputs", [])]
+        outputs = [OutputReference(**o) for o in data.get("outputs", [])]
+        repro = ReproducibilityMetadata(**data.get("reproducibility", {}))
+        return cls(
+            template_id=data["template_id"],
+            description=data["description"],
+            scientific_context=sci_ctx,
+            steps=steps,
+            inputs=inputs,
+            outputs=outputs,
+            reproducibility=repro,
+            template_version=data.get("template_version", "0.1.0"),
+            compatible_registry_version=data.get(
+                "compatible_registry_version", REGISTRY_VERSION
+            ),
+        )
 
 
 class TemplatePlanner:
@@ -90,13 +122,31 @@ class TemplatePlanner:
         self._register_default_templates()
 
     def register_template(self, template: WorkflowTemplate) -> None:
-        """Register a template. Raises if any operation_id is unknown."""
+        """Register a template.
+
+        Validates at registration time:
+        - Every operation_id is registered
+        - Every template parameter name matches the operation spec
+
+        Raises:
+            TemplateOperationError: if an operation_id is unknown.
+            UnknownParameterError: if a parameter name does not match the spec.
+        """
         for step in template.steps:
             if not is_registered(step.operation_id):
                 raise TemplateOperationError(
                     f"Template '{template.template_id}' references unknown "
                     f"operation '{step.operation_id}'"
                 )
+            spec = get_spec(step.operation_id)
+            spec_param_names = {p.name for p in spec.parameters}
+            for key in step.parameters:
+                if key not in spec_param_names:
+                    raise UnknownParameterError(
+                        f"Template '{template.template_id}' step "
+                        f"'{step.step_id}' has unknown parameter "
+                        f"'{key}' for operation '{step.operation_id}'"
+                    )
         self._templates[template.template_id] = template
 
     def list_templates(self) -> list[str]:

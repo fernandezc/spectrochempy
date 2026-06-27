@@ -270,6 +270,8 @@ _EXPORT = OperationSpecification(
 # Registry
 # ---------------------------------------------------------------------------
 
+REGISTRY_VERSION = "0.1"
+
 _REGISTRY: dict[str, OperationSpecification] = {
     spec.operation_id: spec
     for spec in [
