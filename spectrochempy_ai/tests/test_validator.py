@@ -162,3 +162,47 @@ class TestNotebookExecution:
         )
 
         validate_notebook_execution(nb_path)
+
+    @pytest.mark.skip(reason="SPeC PLSRegression has a coordinate-wrapping bug with 1D y; see issue TBD")
+    def test_pls_calibration_executes(self, tmp_path: Path) -> None:
+        import spectrochempy as scp
+        from spectrochempy_ai.notebook_renderer import write_notebook
+        from spectrochempy_ai.template_planner import TemplatePlanner
+        from spectrochempy_ai.validator import validate
+
+        rng = np.random.default_rng(42)
+
+        # Create synthetic spectra (30 obs x 20 vars) correlated with reference
+        n_obs, n_vars = 30, 20
+        x_axis = np.linspace(1000, 4000, n_vars)
+        true_coef = np.exp(-((x_axis - 2000) ** 2) / 1e5)
+        X_base = rng.normal(size=(n_obs, n_vars))
+        y_values = X_base @ true_coef + rng.normal(scale=0.1, size=n_obs)
+        X_data = X_base + rng.normal(scale=0.1, size=(n_obs, n_vars))
+
+        spectra = scp.NDDataset(X_data.astype(np.float32), title="synthetic_spectra")
+        spectra.y = np.arange(n_obs)
+        spectra.x = x_axis
+        spectra_path = tmp_path / "spectra.scp"
+        spectra.save_as(str(spectra_path), confirm=False)
+
+        reference = scp.NDDataset(y_values.astype(np.float32), title="reference")
+        reference.x = np.arange(n_obs)
+        ref_path = tmp_path / "reference.scp"
+        reference.save_as(str(ref_path), confirm=False)
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan(
+            "pls_calibration",
+            operation_overrides={
+                "load": {"filename": str(spectra_path), "format": "scp"},
+            },
+        )
+        # Override the second load step (reference) with the actual path
+        plan.steps[1].parameters["filename"] = str(ref_path)
+        plan.steps[1].parameters["format"] = "scp"
+        validate(plan)
+        nb_path = tmp_path / "pls_notebook.ipynb"
+        write_notebook(plan, str(nb_path))
+
+        validate_notebook_execution(nb_path)

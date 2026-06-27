@@ -481,6 +481,67 @@ _INSPECT = OperationSpecification(
     category="inspection",
 )
 
+_PLS = OperationSpecification(
+    operation_id="pls",
+    display_name="Partial Least Squares Regression",
+    description="Fit a PLS regression model between spectral predictors (X) and reference values (y). PLS finds latent variables that maximize covariance between X and y, making it robust to collinear spectral data.",
+    inputs=[
+        InputSpec(
+            name="X",
+            type="dataset",
+            required=True,
+            description="Spectral predictor dataset (observations x variables)",
+        ),
+        InputSpec(
+            name="y",
+            type="dataset",
+            required=True,
+            description="Reference values (observations x targets)",
+        ),
+    ],
+    outputs=[
+        OutputSpec(
+            name="pls_result",
+            type="result",
+            description="Fitted PLS model with coefficients, scores, loadings, and diagnostics",
+        ),
+    ],
+    parameters=[
+        ParameterSpec(
+            name="n_components",
+            type="int",
+            default=3,
+            description="Number of latent variables (PLS components)",
+        ),
+    ],
+    side_effects=[],
+    category="analysis",
+)
+
+_PLS_PREDICT_PLOT = OperationSpecification(
+    operation_id="pls_predict_plot",
+    display_name="PLS Predicted vs Reference Plot",
+    description="Visualise predicted values against reference values to assess calibration quality.",
+    inputs=[
+        InputSpec(
+            name="pls_result",
+            type="result",
+            required=True,
+            description="Fitted PLS model",
+        ),
+        InputSpec(
+            name="X",
+            type="dataset",
+            required=True,
+            description="Spectral predictors used for prediction",
+        ),
+    ],
+    outputs=[],
+    parameters=[],
+    side_effects=["plot"],
+    category="plotting",
+)
+
 _EXPORT = OperationSpecification(
     operation_id="export",
     display_name="Export Dataset",
@@ -535,6 +596,8 @@ _REGISTRY: dict[str, OperationSpecification] = {
         _MCRALS,
         _MCRALS_CONC_PLOT,
         _MCRALS_SPEC_PLOT,
+        _PLS,
+        _PLS_PREDICT_PLOT,
         _INSPECT,
         _EXPORT,
     ]

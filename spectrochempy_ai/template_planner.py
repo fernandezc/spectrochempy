@@ -312,6 +312,7 @@ class TemplatePlanner:
         self._register_baseline_integrate()
         self._register_nmf_exploration()
         self._register_mcrals_analysis()
+        self._register_pls_calibration()
 
     def _register_exploratory_pca(self) -> None:
         template = WorkflowTemplate(
@@ -934,3 +935,196 @@ class TemplatePlanner:
             ),
         )
         self._templates["mcrals_analysis"] = template
+
+    def _register_pls_calibration(self) -> None:
+        template = WorkflowTemplate(
+            template_id="pls_calibration",
+            description=(
+                "PLS calibration: load spectral data and reference values, "
+                "preprocess spectra, fit a Partial Least Squares regression "
+                "model, and assess predictive performance."
+            ),
+            scientific_context=ScientificContext(
+                goal=(
+                    "Build a quantitative calibration model relating spectral "
+                    "measurements to reference analytical values using Partial "
+                    "Least Squares (PLS) regression. PLS handles collinear "
+                    "spectral predictors by finding latent variables that "
+                    "maximise covariance between spectra and the property of "
+                    "interest."
+                ),
+                analytical_strategy=(
+                    "Load spectral data (X) and reference values (y) from "
+                    "separate sources, inspect both datasets for quality, "
+                    "correct baseline drift in spectra, fit a PLS model with "
+                    "a chosen number of components, display the model result "
+                    "(coefficients, scores, loadings), and visualise "
+                    "predictions against reference values."
+                ),
+                data_assumptions=[
+                    "Spectra (X) are 2D (observations x spectral variables) "
+                    "with a continuous spectral axis",
+                    "Reference values (y) are 1D or 2D (observations x targets)",
+                    "The relationship between spectra and reference is "
+                    "approximately linear in the latent-variable space",
+                    "The number of observations exceeds the number of PLS "
+                    "components",
+                    "Reference values span the calibration range of interest",
+                ],
+                validation_criteria=[
+                    "PLS model converges without numerical error",
+                    "R² (coefficient of determination) is reported",
+                    "Predicted vs reference plot shows agreement",
+                    "Number of components is justified (not overfitted)",
+                ],
+                expected_outputs=[
+                    "Baseline-corrected spectral dataset",
+                    "PLS model with coefficients, scores, loadings, and weights",
+                    "Predicted values for the calibration set",
+                    "R² score assessing model fit",
+                ],
+                limitations=[
+                    "PLS assumes a linear relationship in latent-variable "
+                    "space; strong non-linearities require non-linear methods "
+                    "(SVM, neural networks, polynomial PLS)",
+                    "The default n_components=3 is arbitrary; it should be "
+                    "chosen via cross-validation (not implemented in this "
+                    "template)",
+                    "No outlier detection is performed; influential samples "
+                    "can distort the model",
+                    "No variable selection is applied; uninformative spectral "
+                    "regions are included in the model",
+                    "The template uses the calibration set for both fitting "
+                    "and prediction; a proper validation requires an "
+                    "independent test set",
+                    "Cross-validation (CV) is not implemented in this "
+                    "template; add it manually for robust component selection",
+                ],
+            ),
+            inputs=[
+                InputReference(
+                    name="dataset",
+                    type="dataset",
+                    source="external",
+                    summary="Spectral dataset (X matrix) for calibration",
+                ),
+                InputReference(
+                    name="reference",
+                    type="dataset",
+                    source="external",
+                    summary="Reference analytical values (y vector)",
+                ),
+            ],
+            steps=[
+                TemplateStep(
+                    step_id="s1",
+                    operation_id="load",
+                    display_label="Load spectral data",
+                    rationale=(
+                        "Load the spectral dataset from a portable file. "
+                        "This is the predictor matrix X for the PLS model."
+                    ),
+                    input_refs=[],
+                    parameters={"filename": "spectra.scp", "format": "scp"},
+                    output_var="dataset",
+                ),
+                TemplateStep(
+                    step_id="s2",
+                    operation_id="load",
+                    display_label="Load reference values",
+                    rationale=(
+                        "Load the reference analytical values from a separate "
+                        "file. These are the response values y that the PLS "
+                        "model will predict from spectra."
+                    ),
+                    input_refs=[],
+                    parameters={"filename": "reference.csv", "format": "csv"},
+                    output_var="reference",
+                ),
+                TemplateStep(
+                    step_id="s3",
+                    operation_id="inspect",
+                    display_label="Inspect spectral data",
+                    rationale=(
+                        "Validate spectral dataset dimensions and check for "
+                        "anomalies before model fitting."
+                    ),
+                    input_refs=["dataset"],
+                    parameters={},
+                    output_var="",
+                ),
+                TemplateStep(
+                    step_id="s4",
+                    operation_id="inspect",
+                    display_label="Inspect reference values",
+                    rationale=(
+                        "Validate reference values: check range, missing data, "
+                        "and consistency with the spectral dataset."
+                    ),
+                    input_refs=["reference"],
+                    parameters={},
+                    output_var="",
+                ),
+                TemplateStep(
+                    step_id="s5",
+                    operation_id="baseline",
+                    display_label="Baseline correction",
+                    rationale=(
+                        "Remove additive baseline drift from spectra before "
+                        "PLS fitting. Baseline artefacts add uninformative "
+                        "variance that can degrade model performance."
+                    ),
+                    input_refs=["dataset"],
+                    parameters={"method": "asls"},
+                    output_var="dataset_corrected",
+                ),
+                TemplateStep(
+                    step_id="s6",
+                    operation_id="pls",
+                    display_label="PLS regression",
+                    rationale=(
+                        "Fit a Partial Least Squares regression model. PLS "
+                        "finds latent variables (components) that maximise "
+                        "covariance between the spectral predictors and the "
+                        "reference values, producing a calibration model that "
+                        "is robust to collinearity in the spectral data."
+                    ),
+                    input_refs=["dataset_corrected", "reference"],
+                    parameters={"n_components": 3},
+                    output_var="pls_result",
+                ),
+                TemplateStep(
+                    step_id="s7",
+                    operation_id="pls_predict_plot",
+                    display_label="Predicted values",
+                    rationale=(
+                        "Generate predictions from the fitted PLS model and "
+                        "display them. Compare predicted values to reference "
+                        "values to assess calibration quality."
+                    ),
+                    input_refs=["pls_result", "dataset_corrected"],
+                    parameters={},
+                    output_var="",
+                ),
+            ],
+            outputs=[
+                OutputReference(
+                    name="dataset_corrected",
+                    type="dataset",
+                    description="Baseline-corrected spectral dataset",
+                ),
+                OutputReference(
+                    name="pls_result",
+                    type="result",
+                    description=(
+                        "PLS model with coefficients, scores, loadings, "
+                        "weights, and intercept"
+                    ),
+                ),
+            ],
+            reproducibility=ReproducibilityMetadata(
+                package_versions={},
+                random_seeds={},
+            ),
+        )
+        self._templates["pls_calibration"] = template

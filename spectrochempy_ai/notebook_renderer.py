@@ -193,6 +193,32 @@ def _generate_mcrals_spec_plot(step: OperationStep) -> str:
     return f"# MCR-ALS resolved spectra\n_ = {inp}.St.plot(cmap='viridis')"
 
 
+def _generate_pls(step: OperationStep) -> str:
+    """Generate code for PLS regression."""
+    inp = step.input_refs[0] if step.input_refs else "dataset"
+    y = step.input_refs[1] if len(step.input_refs) > 1 else "reference"
+    n_components = step.parameters.get("n_components", 3)
+    return (
+        f"# --- Parameters ---\n"
+        f"N_COMPONENTS = {n_components}\n\n"
+        f"# Partial Least Squares Regression\n"
+        f"{step.output_var} = scp.PLSRegression(n_components=N_COMPONENTS)\n"
+        f"_ = {step.output_var}.fit({inp}, {y})\n"
+        f"{step.output_var}.result"
+    )
+
+
+def _generate_pls_predict_plot(step: OperationStep) -> str:
+    """Generate code for PLS predicted vs reference plot."""
+    inp = step.input_refs[0] if step.input_refs else "pls_result"
+    x = step.input_refs[1] if len(step.input_refs) > 1 else "dataset"
+    return (
+        f"# Predicted values from PLS model\n"
+        f"_y_pred = {inp}.predict({x})\n"
+        f"_y_pred"
+    )
+
+
 def _generate_load(step: OperationStep) -> str:
     """Generate code for loading a dataset from file."""
     filename = step.parameters.get("filename", "data.scp")
@@ -252,6 +278,8 @@ _OPERATION_GENERATORS: dict[str, Any] = {
     "mcrals": _generate_mcrals,
     "mcrals_conc_plot": _generate_mcrals_conc_plot,
     "mcrals_spec_plot": _generate_mcrals_spec_plot,
+    "pls": _generate_pls,
+    "pls_predict_plot": _generate_pls_predict_plot,
     "inspect": _generate_inspect,
     "export": _generate_export,
 }
@@ -274,6 +302,7 @@ def render(plan: WorkflowPlan) -> nbformat.NotebookNode:
         "baseline_integrate": "Baseline + Integrate",
         "nmf_exploration": "NMF Exploration",
         "mcrals_analysis": "MCR-ALS Analysis",
+        "pls_calibration": "PLS Calibration",
     }
     template_id = plan.planner_config.get("template_id", "workflow")
     display_name = _DISPLAY_NAMES.get(

@@ -315,3 +315,91 @@ class TestMcralsAnalysisTemplate:
         assert "MCR-ALS" in combined
         assert "non-negative" in combined
         assert "rotational ambiguity" in combined
+
+
+class TestPlsCalibrationTemplate:
+    """Tests for the pls_calibration template (Phase 9)."""
+
+    def test_template_registered(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        assert "pls_calibration" in planner.list_templates()
+
+    def test_plan_instantiation(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan("pls_calibration")
+        assert plan.planner_config["template_id"] == "pls_calibration"
+        assert len(plan.steps) == 7
+        op_ids = [s.operation_id for s in plan.steps]
+        assert op_ids == [
+            "load",
+            "load",
+            "inspect",
+            "inspect",
+            "baseline",
+            "pls",
+            "pls_predict_plot",
+        ]
+
+    def test_two_input_workflow(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan("pls_calibration")
+        pls_step = [s for s in plan.steps if s.operation_id == "pls"][0]
+        assert pls_step.input_refs == ["dataset_corrected", "reference"]
+
+    def test_parameter_defaults(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan("pls_calibration")
+        pls_step = [s for s in plan.steps if s.operation_id == "pls"][0]
+        assert pls_step.parameters["n_components"] == 3
+
+    def test_operation_override_n_components(self) -> None:
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan(
+            "pls_calibration",
+            operation_overrides={"pls": {"n_components": 5}},
+        )
+        pls_step = [s for s in plan.steps if s.operation_id == "pls"][0]
+        assert pls_step.parameters["n_components"] == 5
+
+    def test_notebook_generation(self, tmp_path: Path) -> None:
+        from spectrochempy_ai.notebook_renderer import render
+        from spectrochempy_ai.validator import validate
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan("pls_calibration")
+        validate(plan)
+        notebook = render(plan)
+        assert notebook.nbformat >= 4
+        assert len(notebook.cells) > 0
+        # Check title
+        first = notebook.cells[0]
+        assert first.cell_type == "markdown"
+        assert "PLS" in first.source
+        # Check public API
+        code_sources = [c.source for c in notebook.cells if c.cell_type == "code"]
+        all_code = "\n".join(code_sources)
+        assert "scp.PLSRegression" in all_code
+        assert "pls_result.result" in all_code
+        assert "pls_result.predict" in all_code
+
+    def test_notebook_has_editable_parameters(self, tmp_path: Path) -> None:
+        from spectrochempy_ai.notebook_renderer import render
+        from spectrochempy_ai.template_planner import TemplatePlanner
+
+        planner = TemplatePlanner()
+        plan = planner.create_plan("pls_calibration")
+        notebook = render(plan)
+        code_sources = [c.source for c in notebook.cells if c.cell_type == "code"]
+        all_code = "\n".join(code_sources)
+        assert "N_COMPONENTS = 3" in all_code
