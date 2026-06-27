@@ -16,8 +16,6 @@ from nbformat.v4 import new_code_cell
 from nbformat.v4 import new_markdown_cell
 from nbformat.v4 import new_notebook
 
-from spectrochempy_ai.operation_registry import get_spec
-from spectrochempy_ai.operation_registry import is_registered
 from spectrochempy_ai.workflow_plan import OperationStep
 from spectrochempy_ai.workflow_plan import WorkflowPlan
 
@@ -33,8 +31,6 @@ def _generate_read(step: OperationStep) -> str:
     shape = params.get("shape", [50, 100])
     seed = params.get("random_seed", 42)
     return (
-        f"import numpy as np\n"
-        f"import spectrochempy as scp\n\n"
         f"# Reproducible synthetic dataset\n"
         f"np.random.seed({seed})\n"
         f"_data = np.random.rand({shape[0]}, {shape[1]})\n"
@@ -47,7 +43,7 @@ def _generate_read(step: OperationStep) -> str:
         f"        scp.Coord(_x, title='wavelength')\n"
         f"    ]\n"
         f")\n"
-        f"print('Dataset shape:', {step.output_var}.shape)"
+        f"{step.output_var}"
     )
 
 
@@ -58,7 +54,7 @@ def _generate_baseline(step: OperationStep) -> str:
     return (
         f"# Baseline correction ({method})\n"
         f"{step.output_var} = scp.processing.baselineprocessing.baselineprocessing.{method}({inp})\n"
-        f"print('Baseline corrected shape:', {step.output_var}.shape)"
+        f"{step.output_var}"
     )
 
 
@@ -67,11 +63,12 @@ def _generate_pca(step: OperationStep) -> str:
     inp = step.input_refs[0] if step.input_refs else "dataset"
     n_components = step.parameters.get("n_components", 3)
     return (
+        f"# --- Parameters ---\n"
+        f"N_COMPONENTS = {n_components}\n\n"
         f"# Principal Component Analysis\n"
-        f"pca = scp.analysis.decomposition.pca.PCA(n_components={n_components})\n"
-        f"pca.fit({inp})\n"
-        f"{step.output_var} = pca\n"
-        f"print('Explained variance ratio:', pca.explained_variance_ratio.data)"
+        f"{step.output_var} = scp.analysis.decomposition.pca.PCA(n_components=N_COMPONENTS)\n"
+        f"{step.output_var}.fit({inp})\n"
+        f"{step.output_var}"
     )
 
 
@@ -96,7 +93,7 @@ def _generate_smooth(step: OperationStep) -> str:
     return (
         f"# Smoothing ({method})\n"
         f"{step.output_var} = scp.processing.filter.filter.{method}({inp}, size={size}, order={order})\n"
-        f"print('Smoothed shape:', {step.output_var}.shape)"
+        f"{step.output_var}"
     )
 
 
@@ -107,7 +104,7 @@ def _generate_integrate(step: OperationStep) -> str:
     return (
         f"# Integration ({method})\n"
         f"{step.output_var} = scp.analysis.integration.integrate.{method}({inp})\n"
-        f"print('Integrated shape:', {step.output_var}.shape)"
+        f"{step.output_var}"
     )
 
 
@@ -126,11 +123,13 @@ def _generate_nmf(step: OperationStep) -> str:
     n_components = step.parameters.get("n_components", 2)
     max_iter = step.parameters.get("max_iter", 500)
     return (
+        f"# --- Parameters ---\n"
+        f"N_COMPONENTS = {n_components}\n"
+        f"MAX_ITER = {max_iter}\n\n"
         f"# Non-negative Matrix Factorisation\n"
-        f"nmf = scp.analysis.decomposition.nmf.NMF(n_components={n_components}, max_iter={max_iter})\n"
-        f"nmf.fit({inp})\n"
-        f"{step.output_var} = nmf\n"
-        f"print('NMF components shape:', nmf.components.shape)"
+        f"{step.output_var} = scp.analysis.decomposition.nmf.NMF(n_components=N_COMPONENTS, max_iter=MAX_ITER)\n"
+        f"{step.output_var}.fit({inp})\n"
+        f"{step.output_var}"
     )
 
 
@@ -152,12 +151,12 @@ def _generate_mcrals(step: OperationStep) -> str:
     y = step.input_refs[1] if len(step.input_refs) > 1 else "conc_guess"
     max_iter = step.parameters.get("max_iter", 100)
     return (
+        f"# --- Parameters ---\n"
+        f"MAX_ITER = {max_iter}\n\n"
         f"# MCR-ALS decomposition\n"
-        f"mcr = scp.analysis.decomposition.mcrals.MCRALS()\n"
-        f"mcr.fit({inp}, {y})\n"
-        f"{step.output_var} = mcr\n"
-        f"print('MCR-ALS C shape:', mcr.C.shape)\n"
-        f"print('MCR-ALS St shape:', mcr.St.shape)"
+        f"{step.output_var} = scp.analysis.decomposition.mcrals.MCRALS()\n"
+        f"{step.output_var}.fit({inp}, {y})\n"
+        f"{step.output_var}"
     )
 
 
@@ -178,10 +177,9 @@ def _generate_load(step: OperationStep) -> str:
     filename = step.parameters.get("filename", "data.scp")
     fmt = step.parameters.get("format", "scp")
     return (
-        f"import spectrochempy as scp\n\n"
         f"# Load spectral dataset from file\n"
         f"{step.output_var} = scp.read('{filename}', format='{fmt}')\n"
-        f"print('Loaded: {filename}')"
+        f"{step.output_var}"
     )
 
 
@@ -199,9 +197,7 @@ def _generate_inspect(step: OperationStep) -> str:
     inp = step.input_refs[0] if step.input_refs else "dataset"
     return (
         f"# Dataset inspection\n"
-        f"print('Shape:', {inp}.shape)\n"
-        f"print('Dimensions:', {inp}.dims)\n"
-        f"print('Coordset:', {inp}.coordset)"
+        f"{inp}"
     )
 
 
@@ -332,24 +328,14 @@ def render(plan: WorkflowPlan) -> nbformat.NotebookNode:
     cells.append(
         new_code_cell(
             "import numpy as np\n"
-            "import spectrochempy as scp\n\n"
-            "print('SpectroChemPy version:', scp.__version__)"
+            "import spectrochempy as scp"
         )
     )
 
     # 5. Processing steps
     for step in plan.steps:
-        # Consume OperationSpecification from registry for documentation
-        spec_description = ""
-        if is_registered(step.operation_id):
-            spec = get_spec(step.operation_id)
-            spec_description = spec.description
-
-        # Markdown cell with rationale and optional spec description
-        rationale_md = f"## {step.display_label}\n\n**Rationale:** {step.rationale}"
-        if spec_description:
-            rationale_md += f"\n\n*Description:* {spec_description}"
-        cells.append(new_markdown_cell(rationale_md))
+        # Markdown cell with step heading only
+        cells.append(new_markdown_cell(f"## {step.display_label}"))
 
         # Code cell
         generator = _OPERATION_GENERATORS.get(step.operation_id)

@@ -278,7 +278,7 @@ class TestPlanRendering:
         sources = [c.source for c in notebook.cells if c.cell_type == "code"]
         pca_code = [s for s in sources if "n_components" in s]
         assert len(pca_code) > 0
-        assert "n_components=6" in pca_code[0]
+        assert "N_COMPONENTS = 6" in pca_code[0]
 
 
 # ---------------------------------------------------------------------------

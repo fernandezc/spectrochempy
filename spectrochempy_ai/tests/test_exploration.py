@@ -70,7 +70,7 @@ class TestExplore:
         with open(output, encoding="utf-8") as f:
             nb = nbformat.read(f, as_version=4)
         code_sources = [c.source for c in nb.cells if c.cell_type == "code"]
-        assert any("n_components=3" in s for s in code_sources)
+        assert any("N_COMPONENTS = 3" in s for s in code_sources)
 
     def test_override_baseline_method(self, tmp_path: Path) -> None:
         input_file = tmp_path / "data.scp"
