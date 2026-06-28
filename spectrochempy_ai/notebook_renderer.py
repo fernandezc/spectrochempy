@@ -233,19 +233,13 @@ def _generate_load(step: OperationStep) -> str:
 def _generate_scree_plot(step: OperationStep) -> str:
     """Generate code for a PCA scree plot with explained variance."""
     inp = step.input_refs[0] if step.input_refs else "pca_result"
-    return (
-        f"# Scree plot: explained variance per component\n"
-        f"_ = {inp}.plot_scree()"
-    )
+    return f"# Scree plot: explained variance per component\n" f"_ = {inp}.plot_scree()"
 
 
 def _generate_inspect(step: OperationStep) -> str:
     """Generate code for dataset inspection."""
     inp = step.input_refs[0] if step.input_refs else "dataset"
-    return (
-        f"# Dataset inspection\n"
-        f"{inp}"
-    )
+    return f"# Dataset inspection\n" f"{inp}"
 
 
 def _generate_export(step: OperationStep) -> str:
@@ -377,12 +371,7 @@ def render(plan: WorkflowPlan) -> nbformat.NotebookNode:
     cells.append(new_markdown_cell("\n".join(ctx_lines)))
 
     # 4. Imports
-    cells.append(
-        new_code_cell(
-            "import numpy as np\n"
-            "import spectrochempy as scp"
-        )
-    )
+    cells.append(new_code_cell("import numpy as np\n" "import spectrochempy as scp"))
 
     # 5. Processing steps
     for step in plan.steps:

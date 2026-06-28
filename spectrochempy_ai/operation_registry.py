@@ -383,7 +383,10 @@ _MCRALS_INIT = OperationSpecification(
     ],
     parameters=[
         ParameterSpec(
-            name="n_components", type="int", default=3, description="Number of components"
+            name="n_components",
+            type="int",
+            default=3,
+            description="Number of components",
         ),
     ],
     side_effects=[],
@@ -417,7 +420,10 @@ _MCRALS = OperationSpecification(
     ],
     parameters=[
         ParameterSpec(
-            name="n_components", type="int", default=3, description="Number of chemical components"
+            name="n_components",
+            type="int",
+            default=3,
+            description="Number of chemical components",
         ),
         ParameterSpec(
             name="max_iter", type="int", default=100, description="Maximum iterations"

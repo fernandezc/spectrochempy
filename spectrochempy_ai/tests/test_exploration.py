@@ -373,8 +373,8 @@ class TestPlsCalibrationTemplate:
 
     def test_notebook_generation(self, tmp_path: Path) -> None:
         from spectrochempy_ai.notebook_renderer import render
-        from spectrochempy_ai.validator import validate
         from spectrochempy_ai.template_planner import TemplatePlanner
+        from spectrochempy_ai.validator import validate
 
         planner = TemplatePlanner()
         plan = planner.create_plan("pls_calibration")

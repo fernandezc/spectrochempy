@@ -12,7 +12,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from spectrochempy_ai.validator import NotebookExecutionError
 from spectrochempy_ai.validator import ValidationError
 from spectrochempy_ai.validator import validate
 from spectrochempy_ai.validator import validate_notebook_execution
@@ -131,18 +130,22 @@ class TestNotebookExecution:
         x = np.linspace(0, 100, 20)
 
         # Pure spectra (3 gaussians)
-        pure_spectra = np.array([
-            np.exp(-((x - 30) ** 2) / 200),
-            np.exp(-((x - 50) ** 2) / 200),
-            np.exp(-((x - 70) ** 2) / 200),
-        ])
+        pure_spectra = np.array(
+            [
+                np.exp(-((x - 30) ** 2) / 200),
+                np.exp(-((x - 50) ** 2) / 200),
+                np.exp(-((x - 70) ** 2) / 200),
+            ]
+        )
 
         # Concentration profiles (3 gaussians in time)
-        conc = np.array([
-            np.exp(-((t - 3) ** 2) / 2),
-            np.exp(-((t - 5) ** 2) / 2),
-            np.exp(-((t - 7) ** 2) / 2),
-        ]).T
+        conc = np.array(
+            [
+                np.exp(-((t - 3) ** 2) / 2),
+                np.exp(-((t - 5) ** 2) / 2),
+                np.exp(-((t - 7) ** 2) / 2),
+            ]
+        ).T
 
         # Mixture with small noise
         mixture_data = conc @ pure_spectra + rng.normal(scale=0.01, size=(50, 20))
@@ -163,7 +166,6 @@ class TestNotebookExecution:
 
         validate_notebook_execution(nb_path)
 
-    @pytest.mark.skip(reason="SPeC PLSRegression has a coordinate-wrapping bug with 1D y; see issue TBD")
     def test_pls_calibration_executes(self, tmp_path: Path) -> None:
         import spectrochempy as scp
         from spectrochempy_ai.notebook_renderer import write_notebook

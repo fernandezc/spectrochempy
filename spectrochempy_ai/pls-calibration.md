@@ -140,12 +140,6 @@ model.
    not implemented in this template. Add it manually for robust model
    validation.
 
-7. **Known SpectroChemPy bug.** `PLSRegression` has a coordinate-wrapping
-   issue when `y` is a 1D `NDDataset` created from scratch. This affects
-   notebook execution with synthetic data. The template itself is correct;
-   the bug is in the underlying SPeC PLS implementation and should be
-   resolved upstream.
-
 ---
 
 ## Expected Outputs

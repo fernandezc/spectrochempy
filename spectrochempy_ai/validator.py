@@ -7,7 +7,6 @@ No hard-coded allowlists. No provider-dependent logic.
 
 from __future__ import annotations
 
-import os
 import sys
 import traceback
 from pathlib import Path
