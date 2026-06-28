@@ -8,9 +8,7 @@ assuming knowledge of its scientific context.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from dataclasses import field
 from pathlib import Path
-from typing import Any
 
 
 @dataclass
@@ -67,7 +65,7 @@ def profile_dataset(path: str | Path) -> DatasetProfile:
         )
 
     try:
-        import spectrochempy as scp
+        import spectrochempy as scp  # noqa: PLC0415
 
         dataset = scp.read(src)
         if dataset is None:
@@ -92,14 +90,20 @@ def profile_dataset(path: str | Path) -> DatasetProfile:
             dataset = dataset[0]
         elif len(dataset) > 1:
             candidates = [
-                (i, d) for i, d in enumerate(dataset)
+                (i, d)
+                for i, d in enumerate(dataset)
                 if hasattr(d, "ndim") and d.ndim >= 2
             ]
             if candidates:
-                _, dataset = max(candidates, key=lambda pair: (
-                    -pair[1].ndim if pair[1].ndim != 2 else 2,
-                    pair[1].shape[0] * pair[1].shape[1] if hasattr(pair[1], "shape") and len(pair[1].shape) >= 2 else 0,
-                ))
+                _, dataset = max(
+                    candidates,
+                    key=lambda pair: (
+                        -pair[1].ndim if pair[1].ndim != 2 else 2,
+                        pair[1].shape[0] * pair[1].shape[1]
+                        if hasattr(pair[1], "shape") and len(pair[1].shape) >= 2
+                        else 0,
+                    ),
+                )
             else:
                 dataset = dataset[0]
 

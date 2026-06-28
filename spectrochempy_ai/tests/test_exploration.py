@@ -204,10 +204,8 @@ class TestOperationOverridesInPlanner:
         assert plan.steps[3].parameters["n_components"] == 6
 
     def test_unknown_operation_id_raises(self) -> None:
-        from spectrochempy_ai.template_planner import (
-            TemplatePlanner,
-            UnknownOverrideTarget,
-        )
+        from spectrochempy_ai.template_planner import TemplatePlanner
+        from spectrochempy_ai.template_planner import UnknownOverrideTarget
 
         planner = TemplatePlanner()
         with pytest.raises(UnknownOverrideTarget):

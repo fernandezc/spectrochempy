@@ -289,7 +289,7 @@ require new planners.
    - run `suggest()` → verify recommendation is correct
    - run `explore()` → verify notebook executes
    - review notebook output for scientific plausibility
-   
+
    This campaign will reveal remaining gaps in the RulePlanner,
    templates, and renderer before adding new templates.
 

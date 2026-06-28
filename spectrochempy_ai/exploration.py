@@ -7,6 +7,7 @@ renderer logic.
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,7 @@ def _resolve_input(src: Path) -> Path:
     and save it as a temporary SCP file.  If the file cannot be read
     or is already a single dataset, return ``src`` unchanged.
     """
-    import spectrochempy as scp
+    import spectrochempy as scp  # noqa: PLC0415
 
     try:
         dataset = scp.read(src)
@@ -39,20 +40,24 @@ def _resolve_input(src: Path) -> Path:
         return src
 
     candidates = [
-        (i, d) for i, d in enumerate(dataset)
-        if hasattr(d, "ndim") and d.ndim >= 2
+        (i, d) for i, d in enumerate(dataset) if hasattr(d, "ndim") and d.ndim >= 2
     ]
     if not candidates:
         return src
 
-    _, selected = max(candidates, key=lambda pair: (
-        pair[1].ndim,
-        pair[1].shape[0] * pair[1].shape[1]
-        if hasattr(pair[1], "shape") and len(pair[1].shape) >= 2
-        else 0,
-    ))
+    _, selected = max(
+        candidates,
+        key=lambda pair: (
+            pair[1].ndim,
+            pair[1].shape[0] * pair[1].shape[1]
+            if hasattr(pair[1], "shape") and len(pair[1].shape) >= 2
+            else 0,
+        ),
+    )
 
-    tmp = Path(tempfile.mktemp(suffix=".scp"))
+    fd, tmp_path = tempfile.mkstemp(suffix=".scp")
+    os.close(fd)
+    tmp = Path(tmp_path)
     selected.save_as(str(tmp))
     return tmp
 
@@ -145,17 +150,12 @@ def explore(
         # first template input).  For pls_calibration this matches s2
         # (output_var="reference"), overriding its filename to the
         # reference file while s1 keeps the spectral data file.
-        primary_input_name = (
-            template.inputs[0].name if template.inputs else "dataset"
-        )
+        primary_input_name = template.inputs[0].name if template.inputs else "dataset"
         for step in template.steps:
-            if (
-                step.operation_id == "load"
-                and step.output_var != primary_input_name
-            ):
-                parameter_overrides.setdefault(step.step_id, {})[
-                    "filename"
-                ] = str(ref_src)
+            if step.operation_id == "load" and step.output_var != primary_input_name:
+                parameter_overrides.setdefault(step.step_id, {})["filename"] = str(
+                    ref_src
+                )
 
     plan = planner.create_plan(
         template_id,

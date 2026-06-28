@@ -54,8 +54,10 @@ class UnknownParameterError(ValueError):
 
 
 class UnknownOverrideTarget(ValueError):
-    """Raised when an override references an operation_id or step_id that
-    does not exist in the template."""
+    """
+    Raised when an override references an operation_id or step_id that
+    does not exist in the template.
+    """
 
 
 class UnresolvedInputError(ValueError):

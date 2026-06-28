@@ -53,9 +53,7 @@ class TemplateRecommendation:
     evidence: list[RecommendationEvidence] = field(default_factory=list)
 
     def explain(self) -> str:
-        """
-        Return a human-readable explanation derived from the evidence list.
-        """
+        """Return a human-readable explanation derived from the evidence list."""
         supportive = [e for e in self.evidence if e.supportive]
         adverse = [e for e in self.evidence if not e.supportive]
 
@@ -135,9 +133,7 @@ class RulePlanner:
             return candidates
 
         if reference_path is not None:
-            candidates.append(
-                self._rule_pls_with_reference(profile, reference_path)
-            )
+            candidates.append(self._rule_pls_with_reference(profile, reference_path))
 
         if intent == "calibrate" and reference_path is not None:
             candidates.append(self._rule_pls_calibrate(profile, intent))
@@ -176,9 +172,7 @@ class RulePlanner:
         # Readability
         if profile.readable:
             evidence.append(
-                RecommendationEvidence(
-                    fact="dataset is readable", supportive=True
-                )
+                RecommendationEvidence(fact="dataset is readable", supportive=True)
             )
 
         # Dimensionality
@@ -244,9 +238,7 @@ class RulePlanner:
         # Intent
         if intent is not None:
             evidence.append(
-                RecommendationEvidence(
-                    fact=f"user intent: {intent}", supportive=True
-                )
+                RecommendationEvidence(fact=f"user intent: {intent}", supportive=True)
             )
 
         return evidence
@@ -371,9 +363,7 @@ class RulePlanner:
             evidence=ev,
         )
 
-    def _rule_mcrals_small(
-        self, profile: DatasetProfile
-    ) -> TemplateRecommendation:
+    def _rule_mcrals_small(self, profile: DatasetProfile) -> TemplateRecommendation:
         ev = self._common_evidence(profile)
         ev.append(
             RecommendationEvidence(
@@ -401,9 +391,7 @@ class RulePlanner:
             evidence=ev,
         )
 
-    def _rule_no_template_1d(
-        self, profile: DatasetProfile
-    ) -> TemplateRecommendation:
+    def _rule_no_template_1d(self, profile: DatasetProfile) -> TemplateRecommendation:
         ev = self._common_evidence(profile)
         return TemplateRecommendation(
             template_id="",
@@ -438,8 +426,6 @@ class RulePlanner:
                 "spectral formats."
             ),
             dataset_summary=profile.summary,
-            warnings=[
-                f"Dataset profiling issue: {profile.error or 'unknown'}"
-            ],
+            warnings=[f"Dataset profiling issue: {profile.error or 'unknown'}"],
             evidence=ev,
         )

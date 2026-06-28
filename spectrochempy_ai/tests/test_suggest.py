@@ -10,7 +10,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 from spectrochempy_ai.dataset_profile import DatasetProfile
 from spectrochempy_ai.dataset_profile import profile_dataset
@@ -18,7 +17,6 @@ from spectrochempy_ai.rule_planner import RecommendationEvidence
 from spectrochempy_ai.rule_planner import RulePlanner
 from spectrochempy_ai.rule_planner import TemplateRecommendation
 from spectrochempy_ai.rule_planner import suggest
-
 
 # ---------------------------------------------------------------------------
 # DatasetProfile
@@ -154,9 +152,7 @@ class TestRulePlanner:
     def test_pls_calibrate_intent(self) -> None:
         profile = self.make_profile()
         planner = RulePlanner()
-        recs = planner.suggest(
-            profile, reference_path="ref.csv", intent="calibrate"
-        )
+        recs = planner.suggest(profile, reference_path="ref.csv", intent="calibrate")
         assert len(recs) >= 1
         top = recs[0]
         assert top.template_id == "pls_calibration"
@@ -283,8 +279,7 @@ class TestRulePlanner:
         assert "✓" in explanation
         # Should mention profile-derived facts
         assert any(
-            keyword in explanation
-            for keyword in ["2D", "continuous", "observations"]
+            keyword in explanation for keyword in ["2D", "continuous", "observations"]
         )
         assert isinstance(explanation, str)
         assert len(explanation) > 0
@@ -298,15 +293,11 @@ class TestRulePlanner:
         assert "Warnings" in explanation
 
     def test_evidence_dataclass(self) -> None:
-        ev = RecommendationEvidence(
-            fact="dataset is 2D", supportive=True
-        )
+        ev = RecommendationEvidence(fact="dataset is 2D", supportive=True)
         assert ev.fact == "dataset is 2D"
         assert ev.supportive is True
 
-        ev2 = RecommendationEvidence(
-            fact="few observations", supportive=False
-        )
+        ev2 = RecommendationEvidence(fact="few observations", supportive=False)
         assert ev2.supportive is False
 
     def test_explain_no_warnings(self) -> None:

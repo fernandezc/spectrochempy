@@ -149,7 +149,8 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def _print_recommendation(
-    index: int, rec: "TemplateRecommendation",
+    index: int,
+    rec: TemplateRecommendation,
 ) -> None:  # noqa: F821 — forward reference resolved at runtime
     from spectrochempy_ai.rule_planner import TemplateRecommendation
 
