@@ -244,6 +244,16 @@ The `mcrals_result.result` object exposes:
 
 ---
 
+## Related Templates
+
+- `efa` — Rank estimation to determine the number of components
+- `simplisma` — Pure variable selection for improved initial guess
+- `exploratory_pca` — Exploratory analysis when mixture resolution is not
+  needed
+- `nmf_exploration` — Blind source separation without hard constraints
+
+---
+
 ## When Not to Use This Template
 
 - The data are not a mixture (single component system).

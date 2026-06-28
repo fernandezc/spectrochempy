@@ -172,6 +172,17 @@ The `pls_result.result` object exposes:
 
 ---
 
+## Related Templates
+
+- `pcr` — Principal Component Regression (separates dimension reduction
+  from regression)
+- `svm_regression` — Non-linear calibration when PLS assumptions fail
+- `cross_validation` — Component selection and error estimation
+- `exploratory_pca` — Exploratory analysis of the spectral predictor space
+- `residual_analysis` — Post-model diagnostics for spectral residuals
+
+---
+
 ## When Not to Use This Template
 
 - The relationship between spectra and reference is strongly non-linear.

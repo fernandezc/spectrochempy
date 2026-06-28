@@ -196,6 +196,18 @@ Additionally, the following plots are produced as side effects:
 
 ---
 
+## Related Templates
+
+- `nmf_exploration` — Parts-based decomposition for non-negative data
+- `clustering` — Formal grouping when PCA score plots show well-separated
+  clusters
+- `outlier_detection` — Statistical cutoffs for extreme observations
+- `pls_calibration` — Supervised modelling when a response variable is
+  available
+- `mcrals_analysis` — Mixture resolution with physical constraints
+
+---
+
 ## When Not to Use This Template
 
 - The data are one-dimensional (single spectrum) — PCA needs multiple
