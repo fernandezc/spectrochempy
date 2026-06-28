@@ -1,0 +1,99 @@
+{
+  "schema_version": "0.1.0",
+  "spectrochempy_version": "0.9.4",
+  "plugin_version": "0.1.0",
+  "planner_id": "HumanPlanner",
+  "planner_config": {},
+  "scientific_context": {
+    "goal": "Decompose a synthetic mixture into non-negative components using NMF.",
+    "analytical_strategy": "Generate a mixed dataset, apply NMF, and visualise components and reconstruction.",
+    "data_assumptions": [
+      "Data are non-negative and approximately additive",
+      "Number of components is known a priori"
+    ],
+    "validation_criteria": [
+      "NMF converges within max_iter",
+      "Reconstruction approximates input shape"
+    ],
+    "expected_outputs": [
+      "NMF component matrix",
+      "Component plot",
+      "Reconstruction plot"
+    ],
+    "limitations": [
+      "NMF is not unique; different initialisations yield different solutions",
+      "Requires non-negative data"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "dataset",
+      "type": "dataset",
+      "source": "synthetic",
+      "summary": "Synthetic non-negative 2D mixture for NMF"
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "s1",
+      "operation_id": "read",
+      "display_label": "Generate non-negative synthetic mixture",
+      "rationale": "Create reproducible non-negative 2D data.",
+      "input_refs": [],
+      "parameters": {
+        "shape": [50, 80],
+        "random_seed": 99,
+        "non_negative": true
+      },
+      "output_var": "dataset"
+    },
+    {
+      "step_id": "s2",
+      "operation_id": "nmf",
+      "display_label": "Non-negative Matrix Factorisation",
+      "rationale": "Decompose mixture into non-negative components and loadings.",
+      "input_refs": ["dataset"],
+      "parameters": {
+        "n_components": 3,
+        "max_iter": 500
+      },
+      "output_var": "nmf_result"
+    },
+    {
+      "step_id": "s3",
+      "operation_id": "nmf_components_plot",
+      "display_label": "NMF components plot",
+      "rationale": "Visualise the extracted spectral components.",
+      "input_refs": ["nmf_result"],
+      "parameters": {},
+      "output_var": ""
+    },
+    {
+      "step_id": "s4",
+      "operation_id": "nmf_reconstruction_plot",
+      "display_label": "NMF reconstruction plot",
+      "rationale": "Visualise the reconstructed dataset for quality control.",
+      "input_refs": ["nmf_result"],
+      "parameters": {},
+      "output_var": ""
+    }
+  ],
+  "outputs": [
+    {
+      "name": "nmf_result",
+      "type": "dataset",
+      "description": "NMF result object with components and reconstruction"
+    }
+  ],
+  "reproducibility": {
+    "package_versions": {
+      "spectrochempy": "0.9.4",
+      "numpy": "1.26.4"
+    },
+    "random_seeds": {
+      "dataset_generation": 99
+    }
+  },
+  "warnings": [],
+  "timestamp": "2026-06-26T00:00:00Z"
+}

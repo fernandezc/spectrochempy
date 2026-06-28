@@ -1,0 +1,117 @@
+{
+  "schema_version": "0.1.0",
+  "spectrochempy_version": "0.9.4",
+  "plugin_version": "0.1.0",
+  "planner_id": "HumanPlanner",
+  "planner_config": {},
+  "scientific_context": {
+    "goal": "Resolve pure spectra and concentration profiles from a synthetic mixture using MCR-ALS.",
+    "analytical_strategy": "Generate a synthetic mixture, apply MCR-ALS with an initial concentration guess, and plot the resolved profiles.",
+    "data_assumptions": [
+      "Number of chemical components is known",
+      "Initial concentration guess is physically plausible"
+    ],
+    "validation_criteria": [
+      "MCR-ALS converges within max_iter",
+      "Resolved spectra are non-negative"
+    ],
+    "expected_outputs": [
+      "Concentration profiles",
+      "Resolved pure spectra",
+      "Concentration plot",
+      "Spectra plot"
+    ],
+    "limitations": [
+      "MCR-ALS requires a good initial guess for stability",
+      "Rotational ambiguity is not resolved"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "dataset",
+      "type": "dataset",
+      "source": "synthetic",
+      "summary": "Synthetic 2D mixture for MCR-ALS"
+    },
+    {
+      "name": "conc_guess",
+      "type": "dataset",
+      "source": "synthetic",
+      "summary": "Initial concentration guess (observation × components)"
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "s1",
+      "operation_id": "read",
+      "display_label": "Generate synthetic mixture",
+      "rationale": "Create reproducible 2D mixture data.",
+      "input_refs": [],
+      "parameters": {
+        "shape": [30, 60],
+        "random_seed": 55
+      },
+      "output_var": "dataset"
+    },
+    {
+      "step_id": "s2",
+      "operation_id": "read",
+      "display_label": "Generate concentration guess",
+      "rationale": "Create an initial guess for concentration profiles.",
+      "input_refs": [],
+      "parameters": {
+        "shape": [30, 2],
+        "random_seed": 56
+      },
+      "output_var": "conc_guess"
+    },
+    {
+      "step_id": "s3",
+      "operation_id": "mcrals",
+      "display_label": "MCR-ALS decomposition",
+      "rationale": "Resolve pure spectra and concentrations from the mixture.",
+      "input_refs": ["dataset", "conc_guess"],
+      "parameters": {
+        "max_iter": 100
+      },
+      "output_var": "mcrals_result"
+    },
+    {
+      "step_id": "s4",
+      "operation_id": "mcrals_conc_plot",
+      "display_label": "Concentration profile plot",
+      "rationale": "Visualise resolved concentration profiles.",
+      "input_refs": ["mcrals_result"],
+      "parameters": {},
+      "output_var": ""
+    },
+    {
+      "step_id": "s5",
+      "operation_id": "mcrals_spec_plot",
+      "display_label": "Resolved spectra plot",
+      "rationale": "Visualise resolved pure spectra.",
+      "input_refs": ["mcrals_result"],
+      "parameters": {},
+      "output_var": ""
+    }
+  ],
+  "outputs": [
+    {
+      "name": "mcrals_result",
+      "type": "dataset",
+      "description": "MCR-ALS result with C and St matrices"
+    }
+  ],
+  "reproducibility": {
+    "package_versions": {
+      "spectrochempy": "0.9.4",
+      "numpy": "1.26.4"
+    },
+    "random_seeds": {
+      "dataset_generation": 55,
+      "conc_guess_generation": 56
+    }
+  },
+  "warnings": [],
+  "timestamp": "2026-06-26T00:00:00Z"
+}
