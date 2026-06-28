@@ -85,17 +85,23 @@ def profile_dataset(path: str | Path) -> DatasetProfile:
             error=str(exc),
         )
 
-    # scp.read may return a list; unwrap single-element case
-    if isinstance(dataset, list):
+    # scp.read may return a list (e.g. MATLAB .mat with merge=False);
+    # auto-select the largest 2D NDDataset
+    if isinstance(dataset, (list,)):
         if len(dataset) == 1:
             dataset = dataset[0]
-        else:
-            return DatasetProfile(
-                path=src.resolve(),
-                readable=False,
-                summary=f"Read returned {len(dataset)} datasets",
-                error="Multiple datasets returned; single expected",
-            )
+        elif len(dataset) > 1:
+            candidates = [
+                (i, d) for i, d in enumerate(dataset)
+                if hasattr(d, "ndim") and d.ndim >= 2
+            ]
+            if candidates:
+                _, dataset = max(candidates, key=lambda pair: (
+                    -pair[1].ndim if pair[1].ndim != 2 else 2,
+                    pair[1].shape[0] * pair[1].shape[1] if hasattr(pair[1], "shape") and len(pair[1].shape) >= 2 else 0,
+                ))
+            else:
+                dataset = dataset[0]
 
     ndim = dataset.ndim
     shape = tuple(dataset.shape) if dataset.shape else ()

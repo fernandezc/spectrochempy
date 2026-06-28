@@ -7,12 +7,54 @@ renderer logic.
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 from typing import Any
 
 from spectrochempy_ai.notebook_renderer import write_notebook
 from spectrochempy_ai.template_planner import TemplatePlanner
 from spectrochempy_ai.validator import validate as validate_plan
+
+
+def _resolve_input(src: Path) -> Path:
+    """
+    Ensure ``src`` points to a single NDDataset file.
+
+    If the file returns multiple datasets (e.g. MATLAB .mat with
+    ``merge=False``), select the largest 2D NDDataset automatically
+    and save it as a temporary SCP file.  If the file cannot be read
+    or is already a single dataset, return ``src`` unchanged.
+    """
+    import spectrochempy as scp
+
+    try:
+        dataset = scp.read(src)
+    except Exception:
+        return src
+
+    if not isinstance(dataset, (list,)):
+        return src
+
+    if len(dataset) <= 1:
+        return src
+
+    candidates = [
+        (i, d) for i, d in enumerate(dataset)
+        if hasattr(d, "ndim") and d.ndim >= 2
+    ]
+    if not candidates:
+        return src
+
+    _, selected = max(candidates, key=lambda pair: (
+        pair[1].ndim,
+        pair[1].shape[0] * pair[1].shape[1]
+        if hasattr(pair[1], "shape") and len(pair[1].shape) >= 2
+        else 0,
+    ))
+
+    tmp = Path(tempfile.mktemp(suffix=".scp"))
+    selected.save_as(str(tmp))
+    return tmp
 
 
 def explore(
@@ -62,6 +104,9 @@ def explore(
             f"Provide a valid path to a spectral dataset file."
         )
 
+    # Resolve multi-object files (e.g. MATLAB .mat) to a single dataset
+    resolved = _resolve_input(src)
+
     if output_path is None:
         stem = src.stem
         slug = template_id.replace("_", "-")
@@ -76,7 +121,7 @@ def explore(
     # in the chosen template.
     operation_overrides: dict[str, dict[str, Any]] = {}
     if "load" in valid_ops:
-        operation_overrides.setdefault("load", {})["filename"] = str(src)
+        operation_overrides.setdefault("load", {})["filename"] = str(resolved)
         if file_format is not None:
             operation_overrides["load"]["format"] = file_format
     if n_components is not None:
