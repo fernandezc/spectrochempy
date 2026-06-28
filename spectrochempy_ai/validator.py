@@ -90,14 +90,13 @@ def validate(plan: WorkflowPlan) -> None:
 
         # 3c. Output variable naming
         # If spec declares outputs, the step should bind at least one
-        if spec.outputs and not step.output_var:
-            # Side-effect-only steps (plot, inspect, export) are allowed to have
-            # no output_var. This is checked by side_effects.
-            if not spec.side_effects:
-                violations.append(
-                    f"step '{step.step_id}' ({spec.operation_id}) "
-                    f"produces outputs but has no output_var"
-                )
+        # Side-effect-only steps (plot, inspect, export) are allowed to have
+        # no output_var.
+        if spec.outputs and not step.output_var and not spec.side_effects:
+            violations.append(
+                f"step '{step.step_id}' ({spec.operation_id}) "
+                f"produces outputs but has no output_var"
+            )
 
     # 4. Input reference resolution (variables available in pipeline)
     available_vars = {inp.name for inp in plan.inputs}
@@ -111,7 +110,6 @@ def validate(plan: WorkflowPlan) -> None:
             available_vars.add(step.output_var)
 
     # 5. Output references must match produced variables
-    output_names = {out.name for out in plan.outputs}
     produced = {step.output_var for step in plan.steps if step.output_var}
     for out in plan.outputs:
         if out.name not in produced and out.name not in {

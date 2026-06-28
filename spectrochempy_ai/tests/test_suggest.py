@@ -253,7 +253,7 @@ class TestRulePlanner:
         top = recs[0]
         facts = [e.fact for e in top.evidence]
         assert any("resolve" in f for f in facts)
-        assert any("MCR-ALS" in f for f in facts or "mixture" in f for f in facts)
+        assert any("MCR-ALS" in f for f in facts) or any("mixture" in f for f in facts)
 
     def test_fallback_evidence_not_supportive(self) -> None:
         profile = DatasetProfile(

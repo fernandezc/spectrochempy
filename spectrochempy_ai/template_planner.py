@@ -54,10 +54,7 @@ class UnknownParameterError(ValueError):
 
 
 class UnknownOverrideTarget(ValueError):
-    """
-    Raised when an override references an operation_id or step_id that
-    does not exist in the template.
-    """
+    """Raised when an override references an unknown operation or step."""
 
 
 class UnresolvedInputError(ValueError):
@@ -318,7 +315,7 @@ class TemplatePlanner:
         versions = _detect_package_versions()
         repro = deepcopy(template.reproducibility)
         repro.package_versions = versions
-        plan = WorkflowPlan(
+        return WorkflowPlan(
             schema_version="0.1.0",
             spectrochempy_version=versions.get("spectrochempy", "unknown"),
             plugin_version="0.1.0",  # TODO: detect dynamically once this is a proper plugin
@@ -331,7 +328,6 @@ class TemplatePlanner:
             reproducibility=repro,
             timestamp=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
-        return plan
 
     # ------------------------------------------------------------------
     # Built-in templates

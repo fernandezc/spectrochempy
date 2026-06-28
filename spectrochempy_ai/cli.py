@@ -150,8 +150,8 @@ def main(argv: list[str] | None = None) -> None:
 
 def _print_recommendation(
     index: int,
-    rec: TemplateRecommendation,
-) -> None:  # noqa: F821 — forward reference resolved at runtime
+    rec: TemplateRecommendation,  # noqa: F821 — forward reference resolved at runtime
+) -> None:
     from spectrochempy_ai.rule_planner import TemplateRecommendation
 
     # Re-assert for type narrowing

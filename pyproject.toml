@@ -212,6 +212,25 @@ exclude = ["~*"] # Exclude files and directories. "tests/**"
   "D401", # First line should be in imperative mood; try rephrasing.
   "PLC0415", # Import should be at the top-level (test isolation requires local imports).
 ]
+"spectrochempy_ai/tests/**/*" = [
+  "S101", # Use of assert detected.
+  "D205", # 1 blank line required between summary line and description.
+  "D401", # First line should be in imperative mood.
+  "PLC0415", # Import should be at the top-level.
+]
+"spectrochempy_ai/validator.py" = [
+  "S102", # Use of exec detected — intentional for notebook execution validation.
+]
+"spectrochempy_ai/cli.py" = [
+  "T201", # CLI prints user-facing messages to stdout/stderr.
+  "S603", # subprocess.Popen is intentional for launching Jupyter Lab.
+]
+"spectrochempy_ai/template_planner.py" = [
+  "N818", # Exception name follows project convention (Target, not Error).
+]
+"spectrochempy_ai/**/*.py" = [
+  "PLC0415", # Lazy imports inside functions are intentional in the assistant.
+]
 
 [tool.ruff.lint.isort]
 force-single-line = true

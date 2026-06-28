@@ -246,7 +246,6 @@ def _generate_export(step: OperationStep) -> str:
     """Generate code for dataset export."""
     inp = step.input_refs[0] if step.input_refs else "dataset"
     filename = step.parameters.get("filename", "output.scp")
-    fmt = step.parameters.get("format", "scp")
     return (
         f"# Export dataset\n"
         f"scp.write({inp}, '{filename}')\n"
