@@ -53,6 +53,11 @@ class UnknownParameterError(ValueError):
     """Raised when a parameter override does not match the spec."""
 
 
+class UnknownOverrideTarget(ValueError):
+    """Raised when an override references an operation_id or step_id that
+    does not exist in the template."""
+
+
 class UnresolvedInputError(ValueError):
     """Raised when a step references an unavailable variable."""
 
@@ -228,6 +233,29 @@ class TemplatePlanner:
             A complete WorkflowPlan ready for validation and rendering.
         """
         template = self.get_template(template_id)
+        valid_ops = {step.operation_id for step in template.steps}
+        valid_ids = {step.step_id for step in template.steps}
+
+        if operation_overrides:
+            unknown = set(operation_overrides) - valid_ops
+            if unknown:
+                raise UnknownOverrideTarget(
+                    f"operation_overrides target unknown operation(s): "
+                    f"{', '.join(sorted(unknown))}. "
+                    f"Valid operations for '{template_id}': "
+                    f"{', '.join(sorted(valid_ops))}."
+                )
+
+        if parameter_overrides:
+            unknown = set(parameter_overrides) - valid_ids
+            if unknown:
+                raise UnknownOverrideTarget(
+                    f"parameter_overrides target unknown step(s): "
+                    f"{', '.join(sorted(unknown))}. "
+                    f"Valid step_ids for '{template_id}': "
+                    f"{', '.join(sorted(valid_ids))}."
+                )
+
         overrides = dict(parameter_overrides or {})
         if operation_overrides:
             resolved = self._resolve_operation_overrides(template, operation_overrides)

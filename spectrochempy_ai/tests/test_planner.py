@@ -622,14 +622,14 @@ class TestGoldStandardExploratoryPCA:
                 parameter_overrides={"s4": {"nonexistent_param": 99}},
             )
 
-    def test_override_wrong_step_id_ignored(self, planner: TemplatePlanner) -> None:
-        plan = planner.create_plan(
-            self.TEMPLATE_ID,
-            parameter_overrides={"nonexistent_step": {"n_components": 3}},
-        )
-        assert len(plan.steps) == 7
-        # All defaults remain unchanged (override was silently ignored)
-        assert plan.steps[3].parameters["n_components"] == 5
+    def test_override_wrong_step_id_raises(self, planner: TemplatePlanner) -> None:
+        from spectrochempy_ai.template_planner import UnknownOverrideTarget
+
+        with pytest.raises(UnknownOverrideTarget):
+            planner.create_plan(
+                self.TEMPLATE_ID,
+                parameter_overrides={"nonexistent_step": {"n_components": 3}},
+            )
 
     # --- Serialization ---
 

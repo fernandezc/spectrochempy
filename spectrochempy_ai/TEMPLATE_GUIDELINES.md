@@ -78,4 +78,4 @@ Before finalising a template, verify:
 
 ## Reference
 
-See `exploratory-pca.md` for the canonical example.
+See `templates/exploratory-pca.md` for the canonical example.

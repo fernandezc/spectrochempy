@@ -66,15 +66,23 @@ def explore(
     dst = Path(output_path)
 
     planner = TemplatePlanner()
+    template = planner.get_template(template_id)
+    valid_ops = {step.operation_id for step in template.steps}
 
-    # Build overrides by operation_id — no step_id knowledge here
+    # Build overrides by operation_id — only for operations that exist
+    # in the chosen template.
     operation_overrides: dict[str, dict[str, Any]] = {}
-    operation_overrides.setdefault("load", {})["filename"] = str(src)
-    if file_format is not None:
-        operation_overrides["load"]["format"] = file_format
+    if "load" in valid_ops:
+        operation_overrides.setdefault("load", {})["filename"] = str(src)
+        if file_format is not None:
+            operation_overrides["load"]["format"] = file_format
     if n_components is not None:
-        operation_overrides.setdefault("pca", {})["n_components"] = n_components
-    if baseline_method is not None:
+        # Determine which decomposition operation this template uses
+        for op in ("pca", "nmf", "mcrals", "pls"):
+            if op in valid_ops:
+                operation_overrides.setdefault(op, {})["n_components"] = n_components
+                break
+    if baseline_method is not None and "baseline" in valid_ops:
         operation_overrides.setdefault("baseline", {})["method"] = baseline_method
 
     plan = planner.create_plan(

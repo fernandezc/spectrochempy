@@ -193,6 +193,19 @@ class TestOperationOverridesInPlanner:
         assert plan.steps[0].parameters["filename"] == "custom.scp"
         assert plan.steps[3].parameters["n_components"] == 6
 
+    def test_unknown_operation_id_raises(self) -> None:
+        from spectrochempy_ai.template_planner import (
+            TemplatePlanner,
+            UnknownOverrideTarget,
+        )
+
+        planner = TemplatePlanner()
+        with pytest.raises(UnknownOverrideTarget):
+            planner.create_plan(
+                "exploratory_pca",
+                operation_overrides={"magic_op": {"param": 1}},
+            )
+
 
 class TestMcralsAnalysisTemplate:
     """Tests for the mcrals_analysis template (Phase 8)."""
