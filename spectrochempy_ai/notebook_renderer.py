@@ -160,8 +160,8 @@ def _generate_mcrals_init(step: OperationStep) -> str:
         f"_n_obs = {inp}.shape[0]\n"
         f"_t = scp.linspace(0, 1, _n_obs)\n"
         f"_centers = [(i + 1) / (N_COMPONENTS + 1) for i in range(N_COMPONENTS)]\n"
-        f"_profiles = [np.exp(-((_t - c) ** 2) / 0.05) for c in _centers]\n"
-        f"{step.output_var} = scp.NDDataset(np.column_stack(_profiles))\n"
+        f"_profiles = [scp.exp(-((_t - c) ** 2) / 0.05) for c in _centers]\n"
+        f"{step.output_var} = scp.stack(_profiles, axis=1)\n"
         f"{step.output_var}"
     )
 
