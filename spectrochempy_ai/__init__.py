@@ -1,14 +1,16 @@
 """
-Phase 0 prototype of the Scientific Workflow Assistant.
+Scientific Workflow Assistant.
 
-A minimal end-to-end pipeline:
+Deterministic pipeline:
 
-    WorkflowPlan -> Validator -> NotebookRenderer -> Runnable notebook
+    Dataset -> suggest() -> TemplateRecommendation
+    Template -> explore() -> WorkflowPlan -> Validator -> NotebookRenderer -> Notebook
 
 No AI. No providers. No prompts. Only deterministic science.
 """
 
 from spectrochempy_ai.exploration import create_exploration_notebook
 from spectrochempy_ai.exploration import explore
+from spectrochempy_ai.rule_planner import suggest
 
-__all__ = ["create_exploration_notebook", "explore"]
+__all__ = ["create_exploration_notebook", "explore", "suggest"]

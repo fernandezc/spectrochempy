@@ -63,6 +63,16 @@ class TestExplore:
         with pytest.raises(FileNotFoundError):
             explore("/nonexistent/path.scp")
 
+    def test_reference_file_not_found_raises(self, tmp_path: Path) -> None:
+        input_file = tmp_path / "data.scp"
+        input_file.write_text("dummy")
+        with pytest.raises(FileNotFoundError):
+            explore(
+                str(input_file),
+                reference_path="/nonexistent/ref.csv",
+                template_id="pls_calibration",
+            )
+
     def test_override_n_components(self, tmp_path: Path) -> None:
         input_file = tmp_path / "data.scp"
         input_file.write_text("dummy")
@@ -416,3 +426,38 @@ class TestPlsCalibrationTemplate:
         code_sources = [c.source for c in notebook.cells if c.cell_type == "code"]
         all_code = "\n".join(code_sources)
         assert "N_COMPONENTS = 3" in all_code
+
+    def test_reference_path_wired_to_second_load(self, tmp_path: Path) -> None:
+        input_file = tmp_path / "spectra.scp"
+        input_file.write_text("dummy")
+        ref_file = tmp_path / "reference.csv"
+        ref_file.write_text("dummy reference")
+        output = explore(
+            str(input_file),
+            str(tmp_path / "pls.ipynb"),
+            template_id="pls_calibration",
+            reference_path=str(ref_file),
+        )
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        code_sources = [c.source for c in nb.cells if c.cell_type == "code"]
+        all_code = "\n".join(code_sources)
+        assert "reference.csv" in all_code
+        assert "spectra.scp" in all_code
+
+    def test_reference_path_ignored_for_single_input(self, tmp_path: Path) -> None:
+        input_file = tmp_path / "data.scp"
+        input_file.write_text("dummy")
+        ref_file = tmp_path / "ref.csv"
+        ref_file.write_text("dummy")
+        output = explore(
+            str(input_file),
+            str(tmp_path / "pca.ipynb"),
+            reference_path=str(ref_file),
+        )
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        code_sources = [c.source for c in nb.cells if c.cell_type == "code"]
+        all_code = "\n".join(code_sources)
+        # Only one load — reference file should not appear
+        assert "ref.csv" not in all_code

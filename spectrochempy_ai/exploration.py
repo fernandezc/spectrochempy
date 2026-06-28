@@ -23,6 +23,7 @@ def explore(
     n_components: int | None = None,
     baseline_method: str | None = None,
     file_format: str | None = None,
+    reference_path: str | None = None,
 ) -> Path:
     """
     Create a validated, reproducible exploratory notebook.
@@ -37,9 +38,11 @@ def explore(
         output_path: Path for the output notebook. Derived from input
             filename if not provided (data.scp -> data-exploratory-pca.ipynb).
         template_id: Template to use (default exploratory_pca).
-        n_components: Override PCA component count.
+        n_components: Override component count.
         baseline_method: Override baseline correction method.
         file_format: File format override (default from template).
+        reference_path: Path to reference values file (for multi-input
+            templates like pls_calibration).
 
     Returns:
     -------
@@ -47,7 +50,7 @@ def explore(
 
     Raises:
     ------
-        FileNotFoundError: If input_path does not exist.
+        FileNotFoundError: If input_path or reference_path do not exist.
         TemplateNotFoundError: If template_id is unknown.
         UnknownParameterError: If a parameter override is invalid.
         ValidationError: If the generated plan fails validation.
@@ -85,9 +88,34 @@ def explore(
     if baseline_method is not None and "baseline" in valid_ops:
         operation_overrides.setdefault("baseline", {})["method"] = baseline_method
 
+    parameter_overrides: dict[str, dict[str, Any]] = {}
+    if reference_path is not None:
+        ref_src = Path(reference_path)
+        if not ref_src.exists():
+            raise FileNotFoundError(
+                f"Reference file not found: {ref_src}\n"
+                f"Provide a valid path to the reference values file."
+            )
+        # Find non-primary load steps (those whose output_var is not the
+        # first template input).  For pls_calibration this matches s2
+        # (output_var="reference"), overriding its filename to the
+        # reference file while s1 keeps the spectral data file.
+        primary_input_name = (
+            template.inputs[0].name if template.inputs else "dataset"
+        )
+        for step in template.steps:
+            if (
+                step.operation_id == "load"
+                and step.output_var != primary_input_name
+            ):
+                parameter_overrides.setdefault(step.step_id, {})[
+                    "filename"
+                ] = str(ref_src)
+
     plan = planner.create_plan(
         template_id,
         operation_overrides=operation_overrides,
+        parameter_overrides=parameter_overrides or None,
     )
     validate_plan(plan)
     write_notebook(plan, str(dst))
