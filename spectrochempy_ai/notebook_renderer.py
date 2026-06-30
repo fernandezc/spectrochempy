@@ -103,9 +103,13 @@ def _generate_integrate(step: OperationStep) -> str:
     """Generate code for integration."""
     inp = step.input_refs[0] if step.input_refs else "dataset"
     method = step.parameters.get("method", "trapezoid")
+    dim = step.parameters.get("dim", "x")
     return (
+        f"# --- Parameters ---\n"
+        f"INTEGRATION_DIM = {dim!r}\n\n"
         f"# Integration ({method})\n"
-        f"{step.output_var} = scp.analysis.integration.integrate.{method}({inp})\n"
+        f"_integrated = {inp}.{method}(dim=INTEGRATION_DIM)\n"
+        f"{step.output_var} = float(_integrated.data.squeeze()) if hasattr(_integrated, 'size') and _integrated.size == 1 else _integrated\n"
         f"{step.output_var}"
     )
 
@@ -114,6 +118,49 @@ def _generate_plot(step: OperationStep) -> str:
     """Generate generic plot code."""
     inp = step.input_refs[0] if step.input_refs else "dataset"
     plot_type = step.parameters.get("plot_type", "line")
+    if plot_type == "annotated_area":
+        area_ref = step.input_refs[1] if len(step.input_refs) > 1 else "integrated_area"
+        return (
+            "# Annotated integrated spectrum\n"
+            f"_x_values = {inp}.x.data.squeeze() if hasattr({inp}.x, 'data') else {inp}.x\n"
+            f"_y_values = {inp}.data.squeeze() if hasattr({inp}, 'data') else {inp}\n"
+            "_ax = "
+            f"{inp}.plot(color='C0')\n"
+            "_ax.fill_between(_x_values, _y_values, 0, alpha=0.25, color='C0')\n"
+            f"_area_value = float({area_ref}.data.squeeze()) if hasattr({area_ref}, 'data') else float({area_ref})\n"
+            "_ax.text(\n"
+            "    0.02,\n"
+            "    0.95,\n"
+            "    f'Integrated area: {_area_value:.6g}',\n"
+            "    transform=_ax.transAxes,\n"
+            "    va='top',\n"
+            "    ha='left',\n"
+            "    bbox={'boxstyle': 'round', 'facecolor': 'white', 'alpha': 0.8},\n"
+            ")\n"
+            "_ = _ax.set_title('Baseline-corrected spectrum with integrated area')"
+        )
+    if plot_type == "baseline_overlay":
+        raw_ref = inp
+        corrected_ref = step.input_refs[1] if len(step.input_refs) > 1 else "spectrum_corrected"
+        return (
+            "# Raw spectrum with estimated baseline\n"
+            f"_baseline = {raw_ref} - {corrected_ref}\n"
+            f"_x_values = {raw_ref}.x.data.squeeze() if hasattr({raw_ref}.x, 'data') else {raw_ref}.x\n"
+            f"_raw_values = {raw_ref}.data.squeeze() if hasattr({raw_ref}, 'data') else {raw_ref}\n"
+            "_baseline_values = _baseline.data.squeeze() if hasattr(_baseline, 'data') else _baseline\n"
+            "_ax = "
+            f"{raw_ref}.plot(color='0.35')\n"
+            "_ax.plot(_x_values, _baseline_values, color='C3', linewidth=2, label='Estimated baseline')\n"
+            "_ax.legend(['Raw spectrum', 'Estimated baseline'])\n"
+            "_ = _ax.set_title('Raw spectrum and estimated baseline')"
+        )
+    if plot_type == "spectrum_line":
+        return (
+            "# Loaded spectrum\n"
+            "_ax = "
+            f"{inp}.plot(color='C0')\n"
+            "_ = _ax.set_title('Loaded spectrum')"
+        )
     if plot_type == "line":
         return f"# Plot ({plot_type})\n_ = {inp}.plot()"
     return f"# Plot ({plot_type})\n_ = {inp}.plot()"
@@ -223,13 +270,32 @@ def _generate_load(step: OperationStep) -> str:
     """Generate code for loading a dataset from file."""
     filename = step.parameters.get("filename", "data.scp")
     fmt = step.parameters.get("format")
+    selected_index = step.parameters.get("selected_index")
+    selected_name = step.parameters.get("selected_name")
+    source_object_count = step.parameters.get("source_object_count")
     read_args = [repr(filename)]
     if fmt is not None:
         read_args.append(f"format={fmt!r}")
+    if selected_index is not None:
+        selection_bits = []
+        if source_object_count is not None:
+            selection_bits.append(f"{source_object_count} objects")
+        selection_bits.append(f"selected index {selected_index}")
+        if selected_name:
+            selection_bits.append(f"name '{selected_name}'")
+        selection_summary = ", ".join(selection_bits)
+        return (
+            f"# Load spectral dataset from file\n"
+            f"_loaded = scp.read({', '.join(read_args)})\n"
+            f"# Automatic multi-object selection: {selection_summary}\n"
+            f"if isinstance(_loaded, scp.ScpObjectList):\n"
+            f"    {step.output_var} = _loaded[{selected_index}]\n"
+            f"else:\n"
+            f"    {step.output_var} = _loaded\n"
+        )
     return (
         f"# Load spectral dataset from file\n"
-        f"{step.output_var} = scp.read({', '.join(read_args)})\n"
-        f"{step.output_var}"
+        f"{step.output_var} = scp.read({', '.join(read_args)})"
     )
 
 

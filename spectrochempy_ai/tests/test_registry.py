@@ -64,6 +64,11 @@ class TestSpecificationContents:
         format_param = next(p for p in spec.parameters if p.name == "format")
         assert format_param.default is None
 
+    def test_load_accepts_multi_object_selection_parameters(self) -> None:
+        spec = get_spec("load")
+        param_names = {p.name for p in spec.parameters}
+        assert {"selected_index", "selected_name", "source_object_count"} <= param_names
+
     def test_pca_has_parameters(self) -> None:
         spec = get_spec("pca")
         param_names = {p.name for p in spec.parameters}

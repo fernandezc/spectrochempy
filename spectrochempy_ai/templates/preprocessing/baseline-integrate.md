@@ -16,7 +16,7 @@ removal and reproducible integration.
 
 ---
 
-## Methodology (Provisional)
+## Methodology
 
 | Step | Operation | Purpose |
 |---|---|---|
@@ -24,6 +24,8 @@ removal and reproducible integration.
 | 2 | `inspect` | Validate dataset |
 | 3 | `baseline` | Baseline correction |
 | 4 | `integrate` | Peak area integration |
+| 5 | `plot` | Plot corrected spectrum with annotated area |
+| 6 | `inspect` | Report integrated value |
 
 ---
 
@@ -35,7 +37,16 @@ removal and reproducible integration.
 
 ---
 
+## Notes
+
+- The default workflow does **not** apply smoothing. For single spectra,
+  smoothing should only be introduced when noise clearly impairs
+  integration and the band shape is broad enough to preserve.
+- The default integration uses the full selected `x` range. Restrict the
+  spectral window before running the workflow if only one band should be
+  quantified.
+
 ## Status
 
-**Draft.** Template definition, rules, and operations defined in
-`template_planner.py`. Needs renderer and real-dataset validation.
+**Stable.** Template, rules, renderer support, tests, and real-dataset
+validation are implemented.

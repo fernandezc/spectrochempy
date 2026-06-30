@@ -4,7 +4,7 @@ Minimal CLI for the Scientific Workflow Assistant.
 Usage:
     scp-ai explore DATA_PATH [--output OUTPUT] [--n-components N]
                               [--baseline-method METHOD] [--file-format FMT]
-                              [--reference REF_PATH]
+                              [--reference REF_PATH] [--template-id TEMPLATE]
     scp-ai suggest DATA_PATH [--reference REF_PATH] [--intent INTENT]
 """
 
@@ -39,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         "-o",
         default=None,
-        help="Output notebook path (default: <stem>-exploratory-pca.ipynb)",
+        help="Output notebook path (default: <stem>-<template>.ipynb)",
     )
     explore.add_argument(
         "--n-components",
@@ -62,6 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
         "-r",
         default=None,
         help="Path to reference values file (for pls_calibration template)",
+    )
+    explore.add_argument(
+        "--template-id",
+        default=None,
+        help="Workflow template to render (default: top recommendation from suggest())",
     )
     explore.add_argument(
         "--open",
@@ -121,6 +126,7 @@ def main(argv: list[str] | None = None) -> None:
             result = explore(
                 input_path=args.input_path,
                 output_path=args.output,
+                template_id=args.template_id,
                 n_components=args.n_components,
                 baseline_method=args.baseline_method,
                 file_format=args.file_format,

@@ -562,96 +562,159 @@ class TemplatePlanner:
     def _register_baseline_integrate(self) -> None:
         template = WorkflowTemplate(
             template_id="baseline_integrate",
-            description="Correct baseline, integrate signal, and plot the area profile.",
+            description="Correct a single spectrum baseline, integrate a spectral band, and report the area.",
             scientific_context=ScientificContext(
                 goal=(
-                    "Correct baseline drift, integrate signals, and "
-                    "visualise the integrated result."
+                    "Correct baseline drift on a single spectrum, integrate "
+                    "the signal over the spectral axis, and report the peak area."
                 ),
                 analytical_strategy=(
-                    "Baseline-correct with asls, then integrate along the "
-                    "spectral axis and plot the area profile."
+                    "Load a single spectrum, inspect it, remove additive "
+                    "baseline drift with asls, integrate along the spectral "
+                    "axis, and annotate the corrected spectrum with the "
+                    "integrated value."
                 ),
                 data_assumptions=[
-                    "2D NDDataset with observation x spectral dimensions",
-                    "Signal area is meaningful after baseline removal",
+                    "One-dimensional spectrum or a single-spectrum (1, n) dataset",
+                    "The x dimension is a meaningful continuous spectral axis",
+                    "Full-range peak area is scientifically meaningful after baseline removal",
                 ],
                 validation_criteria=[
-                    "Integration returns a 1D area profile",
-                    "Plot renders without error",
+                    "Baseline correction preserves a physically plausible spectrum",
+                    "Integration returns a finite scalar-like area value",
+                    "Annotated spectrum plot renders without error",
                 ],
                 expected_outputs=[
-                    "Baseline-corrected dataset",
-                    "Integrated area profile",
-                    "Area profile plot",
+                    "Baseline-corrected spectrum",
+                    "Integrated peak area",
+                    "Annotated integrated spectrum plot",
                 ],
                 limitations=[
-                    "Assumes uniform spectral spacing for trapezoidal integration",
-                    "Does not account for masked regions",
+                    "Integrates the full selected spectral range rather than an automatically detected peak window",
+                    "Smoothing is intentionally omitted by default and should only be added when noise justifies it",
                 ],
             ),
             inputs=[
                 InputReference(
                     name="dataset",
                     type="dataset",
-                    source="synthetic",
-                    summary="Synthetic 2D NDDataset for integration workflow",
+                    source="external",
+                    summary="Single spectrum loaded from a spectral data file",
                 ),
             ],
             steps=[
                 TemplateStep(
                     step_id="s1",
-                    operation_id="read",
-                    display_label="Generate synthetic dataset",
-                    rationale="Create reproducible 2D data for baseline + integration.",
+                    operation_id="load",
+                    display_label="Load single spectrum",
+                    rationale=(
+                        "Load the spectrum from file so the workflow starts from "
+                        "the user's experimental data rather than a synthetic placeholder."
+                    ),
                     input_refs=[],
-                    parameters={"shape": [30, 80], "random_seed": 123},
+                    parameters={"filename": "spectrum.scp", "format": None},
                     output_var="dataset",
                 ),
                 TemplateStep(
                     step_id="s2",
-                    operation_id="baseline",
-                    display_label="Baseline correction",
-                    rationale="Remove baseline before integrating signal areas.",
+                    operation_id="inspect",
+                    display_label="Inspect spectrum",
+                    rationale=(
+                        "Check dimensionality, coordinate axis, and gross data quality "
+                        "before baseline correction and quantification."
+                    ),
                     input_refs=["dataset"],
-                    parameters={"method": "asls"},
-                    output_var="dataset_corrected",
+                    parameters={},
+                    output_var="",
                 ),
                 TemplateStep(
                     step_id="s3",
-                    operation_id="integrate",
-                    display_label="Trapezoidal integration",
-                    rationale="Compute signal area for each observation.",
-                    input_refs=["dataset_corrected"],
-                    parameters={"method": "trapezoid"},
-                    output_var="area_profile",
+                    operation_id="plot",
+                    display_label="Plot loaded spectrum",
+                    rationale=(
+                        "Inspect the raw spectrum visually before baseline correction "
+                        "to confirm that the spectral window and overall line shape are sensible."
+                    ),
+                    input_refs=["dataset"],
+                    parameters={"plot_type": "spectrum_line"},
+                    output_var="",
                 ),
                 TemplateStep(
                     step_id="s4",
+                    operation_id="baseline",
+                    display_label="Baseline correction",
+                    rationale=(
+                        "Remove additive baseline drift before integration so the "
+                        "measured area reflects the spectral band rather than the offset."
+                    ),
+                    input_refs=["dataset"],
+                    parameters={"method": "asls"},
+                    output_var="spectrum_corrected",
+                ),
+                TemplateStep(
+                    step_id="s5",
                     operation_id="plot",
-                    display_label="Plot integrated area profile",
-                    rationale="Visualise the integrated area as a function of "
-                    "sample index.",
-                    input_refs=["area_profile"],
-                    parameters={"plot_type": "line"},
+                    display_label="Plot estimated baseline",
+                    rationale=(
+                        "Overlay the estimated baseline on the raw spectrum so the "
+                        "correction remains visually auditable before integration."
+                    ),
+                    input_refs=["dataset", "spectrum_corrected"],
+                    parameters={"plot_type": "baseline_overlay"},
+                    output_var="",
+                ),
+                TemplateStep(
+                    step_id="s6",
+                    operation_id="integrate",
+                    display_label="Trapezoidal integration",
+                    rationale=(
+                        "Integrate the baseline-corrected spectrum along the spectral "
+                        "axis to obtain a reproducible peak area."
+                    ),
+                    input_refs=["spectrum_corrected"],
+                    parameters={"method": "trapezoid", "dim": "x"},
+                    output_var="integrated_area",
+                ),
+                TemplateStep(
+                    step_id="s7",
+                    operation_id="plot",
+                    display_label="Plot annotated integrated spectrum",
+                    rationale=(
+                        "Visualise the corrected spectrum and explicitly annotate the "
+                        "integrated value so the quantification remains auditable."
+                    ),
+                    input_refs=["spectrum_corrected", "integrated_area"],
+                    parameters={"plot_type": "annotated_area"},
+                    output_var="",
+                ),
+                TemplateStep(
+                    step_id="s8",
+                    operation_id="inspect",
+                    display_label="Report integrated value",
+                    rationale=(
+                        "Expose the integrated value directly in the notebook output "
+                        "for copy-ready quantitative reporting."
+                    ),
+                    input_refs=["integrated_area"],
+                    parameters={},
                     output_var="",
                 ),
             ],
             outputs=[
                 OutputReference(
-                    name="dataset_corrected",
+                    name="spectrum_corrected",
                     type="dataset",
-                    description="Baseline-corrected dataset",
+                    description="Baseline-corrected spectrum",
                 ),
                 OutputReference(
-                    name="area_profile",
+                    name="integrated_area",
                     type="dataset",
-                    description="1D area profile after integration",
+                    description="Integrated area value after spectral-axis integration",
                 ),
             ],
             reproducibility=ReproducibilityMetadata(
                 package_versions={"spectrochempy": "0.9.4", "numpy": "1.26.4"},
-                random_seeds={"dataset_generation": 123},
+                random_seeds={},
             ),
         )
         self._templates["baseline_integrate"] = template

@@ -61,7 +61,7 @@ Hyperspectral         →  imaging, mapping, spatial exploration
 | `exploratory_pca` | Exploration | **Stable** | ✓ | ✓ | 39+ | Validated | Idiomatic |
 | `mcrals_analysis` | Mixture Resolution | **Stable** | ✓ | ✓ | 10+ | Validated | Idiomatic |
 | `pls_calibration` | Calibration | **Stable** | ✓ | ✓ | 7+ | Validated | Idiomatic |
-| `baseline_integrate` | Preprocessing / Integration | **Draft** | — | — | — | — | — |
+| `baseline_integrate` | Preprocessing / Integration | **Stable** | ✓ | ✓ | 10+ | Validated | Idiomatic |
 | `nmf_exploration` | Exploration | **Experimental** | — | — | — | — | Prototype |
 | `smoothing_pca` | Preprocessing / Exploration | **Experimental** | — | — | — | — | Prototype |
 
@@ -143,7 +143,7 @@ Each collection may contain:
 | Component | Status |
 |---|---|
 | **Templates** | |
-| □ `baseline_integrate` — baseline + peak integration | Draft |
+| ✓ `baseline_integrate` — baseline + peak integration | Stable |
 | □ `smoothing` — Savitzky–Golay, moving average | Draft |
 | □ `normalisation` — SNV, MSC, area normalisation | Draft |
 | □ `derivatives` — first and second derivative | Draft |
@@ -170,7 +170,7 @@ The RulePlanner's evidence rules grow with each new template.
 
 | Template added | New rules / evidence |
 |---|---|
-| `baseline_integrate` | 1D + continuous x → baseline_integrate (0.6); 2D + no reference → also suggest |
+| `baseline_integrate` | 1D or single-spectrum + continuous x → baseline_integrate (0.85) |
 | `clustering` | n_obs > 50 + intent="explore" → also suggest clustering (0.5) |
 | `cross_validation` | reference_path + n_components > 1 → also suggest CV (0.6) |
 
@@ -293,8 +293,8 @@ require new planners.
    This campaign will reveal remaining gaps in the RulePlanner,
    templates, and renderer before adding new templates.
 
-2. **`baseline_integrate`** — most requested gap (1D spectra have no
-   template).  First new template after real-dataset validation.
+2. **`smoothing`** — next preprocessing extension after the now-stable
+   `baseline_integrate` single-spectrum workflow.
 
 3. **Scientific documentation** — for each template, publish the
    methodology document in `templates/` so a new user can understand

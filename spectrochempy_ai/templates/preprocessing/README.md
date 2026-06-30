@@ -19,7 +19,7 @@ model.
 
 | Status | Template | Description |
 |---|---|---|
-| □ | `baseline_integrate` | Baseline correction + peak area integration |
+| ✓ | `baseline_integrate` | Baseline correction + peak area integration on a single spectrum |
 | □ | `smoothing` | Savitzky–Golay, moving average |
 | □ | `normalisation` | SNV, MSC, area normalisation |
 | □ | `derivatives` | First and second derivative spectra |

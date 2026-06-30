@@ -138,21 +138,39 @@ class RulePlanner:
         if intent == "calibrate" and reference_path is not None:
             candidates.append(self._rule_pls_calibrate(profile, intent))
 
-        if intent == "resolve" and profile.is_2d and profile.is_spectral:
+        if profile.is_spectral and (
+            profile.is_1d
+            or (
+                profile.is_2d
+                and profile.n_observations == 1
+                and profile.n_variables is not None
+            )
+        ):
+            candidates.append(self._rule_baseline_integrate(profile, intent))
+
+        if intent == "resolve" and profile.is_2d and (
+            profile.is_spectral or profile.source_was_multi_object
+        ):
             candidates.append(self._rule_mcrals_resolve(profile, intent))
-        elif profile.is_2d and profile.is_spectral:
+        elif profile.is_2d and (
+            profile.is_spectral or profile.source_was_multi_object
+        ) and profile.n_observations != 1:
             candidates.append(self._rule_pca_explore(profile, intent))
             if profile.n_observations is not None and profile.n_observations < 20:
                 candidates.append(self._rule_mcrals_small(profile))
 
-        if profile.is_1d and profile.is_spectral:
-            candidates.append(self._rule_no_template_1d(profile))
-
-        if not candidates and profile.is_2d and profile.is_spectral:
+        if not candidates and profile.is_2d and (
+            profile.is_spectral or profile.source_was_multi_object
+        ) and profile.n_observations != 1:
             candidates.append(self._rule_pca_explore(profile, intent))
 
         if not candidates:
             candidates.append(self._fallback(profile))
+
+        if profile.source_was_multi_object and profile.selection_note:
+            for candidate in candidates:
+                if profile.selection_note not in candidate.warnings:
+                    candidate.warnings.append(profile.selection_note)
 
         candidates.sort(key=lambda r: r.confidence, reverse=True)
         return candidates
@@ -216,6 +234,14 @@ class RulePlanner:
                 RecommendationEvidence(
                     fact=f"{profile.n_observations} observations × "
                     f"{profile.n_variables} variables",
+                    supportive=True,
+                )
+            )
+
+        if profile.source_was_multi_object and profile.selection_note:
+            evidence.append(
+                RecommendationEvidence(
+                    fact=profile.selection_note,
                     supportive=True,
                 )
             )
@@ -391,19 +417,28 @@ class RulePlanner:
             evidence=ev,
         )
 
-    def _rule_no_template_1d(self, profile: DatasetProfile) -> TemplateRecommendation:
-        ev = self._common_evidence(profile)
+    def _rule_baseline_integrate(
+        self,
+        profile: DatasetProfile,
+        intent: Intent = None,
+    ) -> TemplateRecommendation:
+        ev = self._common_evidence(profile, intent=intent)
+        ev.append(
+            RecommendationEvidence(
+                fact="single-spectrum quantification is appropriate for direct baseline correction and area integration",
+                supportive=True,
+            )
+        )
         return TemplateRecommendation(
-            template_id="",
-            confidence=0.0,
+            template_id="baseline_integrate",
+            confidence=0.85,
             rationale=(
-                "No official template exists yet for single-spectrum "
-                "workflows.  A future ``baseline_integrate`` template "
-                "would cover baseline correction and peak integration "
-                "for 1D spectra."
+                "A single spectrum with a continuous spectral axis is a direct "
+                "match for baseline correction followed by peak-area integration. "
+                "This workflow provides the simplest reproducible quantitative "
+                "preprocessing path for one-spectrum datasets."
             ),
             dataset_summary=profile.summary,
-            warnings=["No template available for 1D spectral data."],
             evidence=ev,
         )
 

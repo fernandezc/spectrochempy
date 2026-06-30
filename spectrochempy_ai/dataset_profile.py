@@ -9,6 +9,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+
+@dataclass
+class SelectedDataset:
+    """Selection result for a dataset source that may contain several objects."""
+
+    dataset: Any | None
+    source_was_multi_object: bool = False
+    source_object_count: int | None = None
+    selected_object_index: int | None = None
+    selected_object_name: str | None = None
+    selection_note: str | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -29,6 +43,11 @@ class DatasetProfile:
     x_unit: str | None = None
     n_observations: int | None = None
     n_variables: int | None = None
+    source_was_multi_object: bool = False
+    source_object_count: int | None = None
+    selected_object_index: int | None = None
+    selected_object_name: str | None = None
+    selection_note: str | None = None
     summary: str = ""
     error: str | None = None
 
@@ -44,6 +63,79 @@ class DatasetProfile:
     def is_spectral(self) -> bool:
         """Heuristic: dataset has a continuous x coordinate."""
         return self.has_continuous_x is True
+
+
+def _select_dataset(result: Any) -> SelectedDataset:
+    """Resolve a reader result to one dataset, selecting deterministically if needed."""
+    if result is None:
+        return SelectedDataset(dataset=None, error="File format not recognised")
+
+    if not isinstance(result, list):
+        return SelectedDataset(dataset=result)
+
+    if len(result) == 0:
+        return SelectedDataset(
+            dataset=None,
+            source_was_multi_object=True,
+            source_object_count=0,
+            error="Multi-object file is empty",
+        )
+
+    if len(result) == 1:
+        return SelectedDataset(dataset=result[0])
+
+    candidates = (
+        result.filter_by_ndim(2)
+        if hasattr(result, "filter_by_ndim")
+        else [obj for obj in result if hasattr(obj, "ndim") and obj.ndim == 2]
+    )
+    if not candidates:
+        return SelectedDataset(
+            dataset=None,
+            source_was_multi_object=True,
+            source_object_count=len(result),
+            error="Multi-object file contains no suitable 2D dataset",
+        )
+
+    selected = (
+        candidates.select_largest()
+        if hasattr(candidates, "select_largest")
+        else max(candidates, key=lambda ds: ds.size if hasattr(ds, "size") else 0)
+    )
+    index = next((i for i, obj in enumerate(result) if obj is selected), None)
+    name = getattr(selected, "name", None) or None
+
+    details = []
+    if index is not None:
+        details.append(f"index {index}")
+    if name:
+        details.append(f"name '{name}'")
+    selection_note = (
+        f"Multi-object file ({len(result)} objects): automatically selected the "
+        f"largest 2D dataset"
+    )
+    if details:
+        selection_note += f" ({', '.join(details)})"
+
+    return SelectedDataset(
+        dataset=selected,
+        source_was_multi_object=True,
+        source_object_count=len(result),
+        selected_object_index=index,
+        selected_object_name=name,
+        selection_note=selection_note,
+    )
+
+
+def resolve_dataset_source(path: str | Path) -> SelectedDataset:
+    """Read *path* and resolve it to a single dataset plus selection metadata."""
+    src = Path(path)
+    try:
+        import spectrochempy as scp  # noqa: PLC0415
+
+        return _select_dataset(scp.read(src))
+    except Exception as exc:
+        return SelectedDataset(dataset=None, error=str(exc))
 
 
 def profile_dataset(path: str | Path) -> DatasetProfile:
@@ -64,48 +156,20 @@ def profile_dataset(path: str | Path) -> DatasetProfile:
             error="File does not exist",
         )
 
-    try:
-        import spectrochempy as scp  # noqa: PLC0415
-
-        dataset = scp.read(src)
-        if dataset is None:
-            return DatasetProfile(
-                path=src.resolve(),
-                readable=False,
-                summary=f"Cannot read {src.suffix} file",
-                error="File format not recognised",
-            )
-    except Exception as exc:
+    selection = resolve_dataset_source(src)
+    if selection.error or selection.dataset is None:
         return DatasetProfile(
             path=src.resolve(),
             readable=False,
             summary=f"Cannot read {src.suffix} file",
-            error=str(exc),
+            source_was_multi_object=selection.source_was_multi_object,
+            source_object_count=selection.source_object_count,
+            selected_object_index=selection.selected_object_index,
+            selected_object_name=selection.selected_object_name,
+            selection_note=selection.selection_note,
+            error=selection.error,
         )
-
-    # scp.read may return a list (e.g. MATLAB .mat with merge=False);
-    # auto-select the largest 2D NDDataset
-    if isinstance(dataset, (list,)):
-        if len(dataset) == 1:
-            dataset = dataset[0]
-        elif len(dataset) > 1:
-            candidates = [
-                (i, d)
-                for i, d in enumerate(dataset)
-                if hasattr(d, "ndim") and d.ndim >= 2
-            ]
-            if candidates:
-                _, dataset = max(
-                    candidates,
-                    key=lambda pair: (
-                        -pair[1].ndim if pair[1].ndim != 2 else 2,
-                        pair[1].shape[0] * pair[1].shape[1]
-                        if hasattr(pair[1], "shape") and len(pair[1].shape) >= 2
-                        else 0,
-                    ),
-                )
-            else:
-                dataset = dataset[0]
+    dataset = selection.dataset
 
     ndim = dataset.ndim
     shape = tuple(dataset.shape) if dataset.shape else ()
@@ -137,6 +201,15 @@ def profile_dataset(path: str | Path) -> DatasetProfile:
 
     # Human-readable summary
     parts: list[str] = []
+    if selection.source_was_multi_object:
+        parts.append(f"multi-object ({selection.source_object_count} objects)")
+        selection_bits: list[str] = []
+        if selection.selected_object_index is not None:
+            selection_bits.append(f"selected index {selection.selected_object_index}")
+        if selection.selected_object_name:
+            selection_bits.append(f"name '{selection.selected_object_name}'")
+        if selection_bits:
+            parts.append(", ".join(selection_bits))
     if ndim is not None:
         parts.append(f"{ndim}D")
     if shape:
@@ -157,5 +230,10 @@ def profile_dataset(path: str | Path) -> DatasetProfile:
         x_unit=x_unit,
         n_observations=n_obs,
         n_variables=n_vars,
+        source_was_multi_object=selection.source_was_multi_object,
+        source_object_count=selection.source_object_count,
+        selected_object_index=selection.selected_object_index,
+        selected_object_name=selection.selected_object_name,
+        selection_note=selection.selection_note,
         summary=summary,
     )

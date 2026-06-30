@@ -60,9 +60,9 @@ class TestTemplateDiscovery:
 
     def test_get_template_baseline_integrate(self, planner: TemplatePlanner) -> None:
         template = planner.get_template("baseline_integrate")
-        assert len(template.steps) == 4
+        assert len(template.steps) == 8
         step_ids = [s.step_id for s in template.steps]
-        assert step_ids == ["s1", "s2", "s3", "s4"]
+        assert step_ids == ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"]
 
     def test_get_template_nmf_exploration(self, planner: TemplatePlanner) -> None:
         template = planner.get_template("nmf_exploration")
@@ -102,8 +102,17 @@ class TestPlanGeneration:
 
     def test_create_plan_baseline_integrate(self, planner: TemplatePlanner) -> None:
         plan = planner.create_plan("baseline_integrate")
-        assert len(plan.steps) == 4
-        assert plan.steps[2].operation_id == "integrate"
+        assert len(plan.steps) == 8
+        assert [step.operation_id for step in plan.steps] == [
+            "load",
+            "inspect",
+            "plot",
+            "baseline",
+            "plot",
+            "integrate",
+            "plot",
+            "inspect",
+        ]
 
     def test_create_plan_nmf_exploration(self, planner: TemplatePlanner) -> None:
         plan = planner.create_plan("nmf_exploration")
@@ -134,11 +143,15 @@ class TestPlanGeneration:
     ) -> None:
         plan = planner.create_plan("baseline_integrate")
         step_ids = [s.step_id for s in plan.steps]
-        assert step_ids == ["s1", "s2", "s3", "s4"]
-        assert plan.steps[0].operation_id == "read"
-        assert plan.steps[1].operation_id == "baseline"
-        assert plan.steps[2].operation_id == "integrate"
-        assert plan.steps[3].operation_id == "plot"
+        assert step_ids == ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"]
+        assert plan.steps[0].operation_id == "load"
+        assert plan.steps[1].operation_id == "inspect"
+        assert plan.steps[2].operation_id == "plot"
+        assert plan.steps[3].operation_id == "baseline"
+        assert plan.steps[4].operation_id == "plot"
+        assert plan.steps[5].operation_id == "integrate"
+        assert plan.steps[6].operation_id == "plot"
+        assert plan.steps[7].operation_id == "inspect"
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +245,10 @@ class TestPlanRendering:
         notebook = render(plan)
         assert len(notebook.cells) > 0
         sources = [c.source for c in notebook.cells if c.cell_type == "code"]
-        assert any("integrate" in s for s in sources)
+        all_code = "\n".join(sources)
+        assert "trapezoid(dim=INTEGRATION_DIM)" in all_code
+        assert "Automatic multi-object selection" not in all_code
+        assert "Integrated area:" in all_code
 
     def test_nmf_exploration_renders(self, planner: TemplatePlanner) -> None:
         plan = planner.create_plan("nmf_exploration")

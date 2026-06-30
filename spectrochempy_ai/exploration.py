@@ -7,66 +7,21 @@ renderer logic.
 
 from __future__ import annotations
 
-import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
+from spectrochempy_ai.dataset_profile import resolve_dataset_source
 from spectrochempy_ai.notebook_renderer import write_notebook
+from spectrochempy_ai.rule_planner import suggest
 from spectrochempy_ai.template_planner import TemplatePlanner
 from spectrochempy_ai.validator import validate as validate_plan
-
-
-def _resolve_input(src: Path) -> Path:
-    """
-    Ensure ``src`` points to a single NDDataset file.
-
-    If the file returns multiple datasets (e.g. MATLAB .mat with
-    ``merge=False``), select the largest 2D NDDataset automatically
-    and save it as a temporary SCP file.  If the file cannot be read
-    or is already a single dataset, return ``src`` unchanged.
-    """
-    import spectrochempy as scp  # noqa: PLC0415
-
-    try:
-        dataset = scp.read(src)
-    except Exception:
-        return src
-
-    if not isinstance(dataset, (list,)):
-        return src
-
-    if len(dataset) <= 1:
-        return src
-
-    candidates = [
-        (i, d) for i, d in enumerate(dataset) if hasattr(d, "ndim") and d.ndim >= 2
-    ]
-    if not candidates:
-        return src
-
-    _, selected = max(
-        candidates,
-        key=lambda pair: (
-            pair[1].ndim,
-            pair[1].shape[0] * pair[1].shape[1]
-            if hasattr(pair[1], "shape") and len(pair[1].shape) >= 2
-            else 0,
-        ),
-    )
-
-    fd, tmp_path = tempfile.mkstemp(suffix=".scp")
-    os.close(fd)
-    tmp = Path(tmp_path)
-    selected.save_as(str(tmp))
-    return tmp
 
 
 def explore(
     input_path: str,
     output_path: str | None = None,
     *,
-    template_id: str = "exploratory_pca",
+    template_id: str | None = None,
     n_components: int | None = None,
     baseline_method: str | None = None,
     file_format: str | None = None,
@@ -84,7 +39,8 @@ def explore(
         input_path: Path to the spectral dataset file.
         output_path: Path for the output notebook. Derived from input
             filename if not provided (data.scp -> data-exploratory-pca.ipynb).
-        template_id: Template to use (default exploratory_pca).
+        template_id: Template to use. If omitted, select the top
+            recommendation from ``suggest()``.
         n_components: Override component count.
         baseline_method: Override baseline correction method.
         file_format: File format override (default from template).
@@ -109,26 +65,56 @@ def explore(
             f"Provide a valid path to a spectral dataset file."
         )
 
-    # Resolve multi-object files (e.g. MATLAB .mat) to a single dataset
-    resolved = _resolve_input(src)
+    selection = resolve_dataset_source(src)
+    if selection.source_was_multi_object and selection.dataset is None:
+        raise ValueError(
+            selection.error or "No suitable dataset found in multi-object file"
+        )
+
+    resolved_template_id = template_id
+    if resolved_template_id is None:
+        recommendations = suggest(str(src), reference_path=reference_path)
+        resolved_template_id = recommendations[0].template_id
 
     if output_path is None:
         stem = src.stem
-        slug = template_id.replace("_", "-")
+        slug = resolved_template_id.replace("_", "-")
         output_path = f"{stem}-{slug}.ipynb"
     dst = Path(output_path)
 
     planner = TemplatePlanner()
-    template = planner.get_template(template_id)
+    template = planner.get_template(resolved_template_id)
     valid_ops = {step.operation_id for step in template.steps}
+
+    parameter_overrides: dict[str, dict[str, Any]] = {}
+
+    primary_input_name = template.inputs[0].name if template.inputs else "dataset"
+    primary_load_step_id = next(
+        (
+            step.step_id
+            for step in template.steps
+            if step.operation_id == "load" and step.output_var == primary_input_name
+        ),
+        None,
+    )
+    if primary_load_step_id is not None:
+        parameter_overrides.setdefault(primary_load_step_id, {})["filename"] = str(src)
+        if selection.source_was_multi_object:
+            parameter_overrides[primary_load_step_id]["selected_index"] = (
+                selection.selected_object_index
+            )
+            parameter_overrides[primary_load_step_id]["selected_name"] = (
+                selection.selected_object_name
+            )
+            parameter_overrides[primary_load_step_id]["source_object_count"] = (
+                selection.source_object_count
+            )
+        if file_format is not None:
+            parameter_overrides[primary_load_step_id]["format"] = file_format
 
     # Build overrides by operation_id — only for operations that exist
     # in the chosen template.
     operation_overrides: dict[str, dict[str, Any]] = {}
-    if "load" in valid_ops:
-        operation_overrides.setdefault("load", {})["filename"] = str(resolved)
-        if file_format is not None:
-            operation_overrides["load"]["format"] = file_format
     if n_components is not None:
         # Determine which decomposition operation this template uses
         for op in ("pca", "nmf", "mcrals", "pls"):
@@ -138,7 +124,6 @@ def explore(
     if baseline_method is not None and "baseline" in valid_ops:
         operation_overrides.setdefault("baseline", {})["method"] = baseline_method
 
-    parameter_overrides: dict[str, dict[str, Any]] = {}
     if reference_path is not None:
         ref_src = Path(reference_path)
         if not ref_src.exists():
@@ -150,7 +135,6 @@ def explore(
         # first template input).  For pls_calibration this matches s2
         # (output_var="reference"), overriding its filename to the
         # reference file while s1 keeps the spectral data file.
-        primary_input_name = template.inputs[0].name if template.inputs else "dataset"
         for step in template.steps:
             if step.operation_id == "load" and step.output_var != primary_input_name:
                 parameter_overrides.setdefault(step.step_id, {})["filename"] = str(
@@ -158,7 +142,7 @@ def explore(
                 )
 
     plan = planner.create_plan(
-        template_id,
+        resolved_template_id,
         operation_overrides=operation_overrides,
         parameter_overrides=parameter_overrides or None,
     )

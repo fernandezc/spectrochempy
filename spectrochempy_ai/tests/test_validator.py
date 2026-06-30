@@ -208,3 +208,43 @@ class TestNotebookExecution:
         write_notebook(plan, str(nb_path))
 
         validate_notebook_execution(nb_path)
+
+    def test_baseline_integrate_executes(self, tmp_path: Path) -> None:
+        import spectrochempy as scp
+        from spectrochempy_ai.exploration import explore
+
+        x = np.linspace(1200, 1800, 200)
+        baseline = 0.001 * (x - x.min()) + 0.2
+        peak = np.exp(-((x - 1500.0) ** 2) / 1200.0)
+        data = baseline + peak
+        spectrum = scp.NDDataset(data.astype(np.float32), title="synthetic_1d")
+        spectrum.x = x
+        ds_path = tmp_path / "single_spectrum.scp"
+        spectrum.save_as(str(ds_path), confirm=False)
+
+        nb_path = explore(
+            input_path=str(ds_path),
+            output_path=str(tmp_path / "baseline_integrate.ipynb"),
+            template_id="baseline_integrate",
+        )
+
+        validate_notebook_execution(nb_path)
+
+    def test_baseline_integrate_real_single_spectrum_executes(self, tmp_path: Path) -> None:
+        from pathlib import Path
+
+        from spectrochempy_ai.exploration import explore
+
+        candidate = Path(
+            "/home/christian/GitHub/spectrochempy_data/testdata/ramandata/wire/sp.wdf"
+        )
+        if not candidate.exists():
+            pytest.skip("real 1D validation data not available")
+
+        nb_path = explore(
+            input_path=str(candidate),
+            output_path=str(tmp_path / "baseline_integrate_real.ipynb"),
+            template_id="baseline_integrate",
+        )
+
+        validate_notebook_execution(nb_path)

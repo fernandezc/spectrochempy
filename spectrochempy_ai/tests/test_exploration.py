@@ -9,8 +9,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import nbformat
+import numpy as np
 import pytest
 
+from spectrochempy_ai.cli import build_parser
 from spectrochempy_ai import create_exploration_notebook
 from spectrochempy_ai import explore
 from spectrochempy_ai.template_planner import TemplateNotFoundError
@@ -40,6 +42,21 @@ class TestExplore:
         input_file.write_text("dummy")
         output = explore(str(input_file))
         assert output.name == "my_spectra-exploratory-pca.ipynb"
+
+    def test_output_path_uses_auto_selected_template_slug(
+        self, tmp_path: Path
+    ) -> None:
+        import spectrochempy as scp
+
+        data = np.random.randn(100)
+        spectrum = scp.NDDataset(data, name="single_spectrum")
+        spectrum.x = np.linspace(1000, 2000, 100)
+        input_file = tmp_path / "single_spectrum.scp"
+        spectrum.save_as(str(input_file))
+
+        output = explore(str(input_file))
+
+        assert output.name == "single_spectrum-baseline-integrate.ipynb"
 
     def test_custom_output_path(self, tmp_path: Path) -> None:
         input_file = tmp_path / "data.scp"
@@ -125,6 +142,59 @@ class TestExplore:
         assert "Goal" in combined or "goal" in combined
         assert "PCA" in combined
 
+    def test_baseline_integrate_notebook_uses_public_api_and_annotation(
+        self, tmp_path: Path
+    ) -> None:
+        import spectrochempy as scp
+
+        data = np.random.randn(100)
+        spectrum = scp.NDDataset(data, name="single_spectrum")
+        spectrum.x = np.linspace(1000, 2000, 100)
+        input_file = tmp_path / "single.scp"
+        spectrum.save_as(str(input_file))
+
+        output = explore(str(input_file), template_id="baseline_integrate")
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        sources = [c.source for c in nb.cells if c.cell_type == "code"]
+        all_code = "\n".join(sources)
+        load_cells = [s for s in sources if "# Load spectral dataset from file" in s]
+        inspect_cells = [s for s in sources if "# Dataset inspection" in s]
+        assert ".trapezoid(dim=INTEGRATION_DIM)" in all_code
+        assert "_integrated =" in all_code
+        assert "float(_integrated.data.squeeze())" in all_code
+        assert "Integrated area:" in all_code
+        assert "scp.analysis.integration.integrate" not in all_code
+        assert "Loaded spectrum" in all_code
+        assert "Raw spectrum and estimated baseline" in all_code
+        assert "_ = _ax.set_title('Loaded spectrum')" in all_code
+        assert "_ = _ax.set_title('Raw spectrum and estimated baseline')" in all_code
+        assert "_ = _ax.set_title('Baseline-corrected spectrum with integrated area')" in all_code
+        assert load_cells
+        assert inspect_cells
+        assert all(not cell.strip().endswith("dataset") for cell in load_cells)
+        assert any(cell.strip().endswith("dataset") for cell in inspect_cells)
+
+    def test_default_explore_uses_recommended_template_for_single_spectrum(
+        self, tmp_path: Path
+    ) -> None:
+        import spectrochempy as scp
+
+        data = np.random.randn(100)
+        spectrum = scp.NDDataset(data, name="single_spectrum")
+        spectrum.x = np.linspace(1000, 2000, 100)
+        input_file = tmp_path / "single_auto.scp"
+        spectrum.save_as(str(input_file))
+
+        output = explore(str(input_file))
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        sources = [c.source for c in nb.cells if c.cell_type == "code"]
+        all_code = "\n".join(sources)
+
+        assert ".trapezoid(dim=INTEGRATION_DIM)" in all_code
+        assert "pca_result = scp.PCA" not in all_code
+
     def test_notebook_has_manifest_metadata(self, tmp_path: Path) -> None:
         input_file = tmp_path / "data.scp"
         input_file.write_text("dummy")
@@ -141,6 +211,29 @@ class TestExplore:
         with pytest.raises(TemplateNotFoundError):
             explore(str(input_file), template_id="nonexistent_template")
 
+    def test_cli_accepts_template_id_override(self) -> None:
+        parser = build_parser()
+
+        args = parser.parse_args(
+            [
+                "explore",
+                "dataset.scp",
+                "--template-id",
+                "baseline_integrate",
+            ]
+        )
+
+        assert args.command == "explore"
+        assert args.template_id == "baseline_integrate"
+
+    def test_cli_defaults_to_auto_template_selection(self) -> None:
+        parser = build_parser()
+
+        args = parser.parse_args(["explore", "dataset.scp"])
+
+        assert args.command == "explore"
+        assert args.template_id is None
+
     def test_returns_absolute_path(self, tmp_path: Path) -> None:
         input_file = tmp_path / "data.scp"
         input_file.write_text("dummy")
@@ -152,6 +245,54 @@ class TestExplore:
         input_file.write_text("dummy")
         output = explore(str(input_file), str(input_file))
         assert output.exists()
+
+    def test_multi_object_input_is_documented_in_generated_code(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import spectrochempy as scp
+
+        input_file = tmp_path / "als2004dataset.MAT"
+        input_file.write_text("dummy")
+        datasets = scp.ScpObjectList(
+            [
+                scp.NDDataset(np.random.randn(3), name="trace"),
+                scp.NDDataset(np.random.randn(12, 40), name="spectra"),
+            ]
+        )
+        datasets[1].x = np.linspace(1000, 2000, 40)
+        datasets[1].y = np.arange(12)
+        monkeypatch.setattr(scp, "read", lambda _: datasets)
+
+        output = explore(str(input_file))
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        sources = [c.source for c in nb.cells if c.cell_type == "code"]
+        all_code = "\n".join(sources)
+        assert "scp.read('" in all_code
+        assert "als2004dataset.MAT" in all_code
+        assert "Automatic multi-object selection" in all_code
+        assert "_loaded[1]" in all_code
+        assert ".scp" not in all_code
+
+    def test_multi_object_without_suitable_dataset_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import spectrochempy as scp
+
+        input_file = tmp_path / "bad_multi.mat"
+        input_file.write_text("dummy")
+        datasets = scp.ScpObjectList(
+            [
+                scp.NDDataset(np.random.randn(3), name="trace1"),
+                scp.NDDataset(np.random.randn(4), name="trace2"),
+            ]
+        )
+        datasets[0].x = np.linspace(1000, 2000, 3)
+        datasets[1].x = np.linspace(1000, 2000, 4)
+        monkeypatch.setattr(scp, "read", lambda _: datasets)
+
+        with pytest.raises(ValueError, match="no suitable 2D dataset"):
+            explore(str(input_file))
 
 
 class TestCreateExplorationNotebookAlias:

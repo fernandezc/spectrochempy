@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from spectrochempy_ai.dataset_profile import DatasetProfile
 from spectrochempy_ai.dataset_profile import profile_dataset
@@ -24,6 +25,19 @@ from spectrochempy_ai.rule_planner import suggest
 
 
 class TestDatasetProfile:
+    def _make_dataset(self, shape: tuple[int, ...], name: str, spectral: bool = True):
+        import spectrochempy as scp
+
+        data = np.random.randn(*shape)
+        dataset = scp.NDDataset(data, name=name)
+        if len(shape) == 2:
+            if spectral:
+                dataset.x = np.linspace(1000, 2000, shape[1])
+            dataset.y = np.arange(shape[0])
+        elif len(shape) == 1 and spectral:
+            dataset.x = np.linspace(1000, 2000, shape[0])
+        return dataset
+
     def test_profile_readable_2d(self, tmp_path: Path) -> None:
         import spectrochempy as scp
 
@@ -102,6 +116,70 @@ class TestDatasetProfile:
             has_continuous_x=True,
         )
         assert p.is_spectral is True
+
+    def test_profile_multi_object_selects_largest_2d_dataset(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import spectrochempy as scp
+
+        path = tmp_path / "multi.mat"
+        path.write_text("dummy")
+        datasets = scp.ScpObjectList(
+            [
+                self._make_dataset((8,), "trace"),
+                self._make_dataset((4, 20), "small"),
+                self._make_dataset((12, 50), "largest"),
+            ]
+        )
+        monkeypatch.setattr(scp, "read", lambda _: datasets)
+
+        profile = profile_dataset(str(path))
+        assert profile.readable is True
+        assert profile.source_was_multi_object is True
+        assert profile.source_object_count == 3
+        assert profile.selected_object_index == 2
+        assert profile.selected_object_name == "largest"
+        assert profile.shape == (12, 50)
+
+    def test_profile_summary_mentions_multi_object_selection(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import spectrochempy as scp
+
+        path = tmp_path / "multi.mat"
+        path.write_text("dummy")
+        datasets = scp.ScpObjectList(
+            [
+                self._make_dataset((3, 10), "a"),
+                self._make_dataset((5, 40), "b"),
+            ]
+        )
+        monkeypatch.setattr(scp, "read", lambda _: datasets)
+
+        profile = profile_dataset(str(path))
+        assert "multi-object" in profile.summary
+        assert "selected index 1" in profile.summary
+        assert "name 'b'" in profile.summary
+
+    def test_profile_multi_object_without_suitable_dataset_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import spectrochempy as scp
+
+        path = tmp_path / "multi.mat"
+        path.write_text("dummy")
+        datasets = scp.ScpObjectList(
+            [
+                self._make_dataset((8,), "trace1"),
+                self._make_dataset((12,), "trace2"),
+            ]
+        )
+        monkeypatch.setattr(scp, "read", lambda _: datasets)
+
+        profile = profile_dataset(str(path))
+        assert profile.readable is False
+        assert profile.source_was_multi_object is True
+        assert "no suitable 2D dataset" in (profile.error or "")
 
 
 # ---------------------------------------------------------------------------
@@ -186,10 +264,8 @@ class TestRulePlanner:
         recs = planner.suggest(profile)
         assert len(recs) == 1
         top = recs[0]
-        assert top.template_id == ""
-        assert top.confidence == 0.0
-        assert len(top.warnings) >= 1
-        assert "No template available" in top.warnings[0]
+        assert top.template_id == "baseline_integrate"
+        assert top.confidence == 0.85
 
     def test_fallback_for_unreadable(self) -> None:
         profile = DatasetProfile(
@@ -403,3 +479,72 @@ class TestSuggestAPI:
         )
         assert output.exists()
         assert output.suffix == ".ipynb"
+
+    def test_suggest_baseline_integrate_for_single_spectrum(self, tmp_path: Path) -> None:
+        import spectrochempy as scp
+
+        data = np.random.randn(100)
+        spectrum = scp.NDDataset(data, name="single_spectrum")
+        spectrum.x = np.linspace(1000, 2000, 100)
+        path = tmp_path / "single.scp"
+        spectrum.save_as(str(path))
+
+        recs = suggest(str(path))
+        assert len(recs) >= 1
+        assert recs[0].template_id == "baseline_integrate"
+        assert recs[0].confidence == 0.85
+
+    def test_suggest_baseline_integrate_for_single_row_spectrum(
+        self, tmp_path: Path
+    ) -> None:
+        import spectrochempy as scp
+
+        data = np.random.randn(1, 100)
+        spectrum = scp.NDDataset(data, name="single_row")
+        spectrum.x = np.linspace(1000, 2000, 100)
+        spectrum.y = np.arange(1)
+        path = tmp_path / "single_row.scp"
+        spectrum.save_as(str(path))
+
+        recs = suggest(str(path))
+        assert len(recs) >= 1
+        assert recs[0].template_id == "baseline_integrate"
+
+    def test_suggest_uses_selected_multi_object_dataset(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import spectrochempy as scp
+
+        path = tmp_path / "als2004dataset.MAT"
+        path.write_text("dummy")
+        datasets = scp.ScpObjectList(
+            [
+                scp.NDDataset(np.random.randn(4), name="meta"),
+                scp.NDDataset(np.random.randn(4, 12), name="small"),
+                scp.NDDataset(np.random.randn(55, 96), name="spectra"),
+            ]
+        )
+        datasets[2].x = np.linspace(1000, 2000, 96)
+        datasets[2].y = np.arange(55)
+        monkeypatch.setattr(scp, "read", lambda _: datasets)
+
+        recs = suggest(str(path))
+        assert len(recs) >= 1
+        assert recs[0].template_id == "exploratory_pca"
+        assert recs[0].confidence == 0.7
+        assert "multi-object" in recs[0].dataset_summary
+        assert any("automatically selected" in fact.fact for fact in recs[0].evidence)
+        assert any("automatically selected" in warning for warning in recs[0].warnings)
+
+    def test_matlab_als2004dataset_regression_case(self) -> None:
+        import spectrochempy as scp
+        from spectrochempy import preferences as prefs
+
+        path = prefs.datadir / "matlabdata" / "als2004dataset.MAT"
+        if not path.exists():
+            pytest.skip("MATLAB regression data not available")
+
+        recs = suggest(str(path))
+        assert len(recs) >= 1
+        assert recs[0].confidence > 0.3
+        assert recs[0].template_id in {"exploratory_pca", "mcrals_analysis"}
