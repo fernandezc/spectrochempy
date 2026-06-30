@@ -59,6 +59,11 @@ class TestRegistryLookup:
 
 
 class TestSpecificationContents:
+    def test_load_format_default_is_none(self) -> None:
+        spec = get_spec("load")
+        format_param = next(p for p in spec.parameters if p.name == "format")
+        assert format_param.default is None
+
     def test_pca_has_parameters(self) -> None:
         spec = get_spec("pca")
         param_names = {p.name for p in spec.parameters}

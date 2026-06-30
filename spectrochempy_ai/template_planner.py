@@ -427,7 +427,7 @@ class TemplatePlanner:
                         "represents a genuine scientific workflow."
                     ),
                     input_refs=[],
-                    parameters={"filename": "data.scp", "format": "scp"},
+                    parameters={"filename": "data.scp", "format": None},
                     output_var="dataset",
                 ),
                 TemplateStep(
@@ -848,7 +848,7 @@ class TemplatePlanner:
                         "spectral variables."
                     ),
                     input_refs=[],
-                    parameters={"filename": "data.scp", "format": "scp"},
+                    parameters={"filename": "data.scp", "format": None},
                     output_var="dataset",
                 ),
                 TemplateStep(
@@ -1051,7 +1051,7 @@ class TemplatePlanner:
                         "This is the predictor matrix X for the PLS model."
                     ),
                     input_refs=[],
-                    parameters={"filename": "spectra.scp", "format": "scp"},
+                    parameters={"filename": "spectra.scp", "format": None},
                     output_var="dataset",
                 ),
                 TemplateStep(
@@ -1064,7 +1064,7 @@ class TemplatePlanner:
                         "model will predict from spectra."
                     ),
                     input_refs=[],
-                    parameters={"filename": "reference.csv", "format": "csv"},
+                    parameters={"filename": "reference.csv", "format": None},
                     output_var="reference",
                 ),
                 TemplateStep(

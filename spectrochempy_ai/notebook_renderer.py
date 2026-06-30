@@ -222,11 +222,22 @@ def _generate_pls_predict_plot(step: OperationStep) -> str:
 def _generate_load(step: OperationStep) -> str:
     """Generate code for loading a dataset from file."""
     filename = step.parameters.get("filename", "data.scp")
-    fmt = step.parameters.get("format", "scp")
+    fmt = step.parameters.get("format")
+    read_args = [repr(filename)]
+    if fmt is not None:
+        read_args.append(f"format={fmt!r}")
     return (
         f"# Load spectral dataset from file\n"
-        f"{step.output_var} = scp.read('{filename}', format='{fmt}')\n"
+        f"{step.output_var} = scp.read({', '.join(read_args)})\n"
         f"{step.output_var}"
+    )
+
+
+def _plan_uses_asls_baseline(plan: WorkflowPlan) -> bool:
+    """Return True when the notebook contains an ASLS baseline step."""
+    return any(
+        step.operation_id == "baseline" and step.parameters.get("method", "asls") == "asls"
+        for step in plan.steps
     )
 
 
@@ -370,7 +381,22 @@ def render(plan: WorkflowPlan) -> nbformat.NotebookNode:
     cells.append(new_markdown_cell("\n".join(ctx_lines)))
 
     # 4. Imports
-    cells.append(new_code_cell("import numpy as np\n" "import spectrochempy as scp"))
+    import_lines = ["import numpy as np", "import spectrochempy as scp"]
+    if _plan_uses_asls_baseline(plan):
+        import_lines.extend(
+            [
+                "import warnings",
+                "from scipy.sparse import SparseEfficiencyWarning",
+                "",
+                "# Silence the known SciPy sparse-format warning emitted by ASLS baseline fitting.",
+                "warnings.filterwarnings(",
+                "    'ignore',",
+                "    message='spsolve requires A be CSC or CSR matrix format',",
+                "    category=SparseEfficiencyWarning,",
+                ")",
+            ]
+        )
+    cells.append(new_code_cell("\n".join(import_lines)))
 
     # 5. Processing steps
     for step in plan.steps:

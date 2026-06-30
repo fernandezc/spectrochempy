@@ -100,6 +100,20 @@ class TestExplore:
         sources = [c.source for c in nb.cells if c.cell_type == "code"]
         assert any("format='csv'" in s for s in sources)
 
+    @pytest.mark.parametrize("suffix", [".spg", ".wdf", ".srs", ".mat"])
+    def test_default_load_omits_format_argument(
+        self, tmp_path: Path, suffix: str
+    ) -> None:
+        input_file = tmp_path / f"data{suffix}"
+        input_file.write_text("dummy spectral data")
+        output = explore(str(input_file))
+        with open(output, encoding="utf-8") as f:
+            nb = nbformat.read(f, as_version=4)
+        sources = [c.source for c in nb.cells if c.cell_type == "code"]
+        load_cells = [s for s in sources if "scp.read(" in s]
+        assert load_cells
+        assert all("format=" not in cell for cell in load_cells)
+
     def test_notebook_has_scientific_context(self, tmp_path: Path) -> None:
         input_file = tmp_path / "data.scp"
         input_file.write_text("dummy")

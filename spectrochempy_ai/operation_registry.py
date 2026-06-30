@@ -37,7 +37,7 @@ _LOAD = OperationSpecification(
         ParameterSpec(
             name="format",
             type="str",
-            default="scp",
+            default=None,
             description="File format (scp, csv, etc.)",
         ),
     ],
