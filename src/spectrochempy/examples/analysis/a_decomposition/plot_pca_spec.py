@@ -105,7 +105,13 @@ scores.y.labels = labels  # Note this does not replace previous labels,
 # but adds a column.
 
 # %%
-# now display these
+# Display the labeled score plot
+# -------------------------------
+#
+# Labels are now placed automatically using the ``adjustText`` library,
+# which provides collision avoidance between labels and markers.
+# Install ``adjustText`` with ``pip install adjustText`` for best results;
+# without it, labels are still shown with a simple offset from markers.
 _ = pca.plot_score(scores=scores, show_labels=True, labels_column=2)
 
 # %%
