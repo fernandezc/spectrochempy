@@ -110,6 +110,10 @@ Breaking Changes
   same-unit coordinate grids on a non-expanded final axis. Rename colliding
   dimensions or align the coordinate grids explicitly before the operation
   (#1665, #1667).
+- Conda development builds are no longer published to the ``dev`` label for
+  either the core or official plugins. Stable releases remain available from
+  the main ``spectrocat`` channel; unreleased versions should be installed from
+  a source checkout.
 - Direct mutations of the readable ``NDDataset.history`` view now raise
   ``TypeError`` instead of being silently lost. Use ``annotate()``,
   ``replace_history()``, ``clear_history()``, or the supported ``history``
