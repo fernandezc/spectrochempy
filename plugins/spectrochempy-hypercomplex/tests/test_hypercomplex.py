@@ -1,10 +1,11 @@
-# ruff: noqa: S101
+# ruff: noqa: PLC0415, S101
 import re
 from importlib.metadata import version
 
 import numpy as np
 import pytest
 from spectrochempy_hypercomplex import HyperComplexPlugin
+from spectrochempy_hypercomplex import as_quaternion
 
 import spectrochempy as scp
 from spectrochempy.api.plugins import PluginCapability
@@ -77,6 +78,11 @@ class TestHyperAccessor:
         result = ds.hyper.set_quaternion()
         assert result._data.dtype.name == "quaternion"
 
+    def test_set_hypercomplex_alias_creates_quaternion_dtype(self):
+        ds = scp.NDDataset([1.0, 2.0, 3.0, 4.0])
+        result = ds.hyper.set_hypercomplex()
+        assert result._data.dtype.name == "quaternion"
+
     def test_component_real_data_noop(self):
         ds = scp.NDDataset([1.0, 2.0, 3.0])
         result = ds.hyper.component("RR")
@@ -87,6 +93,54 @@ class TestHyperAccessor:
         for prop in ["RR", "RI", "IR", "II"]:
             with pytest.raises(TypeError):
                 getattr(ds.hyper, prop)
+
+    def test_scp_roundtrip_preserves_quaternion_components(self, tmp_path):
+        """Native SCP persistence retains quaternion data and components."""
+        components = tuple(
+            np.arange(8.0).reshape(4, 2) + offset for offset in (1.0, 11.0, 21.0, 31.0)
+        )
+        source = scp.NDDataset(
+            as_quaternion(*components),
+            coordset=[scp.Coord.arange(4), scp.Coord.arange(2)],
+            name="quaternion-source",
+        )
+        source.meta["h1_marker"] = "preserved"
+        quaternion = source.hyper.set_quaternion()
+
+        filename = quaternion.save_as(tmp_path / "quaternion", confirm=False)
+        rebuilt = scp.NDDataset.load(filename)
+
+        assert rebuilt.shape == quaternion.shape
+        assert rebuilt.name == quaternion.name
+        assert rebuilt.dims == quaternion.dims
+        assert rebuilt.meta["h1_marker"] == "preserved"
+        assert rebuilt._data.dtype.name == "quaternion"
+        assert rebuilt.hyper.is_quaternion
+        for component, expected in zip(
+            ("RR", "RI", "IR", "II"), components, strict=True
+        ):
+            assert np.allclose(
+                getattr(rebuilt.hyper, component),
+                expected,
+            )
+
+    def test_scp_roundtrip_preserves_quaternion_mask(self, tmp_path):
+        """Native SCP persistence retains masks on quaternion data."""
+        components = tuple(
+            np.arange(8.0).reshape(4, 2) + offset for offset in (1.0, 11.0, 21.0, 31.0)
+        )
+        mask = np.zeros((4, 2), dtype=bool)
+        mask[1, 1] = True
+        source = scp.NDDataset(
+            np.ma.array(as_quaternion(*components), mask=mask),
+            coordset=[scp.Coord.arange(4), scp.Coord.arange(2)],
+        )
+
+        filename = source.save_as(tmp_path / "masked-quaternion", confirm=False)
+        rebuilt = scp.NDDataset.load(filename)
+
+        assert rebuilt._data.dtype.name == "quaternion"
+        assert np.array_equal(rebuilt.mask, mask)
 
 
 class TestNDMathHandlers:

@@ -18,7 +18,7 @@ import spectrochempy as scp
 
 # Enable hypercomplex support.
 dataset = scp.read_topspin("path/to/2rr")
-dataset.set_quaternion()
+dataset.hyper.set_quaternion(inplace=True)
 ```
 
 This plugin requires SpectroChemPy.
